@@ -1,44 +1,25 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-   "module": "NodeNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
-    
-    /* Cambiado de "bundler" a "NodeNext" para compatibilidad híbrida */
-    "moduleResolution": "NodeNext", 
-    
-    "isolatedModules": true,
-    "moduleDetection": "force",
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "allowJs": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
-    
-    /* Desactivado para evitar errores de ejecución en Node.js */
-    "allowImportingTsExtensions": false, 
-    
-    "resolveJsonModule": true,
+    "skipLibCheck": true,
     "esModuleInterop": true,
-    "noEmit": true
-  }
-}
-
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    // ... el resto de tus opciones actuales
-    "noEmit": true
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "exclude": ["vite.config.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "server"]
 }
