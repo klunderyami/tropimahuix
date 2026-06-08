@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A product offered by Tropicaña (licor or torito).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the product." },
+        "name": { "type": "string", "description": "Name of the product." },
+        "description": { "type": "string", "description": "Description of the product." },
+        "price": { "type": "number", "description": "Price of the product in MXN." },
+        "volume": { "type": "string", "description": "Volume of the product (e.g., 1L)." },
+        "image": { "type": "string", "description": "URL or base64 image data." },
+        "category": { "type": "string", "enum": ["licor", "torito"], "description": "Category of the product." }
+      },
+      "required": ["id", "name", "description", "price", "volume", "image", "category"]
+    },
+    "SiteConfig": {
+      "title": "Site Configuration",
+      "description": "Global configuration for the Tropicaña website.",
+      "type": "object",
+      "properties": {
+        "heroSlides": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "subtitle": { "type": "string" },
+              "image": { "type": "string" },
+              "cta": { "type": "string" }
+            },
+            "required": ["title", "subtitle", "image", "cta"]
+          }
+        },
+        "introTitle": { "type": "string" },
+        "introText": { "type": "string" },
+        "videoTitle": { "type": "string" },
+        "videoSubtitle": { "type": "string" },
+        "videoImage": { "type": "string" },
+        "licoresHeaderImage": { "type": "string" },
+        "toritosHeaderImage": { "type": "string" },
+        "contactPhone": { "type": "string", "description": "10-digit phone number used for WhatsApp orders." },
+        "footerText": { "type": "string" }
+      },
+      "required": [
+        "heroSlides", 
+        "introTitle", 
+        "introText", 
+        "videoTitle", 
+        "videoSubtitle", 
+        "videoImage", 
+        "licoresHeaderImage", 
+        "toritosHeaderImage", 
+        "contactPhone", 
+        "footerText"
+      ]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Collection of products dynamically updated."
+    },
+    "config": {
+      "schema": "SiteConfig",
+      "description": "Global configuration document named 'site'."
+    }
+  }
+}

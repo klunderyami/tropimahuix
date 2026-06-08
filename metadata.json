@@ -1,0 +1,8 @@
+{
+  "name": "Tropicaña - Licores y Toritos Artesanales",
+  "description": "Sitio web oficial de Tropicaña, marca artesanal de licores y toritos veracruzanos. Descubre nuestra esencia tropical con sabores tradicionales como coco, vainilla, café de altura y mora azul.",
+  "requestFramePermissions": [
+    "allow-popups",
+    "allow-popups-to-escape-sandbox"
+  ]
+}

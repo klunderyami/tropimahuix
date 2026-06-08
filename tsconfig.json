@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+   "module": "NodeNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    
+    /* Cambiado de "bundler" a "NodeNext" para compatibilidad híbrida */
+    "moduleResolution": "NodeNext", 
+    
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    
+    /* Desactivado para evitar errores de ejecución en Node.js */
+    "allowImportingTsExtensions": false, 
+    
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "noEmit": true
+  }
+}
+
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // ... el resto de tus opciones actuales
+    "noEmit": true
+  },
+  "exclude": ["vite.config.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

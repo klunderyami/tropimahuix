@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Verified Data Model (Aligned with App.tsx)
+    // ===============================================================
+    //
+    // Collection: products
+    // Document ID: Custom string or timestamp-based (e.g., '1', '2', '3')
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, 1-100 chars)
+    //   - description: string (required, 1-1000 chars)
+    //   - price: number (required, positive or zero)
+    //   - volume: string (required, 1-20 chars)
+    //   - image: string (required, valid URL or base64)
+    //   - category: string (required, enum: ['licor', 'torito'])
+    //
+    // Collection: config
+    // Document ID: 'site'
+    // Fields:
+    //   - heroSlides: list of objects (required)
+    //   - introTitle: string (required)
+    //   - introText: string (required)
+    //   - videoTitle: string (required)
+    //   - videoSubtitle: string (required)
+    //   - videoImage: string (required)
+    //   - licoresHeaderImage: string (required)
+    //   - toritosHeaderImage: string (required)
+    //   - contactPhone: string (required)
+    //   - footerText: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             request.auth.token.email == "yamilethklunder@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'description', 'price', 'volume', 'image', 'category']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 1000 &&
+             data.price is number && data.price >= 0 &&
+             data.volume is string && data.volume.size() > 0 && data.volume.size() <= 20 &&
+             data.image is string && data.image.size() > 0 &&
+             data.category in ['licor', 'torito'];
+    }
+
+    function isValidConfig(data) {
+      return data.keys().hasAll(['heroSlides', 'introTitle', 'introText', 'videoTitle', 'videoSubtitle', 'videoImage', 'licoresHeaderImage', 'toritosHeaderImage', 'contactPhone', 'footerText']) &&
+             data.introTitle is string && data.introTitle.size() <= 200 &&
+             data.introText is string && data.introText.size() <= 2000 &&
+             data.contactPhone is string && data.contactPhone.size() <= 50 &&
+             data.footerText is string && data.footerText.size() <= 500 &&
+             data.heroSlides is list;
+    }
+
+    // ===============================================================
+    // Rules Definition
+    // ===============================================================
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if true; // Publicly readable for the catalog
+      allow create, update: if isAdmin() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Config collection (Document explicit ID validation for safety)
+    match /config/{configId} {
+      allow read: if true; // Publicly readable to build the UI layouts
+      allow write: if isAdmin() && configId == 'site' && isValidConfig(request.resource.data);
+    }
+
+    // Default strict global deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

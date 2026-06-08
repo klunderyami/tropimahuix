@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Dancing Script", cursive;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-brand-lime: #d4ff00;
+  --color-brand-orange: #ff6b00;
+  --color-brand-brown: #3e2723;
+  --color-brand-gold: #d4af37;
+  --color-paper: #fdfbf7;
+}
+
+/* En Tailwind v4 se recomienda usar las directivas @utility o CSS estándar dentro de @layer */
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-brand-brown);
+    font-family: var(--font-sans);
+    background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+  }
+  
+  h1, h2, h3, .font-script {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  .btn-primary {
+    background-color: var(--color-brand-lime);
+    color: var(--color-brand-brown);
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .btn-primary:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .btn-primary:active {
+    transform: scale(0.95);
+  }
+
+  .btn-secondary {
+    background-color: var(--color-brand-orange);
+    color: #ffffff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .btn-secondary:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .btn-secondary:active {
+    transform: scale(0.95);
+  }
+}
