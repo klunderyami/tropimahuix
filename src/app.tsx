@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import AdminRoute from './components/AdminRoute';
-import AdminDashboard from './components/AdminDashboard';
 import { useCart } from './contexts/CartContext';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -9,8 +8,19 @@ import { Catalog } from './components/Catalog';
 import { CartSidebar } from './components/CartSidebar';
 import { AdminPanel } from './components/AdminPanel';
 import { CartItem, NewProduct, Product } from './types';
-// AdminRoute/AdminDashboard are available as standalone components, but
-// para evitar problemas de resolución en este proyecto, manejamos la ruta /admin inline.
+
+// Lazy load AdminDashboard to reduce main bundle size
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-paper">
+    <div className="text-center">
+      <div className="mb-4 text-4xl">🌴</div>
+      <p className="text-stone-600 font-medium">Cargando panel de administración...</p>
+    </div>
+  </div>
+);
 
 const initialProducts: Product[] = [
   {
@@ -143,7 +153,9 @@ function App() {
         path="/admin"
         element={
           <AdminRoute>
-            <AdminDashboard onAddProduct={addProduct} />
+            <Suspense fallback={<LoadingFallback />}>
+              <AdminDashboard onAddProduct={addProduct} />
+            </Suspense>
           </AdminRoute>
         }
       />
