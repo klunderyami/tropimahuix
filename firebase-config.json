@@ -1,9 +1,10 @@
 {
-  "apiKey": "YOUR_API_KEY",
-  "authDomain": "YOUR_AUTH_DOMAIN",
-  "projectId": "YOUR_PROJECT_ID",
-  "storageBucket": "YOUR_STORAGE_BUCKET",
-  "messagingSenderId": "YOUR_MESSAGING_SENDER_ID",
-  "appId": "YOUR_APP_ID",
-  "firestoreDatabaseId": "(default)"
+  "projectId": "sitio-web-cb0c4",
+  "appId": "1:776506266227:web:931ee6c5bc30c5cd041006",
+  "storageBucket": "sitio-web-cb0c4.firebasestorage.app",
+  "apiKey": "AIzaSyDYp6WBRVP1-UqjQxA_yxpcJYobqeRcNdU",
+  "authDomain": "sitio-web-cb0c4.firebaseapp.com",
+  "messagingSenderId": "776506266227",
+  "projectNumber": "776506266227",
+  "version": "2"
 }
