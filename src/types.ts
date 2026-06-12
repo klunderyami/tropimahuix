@@ -8,6 +8,13 @@ export interface Product {
   category: 'licor' | 'torito';
 }
 
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
+
+export type NewProduct = Omit<Product, 'id'>;
+
 export interface HeroSlide {
   title: string;
   subtitle: string;
