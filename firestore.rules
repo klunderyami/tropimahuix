@@ -1,89 +1,96 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ===============================================================
-    // Verified Data Model (Aligned with App.tsx)
-    // ===============================================================
-    //
-    // Collection: products
-    // Document ID: Custom string or timestamp-based (e.g., '1', '2', '3')
-    // Fields:
-    //   - id: string (required)
-    //   - name: string (required, 1-100 chars)
-    //   - description: string (required, 1-1000 chars)
-    //   - price: number (required, positive or zero)
-    //   - volume: string (required, 1-20 chars)
-    //   - image: string (required, valid URL or base64)
-    //   - category: string (required, enum: ['licor', 'torito'])
-    //
-    // Collection: config
-    // Document ID: 'site'
-    // Fields:
-    //   - heroSlides: list of objects (required)
-    //   - introTitle: string (required)
-    //   - introText: string (required)
-    //   - videoTitle: string (required)
-    //   - videoSubtitle: string (required)
-    //   - videoImage: string (required)
-    //   - licoresHeaderImage: string (required)
-    //   - toritosHeaderImage: string (required)
-    //   - contactPhone: string (required)
-    //   - footerText: string (required)
-    //
-    // ===============================================================
-
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    
     function isAuthenticated() {
       return request.auth != null;
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-             request.auth.token.email == "yamilethklunder@gmail.com" && 
-             request.auth.token.email_verified == true;
+      return isAuthenticated() && request.auth.uid == "QOKcpcAF1EayBKXRqKVNjZrwuiz2";
     }
 
     function isValidProduct(data) {
-      return data.keys().hasAll(['id', 'name', 'description', 'price', 'volume', 'image', 'category']) &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.description is string && data.description.size() > 0 && data.description.size() <= 1000 &&
-             data.price is number && data.price >= 0 &&
-             data.volume is string && data.volume.size() > 0 && data.volume.size() <= 20 &&
-             data.image is string && data.image.size() > 0 &&
-             data.category in ['licor', 'torito'];
+      return data.keys().hasAll(['name', 'description', 'price', 'volume', 'image', 'category', 'stock']) &&
+        data.keys().hasOnly(['name', 'description', 'price', 'volume', 'image', 'category', 'stock', 'active']) &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 120 &&
+        data.description is string &&
+        data.description.size() > 0 &&
+        data.description.size() <= 1200 &&
+        data.price is number &&
+        data.price > 0 &&
+        data.volume is string &&
+        data.volume.size() > 0 &&
+        data.volume.size() <= 30 &&
+        data.image is string &&
+        data.image.size() > 0 &&
+        data.category in ['licor', 'torito'] &&
+        data.stock is int &&
+        data.stock >= 0 &&
+        (!('active' in data) || data.active is bool);
     }
 
-    function isValidConfig(data) {
-      return data.keys().hasAll(['heroSlides', 'introTitle', 'introText', 'videoTitle', 'videoSubtitle', 'videoImage', 'licoresHeaderImage', 'toritosHeaderImage', 'contactPhone', 'footerText']) &&
-             data.introTitle is string && data.introTitle.size() <= 200 &&
-             data.introText is string && data.introText.size() <= 2000 &&
-             data.contactPhone is string && data.contactPhone.size() <= 50 &&
-             data.footerText is string && data.footerText.size() <= 500 &&
-             data.heroSlides is list;
+    function isValidShippingAddress(address) {
+      return address.keys().hasAll(['name', 'email', 'phone', 'street', 'city']) &&
+        address.name is string &&
+        address.name.size() >= 2 &&
+        address.name.size() <= 120 &&
+        address.email is string &&
+        address.email.size() >= 5 &&
+        address.email.size() <= 160 &&
+        address.phone is string &&
+        address.phone.size() >= 8 &&
+        address.phone.size() <= 30 &&
+        address.street is string &&
+        address.street.size() >= 4 &&
+        address.street.size() <= 240 &&
+        address.city is string &&
+        address.city.size() >= 2 &&
+        address.city.size() <= 120;
     }
 
-    // ===============================================================
-    // Rules Definition
-    // ===============================================================
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'items', 'total', 'status', 'shippingAddress', 'paypalOrderId', 'createdAt']) &&
+        data.keys().hasOnly(['userId', 'items', 'total', 'status', 'shippingAddress', 'paypalOrderId', 'createdAt']) &&
+        data.userId is string &&
+        data.items is list &&
+        data.items.size() > 0 &&
+        data.items.size() <= 50 &&
+        data.total is number &&
+        data.total > 0 &&
+        data.status in ['pending', 'paid', 'failed', 'delivered'] &&
+        data.paypalOrderId is string &&
+        data.paypalOrderId.size() > 0 &&
+        data.paypalOrderId.size() <= 120 &&
+        data.createdAt is string &&
+        isValidShippingAddress(data.shippingAddress);
+    }
 
-    // Products collection
+    function isValidFulfillmentUpdate() {
+      return isValidOrder(request.resource.data) &&
+        resource.data.diff(request.resource.data).affectedKeys().hasOnly(['status']) &&
+        request.resource.data.status in ['pending', 'paid', 'failed', 'delivered'];
+    }
+
     match /products/{productId} {
-      allow read: if true; // Publicly readable for the catalog
+      allow read: if true;
       allow create, update: if isAdmin() && isValidProduct(request.resource.data);
       allow delete: if isAdmin();
     }
 
-    // Config collection (Document explicit ID validation for safety)
-    match /config/{configId} {
-      allow read: if true; // Publicly readable to build the UI layouts
-      allow write: if isAdmin() && configId == 'site' && isValidConfig(request.resource.data);
+    match /orders/{orderId} {
+      allow create: if isAdmin() && isValidOrder(request.resource.data);
+      allow read: if isAdmin();
+      allow update: if isAdmin() && isValidFulfillmentUpdate();
+      allow delete: if false;
     }
 
-    // Default strict global deny
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /{path=**} {
       allow read, write: if false;
     }

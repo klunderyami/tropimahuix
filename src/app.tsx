@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState, Suspense, lazy } from 'react';
+import { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import AdminRoute from './components/AdminRoute';
-import { useCart } from './contexts/CartContext';
-import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
-import { Catalog } from './components/Catalog';
-import { CartSidebar } from './components/CartSidebar';
-import { AdminPanel } from './components/AdminPanel';
-import { CartItem, NewProduct, Product } from './types';
+import AdminRoute from './components/AdminRoute.js';
+import { useCart } from './contexts/CartContext.js';
+import { Navbar } from './components/Navbar.js';
+import { Hero } from './components/Hero.js';
+import { Catalog } from './components/Catalog.js';
+import { CartSidebar } from './components/CartSidebar.js';
+import { CheckoutForm } from './components/CheckoutForm.js';
+import { OrderConfirmation } from './components/OrderConfirmation.js';
 
 // Lazy load AdminDashboard to reduce main bundle size
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard.js'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -22,44 +22,20 @@ const LoadingFallback = () => (
   </div>
 );
 
-const initialProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Vainilla Suprema',
-    description: 'Licor artesanal de vainilla con notas dulces y aromáticas.',
-    category: 'licor',
-    price: 250,
-    volume: '1L',
-    image: 'https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&q=80&w=600',
-  },
-  {
-    id: '2',
-    name: 'Coco Tradicional',
-    description: 'Torito Veracruzano con esencia de coco puro y tradición familiar.',
-    category: 'torito',
-    price: 280,
-    volume: '1L',
-    image: 'https://images.unsplash.com/photo-1532634922-8fe0b757fb13?auto=format&fit=crop&q=80&w=600',
-  },
-  {
-    id: '3',
-    name: 'Café de Altura',
-    description: 'Licor destilado con granos de café de altura premium y cuerpo intenso.',
-    category: 'licor',
-    price: 260,
-    volume: '1L',
-    image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600',
-  },
-];
+const SOCIAL_LINKS = {
+  facebook: 'https://www.facebook.com/profile.php?id=100092299282591&mibextid=D4KYlr',
+  instagram: 'https://www.instagram.com/tropicanamahuix?igsh=YWk5dDJ6Y2s0Y3ds',
+} as const;
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 
 function App() {
   const [serverStatus, setServerStatus] = useState<string>('Verificando conexión...');
   const { cart, addToCart, updateQuantity, removeFromCart, clearCart, cartItemCount, isCartOpen, setIsCartOpen } = useCart();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
 
   useEffect(() => {
-    fetch('/api/health')
+    fetch(`${API_BASE_URL}/api/health`)
       .then((res) => {
         if (!res.ok) throw new Error('Servidor no responde');
         return res.json();
@@ -67,24 +43,6 @@ function App() {
       .then((data) => setServerStatus(data.message))
       .catch(() => setServerStatus('⚠️ Backend no disponible'));
   }, []);
-
-  const filteredProducts = useMemo(
-    () =>
-      selectedCategory === 'all'
-        ? products
-        : products.filter((product) => product.category === selectedCategory),
-    [products, selectedCategory]
-  );
-
-
-  const addProduct = (product: NewProduct) => {
-    const newId =
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : Date.now().toString();
-
-    setProducts((prevProducts) => [...prevProducts, { ...product, id: newId }]);
-  };
 
   return (
     <Routes>
@@ -102,7 +60,6 @@ function App() {
               <Hero />
 
               <Catalog
-                products={filteredProducts}
                 selectedCategory={selectedCategory}
                 onChangeCategory={setSelectedCategory}
                 onAddToCart={addToCart}
@@ -143,8 +100,55 @@ function App() {
                 <p className="text-xs text-stone-400 font-light">
                   &copy; {new Date().getFullYear()} Tropicaña — Licores y Toritos 100% Artesanales. Todos los derechos reservados.
                 </p>
+                <div className="flex items-center justify-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  <a
+                    href={SOCIAL_LINKS.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-brand-orange transition-colors"
+                  >
+                    Facebook
+                  </a>
+                  <span className="h-1 w-1 rounded-full bg-brand-orange" aria-hidden="true"></span>
+                  <a
+                    href={SOCIAL_LINKS.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-brand-orange transition-colors"
+                  >
+                    Instagram
+                  </a>
+                </div>
               </div>
             </footer>
+          </div>
+        }
+      />
+
+      <Route
+        path="/checkout"
+        element={
+          <div className="min-h-screen bg-paper font-sans text-stone-900">
+            <Navbar cartItemCount={cartItemCount} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
+            <CheckoutForm />
+            <CartSidebar
+              cart={cart}
+              isOpen={isCartOpen}
+              setIsOpen={setIsCartOpen}
+              updateQuantity={updateQuantity}
+              removeFromCart={removeFromCart}
+              clearCart={clearCart}
+            />
+          </div>
+        }
+      />
+
+      <Route
+        path="/order-confirmation/:orderId"
+        element={
+          <div className="min-h-screen bg-paper font-sans text-stone-900">
+            <Navbar cartItemCount={cartItemCount} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
+            <OrderConfirmation />
           </div>
         }
       />
@@ -154,7 +158,7 @@ function App() {
         element={
           <AdminRoute>
             <Suspense fallback={<LoadingFallback />}>
-              <AdminDashboard onAddProduct={addProduct} />
+              <AdminDashboard />
             </Suspense>
           </AdminRoute>
         }

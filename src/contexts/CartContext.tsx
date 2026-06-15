@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import type { CartItem, Product, NewProduct } from '../types';
+import type { CartItem, Product } from '../types.js';
 
 interface CartContextValue {
   cart: CartItem[];
@@ -26,7 +26,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const raw = localStorage.getItem('tropicana_cart');
       if (!raw) return [];
       const parsed = JSON.parse(raw) as CartItem[];
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed)
+        ? parsed.filter((item) => item.product?.id && item.quantity > 0)
+        : [];
     } catch {
       return [];
     }
@@ -37,21 +39,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     try {
       localStorage.setItem('tropicana_cart', JSON.stringify(cart));
-    } catch {}
+    } catch {
+      // localStorage can be unavailable in private browsing or restricted environments.
+    }
   }, [cart]);
 
   const addToCart = (product: Product) => {
     setCart((prevCart) => {
       const existing = prevCart.find((i) => i.product.id === product.id);
-      if (existing) return prevCart.map((i) => (i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
+      if (existing) {
+        return prevCart.map((i) =>
+          i.product.id === product.id ? { ...i, quantity: Math.max(1, i.quantity) + 1 } : i
+        );
+      }
       return [...prevCart, { product, quantity: 1 }];
     });
     setIsCartOpen(true);
   };
 
   const updateQuantity = (productId: string, newQuantity: number) => {
-    if (newQuantity <= 0) return removeFromCart(productId);
-    setCart((prev) => prev.map((i) => (i.product.id === productId ? { ...i, quantity: newQuantity } : i)));
+    if (newQuantity < 1) {
+      removeFromCart(productId);
+      return;
+    }
+
+    setCart((prev) =>
+      prev.map((i) => (i.product.id === productId ? { ...i, quantity: Math.floor(newQuantity) } : i))
+    );
   };
 
   const removeFromCart = (productId: string) => setCart((prev) => prev.filter((i) => i.product.id !== productId));

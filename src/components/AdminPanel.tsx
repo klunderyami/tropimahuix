@@ -1,5 +1,7 @@
-import { FormEvent, useState } from 'react';
-import { NewProduct } from '../types';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
+import { useAdminAccess } from '../hooks/useAdminAccess.js';
+import type { NewProduct } from '../types.js';
 
 interface AdminPanelProps {
   onAddProduct: (product: NewProduct) => void;
@@ -12,10 +14,16 @@ const initialFormState: NewProduct = {
   price: 0,
   volume: '750ml',
   image: '',
+  stock: 0,
 };
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onAddProduct }) => {
+export const AdminPanel = ({ onAddProduct }: AdminPanelProps) => {
+  const { isAdmin, loading } = useAdminAccess();
   const [formState, setFormState] = useState<NewProduct>(initialFormState);
+
+  if (loading || !isAdmin) {
+    return null;
+  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

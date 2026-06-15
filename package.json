@@ -4,15 +4,19 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run server:dev\" \"vite\"",
     "build": "tsc -b && vite build",
+    "server:build": "tsc -p server/tsconfig.json",
+    "server:dev": "tsx server/index.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "^10.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "firebase": "^11.0.0",
+    "firebase-admin": "^14.0.0",
     "framer-motion": "^12.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -27,6 +31,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^10.0.3",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
@@ -34,6 +39,7 @@
     "postcss": "^8.5.1",
     "tailwindcss": "^4.0.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.4",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.2",
     "vite": "^6.0.7"

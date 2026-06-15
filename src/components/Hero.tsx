@@ -1,7 +1,6 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 
-export const Hero: React.FC = () => {
+export const Hero = () => {
   // Variantes de animación para la entrada elegante y secuencial del contenido
   const containerVariants = {
     hidden: { opacity: 0 },

@@ -1,9 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import App from './app';
+import App from './app.js';
 import './index.css';
-import { CartProvider } from './contexts/CartContext';
+import { CartProvider } from './contexts/CartContext.js';
 
 // Inyección dinámica de Google Fonts (Inter y Dancing Script)
 const link = document.createElement('link');

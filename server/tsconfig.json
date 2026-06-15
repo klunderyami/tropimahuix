@@ -3,12 +3,14 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "composite": true,
-    "outDir": ".tsbuild/vite",
-    "tsBuildInfoFile": ".tsbuild/vite/tsconfig.node.tsbuildinfo",
+    "rootDir": ".",
+    "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["vite.config.ts"]
+  "include": ["*.ts"]
 }

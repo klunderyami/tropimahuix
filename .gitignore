@@ -4,6 +4,8 @@ node_modules/
 # Producción
 dist/
 dist-ssr/
+.tsbuild/
+*.tsbuildinfo
 
 # Archivos de entorno (¡Seguridad vital!)
 .env

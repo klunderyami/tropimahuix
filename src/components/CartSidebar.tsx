@@ -1,6 +1,6 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { CartItem } from '../types';
+import { useNavigate } from 'react-router-dom';
+import type { CartItem } from '../types.js';
 
 interface CartSidebarProps {
   cart: CartItem[];
@@ -11,14 +11,15 @@ interface CartSidebarProps {
   clearCart: () => void;
 }
 
-export const CartSidebar: React.FC<CartSidebarProps> = ({
+export const CartSidebar = ({
   cart,
   isOpen,
   setIsOpen,
   updateQuantity,
   removeFromCart,
   clearCart,
-}) => {
+}: CartSidebarProps) => {
+  const navigate = useNavigate();
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   const sidebarVariants = {
@@ -93,7 +94,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       <p className="text-sm text-stone-500 mb-3">{item.product.volume}</p>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => updateQuantity(item.product.id, Math.max(1, item.quantity - 1))}
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
                           className="h-8 w-8 rounded-full bg-stone-200 text-stone-700 hover:bg-brand-orange transition-colors"
                           aria-label="Disminuir cantidad"
                         >
@@ -130,7 +131,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               <span>Total</span>
               <span className="text-brand-orange">${cartTotal.toFixed(2)}</span>
             </div>
-            <button className="w-full rounded-3xl bg-brand-orange px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-orange/90">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/checkout');
+              }}
+              disabled={cart.length === 0}
+              className="w-full rounded-3xl bg-brand-orange px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-orange/90 disabled:cursor-not-allowed disabled:bg-stone-300"
+            >
               Proceder al Pago
             </button>
             <button

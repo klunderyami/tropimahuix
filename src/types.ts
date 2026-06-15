@@ -6,6 +6,8 @@ export interface Product {
   volume: string;
   image: string;
   category: 'licor' | 'torito';
+  stock: number;
+  active?: boolean;
 }
 
 export interface CartItem {
@@ -14,6 +16,34 @@ export interface CartItem {
 }
 
 export type NewProduct = Omit<Product, 'id'>;
+
+export type OrderStatus = 'pending' | 'paid' | 'failed' | 'delivered';
+
+export interface OrderItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface ShippingAddress {
+  name: string;
+  email: string;
+  phone: string;
+  street: string;
+  city: string;
+}
+
+export interface Order {
+  id: string;
+  userId: string | 'guest';
+  items: OrderItem[];
+  total: number;
+  status: OrderStatus;
+  shippingAddress: ShippingAddress;
+  paypalOrderId: string;
+  createdAt: string;
+}
 
 export interface HeroSlide {
   title: string;
