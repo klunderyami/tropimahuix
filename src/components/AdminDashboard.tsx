@@ -82,7 +82,7 @@ function toOrder(id: string, data: Partial<Order>): Order | null {
     total: data.total,
     status: data.status,
     shippingAddress: data.shippingAddress,
-    paypalOrderId: data.paypalOrderId ?? null,
+    paypalOrderId: typeof data.paypalOrderId === 'string' ? data.paypalOrderId : '',
     createdAt: data.createdAt,
   };
 }

@@ -72,16 +72,16 @@ export const Hero = () => {
             className="flex flex-col sm:flex-row justify-center items-center gap-5 w-full sm:w-auto"
           >
             <a
-              href="#licores"
+              href="#catalog"
               className="w-full sm:w-auto bg-brand-orange hover:bg-brand-orange/90 text-white font-bold px-10 py-4 rounded-xl shadow-xl hover:shadow-brand-orange/20 transition-all duration-300 hover:-translate-y-1 text-center tracking-wide active:scale-[0.98] cursor-pointer"
             >
               Explorar Catálogo
             </a>
             <a
-              href="#nosotros"
+              href="#catalog"
               className="w-full sm:w-auto border border-stone-400/40 hover:border-brand-gold text-stone-200 hover:text-brand-gold font-medium px-10 py-4 rounded-xl transition-all duration-300 hover:-translate-y-1 text-center bg-stone-900/40 backdrop-blur-md shadow-lg active:scale-[0.98] cursor-pointer"
             >
-              Conoce Nuestra Historia
+              Ver productos artesanales
             </a>
           </motion.div>
         </motion.div>

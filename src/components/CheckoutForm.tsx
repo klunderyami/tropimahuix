@@ -261,8 +261,7 @@ export const CheckoutForm = () => {
                         ],
                       })
                     }
-                    onApprove={async (data, actions) => {
-                      await actions.order?.capture();
+                    onApprove={async (data) => {
                       await handleCapture(data.orderID);
                     }}
                     onError={(paypalError) => {
