@@ -104,6 +104,15 @@ interface ProductDocument extends ProductPayload {
   id: string;
 }
 
+function getHeaderValue(req: Request, name: string): string | undefined {
+  const value = req.headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getBearerToken(req: Request): string | undefined {
+  return getHeaderValue(req, 'authorization')?.replace(/^Bearer\s+/i, '');
+}
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
 
@@ -153,7 +162,7 @@ const db: Firestore = getFirestore(firebaseApp);
 const auth: Auth = getAuth(firebaseApp);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const origin = req.header('origin');
+  const origin = getHeaderValue(req, 'origin');
 
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -307,7 +316,7 @@ function parseOrderDocument(value: DocumentData | undefined): OrderDocument | nu
 }
 
 async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-  const token = req.header('authorization')?.replace(/^Bearer\s+/i, '');
+  const token = getBearerToken(req);
 
   if (!token) {
     res.status(401).json({ error: 'Missing Firebase ID token.' });
@@ -330,7 +339,7 @@ async function requireAdmin(req: AuthenticatedRequest, res: Response, next: Next
 }
 
 async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
-  const token = req.header('authorization')?.replace(/^Bearer\s+/i, '');
+  const token = getBearerToken(req);
 
   if (!token) {
     return 'guest';
