@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import dotenv from 'dotenv';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
@@ -22,11 +23,13 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 9005);
-const ADMIN_UID = process.env.ADMIN_UID;
-const PAYPAL_MODE = process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
+const ADMIN_UID = process.env.ADMIN_UID || process.env.VITE_ADMIN_UID;
+const PAYPAL_MODE = process.env.PAYPAL_MODE === 'live' || process.env.VITE_PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
 const PAYPAL_API_BASE =
   PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 const PAYPAL_CURRENCY = process.env.PAYPAL_CURRENCY || 'MXN';
+const FRONTEND_DIST_DIR = path.resolve(process.cwd(), 'dist');
+const FRONTEND_INDEX_HTML = path.join(FRONTEND_DIST_DIR, 'index.html');
 const ALLOWED_ORIGINS = new Set(
   ['http://localhost:5173', 'http://127.0.0.1:5173', process.env.CLIENT_ORIGIN].filter(
     (origin): origin is string => Boolean(origin),
@@ -111,6 +114,20 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
+function getEnv(name: string, fallbackName: string): string | undefined {
+  return process.env[name] || process.env[fallbackName];
+}
+
+function getRequiredEnvWithFallback(name: string, fallbackName: string): string {
+  const value = getEnv(name, fallbackName);
+
+  if (!value || value.trim().length === 0) {
+    throw new Error(`Missing required server environment variable: ${name} or ${fallbackName}`);
+  }
+
+  return value;
+}
+
 function getFirebasePrivateKey(): string {
   return getRequiredEnv('FIREBASE_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n');
 }
@@ -124,7 +141,7 @@ function initializeFirebaseAdmin(): App {
 
   return initializeApp({
     credential: cert({
-      projectId: getRequiredEnv('FIREBASE_ADMIN_PROJECT_ID'),
+      projectId: getRequiredEnvWithFallback('FIREBASE_ADMIN_PROJECT_ID', 'VITE_FIREBASE_PROJECT_ID'),
       clientEmail: getRequiredEnv('FIREBASE_ADMIN_CLIENT_EMAIL'),
       privateKey: getFirebasePrivateKey(),
     }),
@@ -156,6 +173,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use(express.json({ limit: '1mb' }));
+
+if (fs.existsSync(FRONTEND_INDEX_HTML)) {
+  app.use(express.static(FRONTEND_DIST_DIR));
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -325,7 +346,7 @@ async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
 
 function getPayPalCredentials(): { clientId: string; clientSecret: string } {
   return {
-    clientId: getRequiredEnv('PAYPAL_CLIENT_ID'),
+    clientId: getRequiredEnvWithFallback('PAYPAL_CLIENT_ID', 'VITE_PAYPAL_CLIENT_ID'),
     clientSecret: getRequiredEnv('PAYPAL_CLIENT_SECRET'),
   };
 }
@@ -797,6 +818,12 @@ app.patch('/api/orders/:orderId/status', requireAdmin, async (req: Request, res:
     next(error);
   }
 });
+
+if (fs.existsSync(FRONTEND_INDEX_HTML)) {
+  app.get(/^(?!\/api).*/, (_req: Request, res: Response) => {
+    res.sendFile(FRONTEND_INDEX_HTML);
+  });
+}
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const message = error instanceof Error ? error.message : 'Unexpected server error.';

@@ -9,7 +9,8 @@
     "server:build": "tsc -p server/tsconfig.json",
     "server:dev": "tsx server/index.ts",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server/dist/index.js"
   },
   "dependencies": {
     "@paypal/react-paypal-js": "^10.0.0",
