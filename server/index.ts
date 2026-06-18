@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import dotenv from 'dotenv';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
-import * as admin from 'firebase-admin';
+import admin, { cert } from 'firebase-admin';
 import type { Auth } from 'firebase-admin/auth';
 import { getAuth } from 'firebase-admin/auth';
 import type { DocumentData, FieldValue as FirestoreFieldValue, Firestore, Query } from 'firebase-admin/firestore';
@@ -136,21 +136,24 @@ function getRequiredEnvWithFallback(name: string, fallbackName: string): string 
   return value;
 }
 
-const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY
-  ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n')
-  : undefined;
+if (process.env.FIREBASE_CONFIG_BASE64) {
+  try {
+    const decodedJson = Buffer.from(process.env.FIREBASE_CONFIG_BASE64, 'base64').toString('utf-8');
+    const serviceAccount = JSON.parse(decodedJson) as admin.ServiceAccount;
 
-if (process.env.FIREBASE_ADMIN_PROJECT_ID && process.env.FIREBASE_ADMIN_CLIENT_EMAIL && privateKey) {
-  admin.initializeApp({
-    credential: admin.cert({
-      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey,
-    }),
-  });
-  console.log('◇ Firebase Admin SDK inicializado correctamente.');
+    if (serviceAccount.privateKey) {
+      serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
+    }
+
+    admin.initializeApp({
+      credential: cert(serviceAccount),
+    });
+    console.log('◇ Firebase Admin SDK inicializado correctamente mediante Base64.');
+  } catch (error) {
+    console.error('❌ Error crítico al decodificar o parsear FIREBASE_CONFIG_BASE64:', error);
+  }
 } else {
-  console.warn('⚠️ Faltan variables de entorno críticas para Firebase Admin.');
+  console.warn('⚠️ Variable de entorno FIREBASE_CONFIG_BASE64 no encontrada.');
 }
 
 const db: Firestore = getFirestore();
