@@ -22,3 +22,13 @@ pnpm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+
+# Archivos de entorno locales que no deben versionarse
+.env
+.env.local
+server/.env
+firebase-config.json
+
+# Ignorar dependencias y compilados
+node_modules/
+dist/

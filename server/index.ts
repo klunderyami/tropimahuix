@@ -15,10 +15,58 @@ import type { ProductPayload } from './productBatchUpload.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') });
-dotenv.config();
+const envFiles = [
+  path.resolve(__dirname, '.env'),
+  path.resolve(__dirname, '..', '.env'),
+  path.resolve(process.cwd(), 'server', '.env'),
+];
+
+for (const envFile of envFiles) {
+  dotenv.config({ path: envFile });
+}
+
+function parseBase64FirebaseConfig(base64Value: string): admin.ServiceAccount {
+  const decodedJson = Buffer.from(base64Value, 'base64').toString('utf-8');
+  const serviceAccount = JSON.parse(decodedJson) as admin.ServiceAccount;
+
+  if (serviceAccount.privateKey) {
+    serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
+  }
+
+  return serviceAccount;
+}
+
+function buildFirebaseServiceAccountFromEnv(): admin.ServiceAccount | null {
+  if (process.env.FIREBASE_CONFIG_BASE64) {
+    return parseBase64FirebaseConfig(process.env.FIREBASE_CONFIG_BASE64);
+  }
+
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    return null;
+  }
+
+  return {
+    projectId,
+    clientEmail,
+    privateKey: privateKey.replace(/\\n/g, '\n'),
+  };
+}
+
+const serviceAccount = buildFirebaseServiceAccountFromEnv();
+
+if (!serviceAccount) {
+  throw new Error(
+    'Missing Firebase Admin service account configuration. Set FIREBASE_CONFIG_BASE64 or FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.',
+  );
+}
+
+admin.initializeApp({
+  credential: cert(serviceAccount),
+});
 
 const app = express();
 const PORT = Number(process.env.PORT || 9005);
@@ -134,26 +182,6 @@ function getRequiredEnvWithFallback(name: string, fallbackName: string): string 
   }
 
   return value;
-}
-
-if (process.env.FIREBASE_CONFIG_BASE64) {
-  try {
-    const decodedJson = Buffer.from(process.env.FIREBASE_CONFIG_BASE64, 'base64').toString('utf-8');
-    const serviceAccount = JSON.parse(decodedJson) as admin.ServiceAccount;
-
-    if (serviceAccount.privateKey) {
-      serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
-    }
-
-    admin.initializeApp({
-      credential: cert(serviceAccount),
-    });
-    console.log('◇ Firebase Admin SDK inicializado correctamente mediante Base64.');
-  } catch (error) {
-    console.error('❌ Error crítico al decodificar o parsear FIREBASE_CONFIG_BASE64:', error);
-  }
-} else {
-  console.warn('⚠️ Variable de entorno FIREBASE_CONFIG_BASE64 no encontrada.');
 }
 
 const db: Firestore = getFirestore();
