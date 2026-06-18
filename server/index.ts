@@ -137,10 +137,6 @@ function getRequiredEnvWithFallback(name: string, fallbackName: string): string 
   return value;
 }
 
-function getFirebasePrivateKey(): string {
-  return getRequiredEnv('FIREBASE_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n');
-}
-
 function initializeFirebaseAdmin(): App {
   const existingApp = getApps()[0];
 
@@ -148,11 +144,15 @@ function initializeFirebaseAdmin(): App {
     return existingApp;
   }
 
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY
+    ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n')
+    : undefined;
+
   return initializeApp({
     credential: cert({
       projectId: getRequiredEnvWithFallback('FIREBASE_ADMIN_PROJECT_ID', 'VITE_FIREBASE_PROJECT_ID'),
       clientEmail: getRequiredEnv('FIREBASE_ADMIN_CLIENT_EMAIL'),
-      privateKey: getFirebasePrivateKey(),
+      privateKey,
     }),
   });
 }
