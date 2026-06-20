@@ -13,9 +13,8 @@
     "noEmit": true,
     "composite": true,
     "tsBuildInfoFile": ".tsbuild/app/tsconfig.app.tsbuildinfo",
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
