@@ -1,14 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- FUNCIONES DE AUTENTICACIÓN Y ROLES ---
     function isAuthenticated() {
       return request.auth != null;
     }
 
     function isAdmin() {
-      return isAuthenticated() && request.auth.uid == "QOKcpcAF1EayBKXRqKVNjZrwuiz2";
+      return isAuthenticated() && request.auth.uid == "OsVU7qU5NOParGXVqejx0SacMLl2";
     }
 
+    // --- VALIDACIÓN DE PRODUCTOS ---
     function isValidProduct(data) {
       return data.keys().hasAll(['name', 'description', 'price', 'volume', 'image', 'category', 'stock']) &&
         data.keys().hasOnly(['name', 'description', 'price', 'volume', 'image', 'category', 'stock', 'active']) &&
@@ -31,6 +34,7 @@ service cloud.firestore {
         (!('active' in data) || data.active is bool);
     }
 
+    // --- VALIDACIÓN DE DIRECCIÓN DE ENVÍO ---
     function isValidShippingAddress(address) {
       return address.keys().hasAll(['name', 'email', 'phone', 'street', 'city']) &&
         address.name is string &&
@@ -50,6 +54,7 @@ service cloud.firestore {
         address.city.size() <= 120;
     }
 
+    // --- VALIDACIÓN DE ÓRDENES ---
     function isValidOrder(data) {
       return data.keys().hasAll(['userId', 'items', 'total', 'status', 'shippingAddress', 'paypalOrderId', 'createdAt']) &&
         data.keys().hasOnly(['userId', 'items', 'total', 'status', 'shippingAddress', 'paypalOrderId', 'createdAt']) &&
@@ -73,24 +78,30 @@ service cloud.firestore {
         request.resource.data.status in ['pending', 'paid', 'failed', 'delivered'];
     }
 
+    // --- REGLAS DE COLECCIONES ---
+
+    // Catálogo de Productos: Cualquiera los lee, solo tú los editas/creas
     match /products/{productId} {
       allow read: if true;
       allow create, update: if isAdmin() && isValidProduct(request.resource.data);
       allow delete: if isAdmin();
     }
 
+    // Órdenes de compra: Clientes y Admin crean (con datos válidos), solo tú las lees/actualizas
     match /orders/{orderId} {
-      allow create: if isAdmin() && isValidOrder(request.resource.data);
+      allow create: if isValidOrder(request.resource.data);
       allow read: if isAdmin();
       allow update: if isAdmin() && isValidFulfillmentUpdate();
       allow delete: if false;
     }
 
+    // Configuraciones globales de la App
     match /config/{configId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    // Blindaje de seguridad absoluto para cualquier otra ruta no declarada
     match /{path=**} {
       allow read, write: if false;
     }

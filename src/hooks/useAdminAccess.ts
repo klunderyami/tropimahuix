@@ -14,7 +14,7 @@ export function useAdminAccess(): AdminAccessState {
   });
 
   useEffect(() => {
-    const adminUid = import.meta.env.VITE_ADMIN_UID;
+    const adminUid = import.meta.env.VITE_FIREBASE_ADMIN_UID;
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setState({
