@@ -11,7 +11,6 @@ import type { DocumentData, FieldValue as FirestoreFieldValue, Firestore, Query 
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
 import type { ProductPayload } from './productBatchUpload.js';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -26,24 +25,35 @@ for (const envFile of envFiles) {
 }
 
 function parseBase64FirebaseConfig(base64Value: string): admin.ServiceAccount {
-  const decodedJson = Buffer.from(base64Value, 'base64').toString('utf-8');
-  const serviceAccount = JSON.parse(decodedJson) as admin.ServiceAccount;
+  try {
+    const decodedJson = Buffer.from(base64Value, 'base64').toString('utf-8');
+    const serviceAccount = JSON.parse(decodedJson);
 
-  if (serviceAccount.privateKey) {
-    serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
+    if (!isRecord(serviceAccount)) {
+      throw new Error('FIREBASE_CONFIG_BASE64 must decode to a valid JSON object.');
+    }
+
+    if (typeof serviceAccount.privateKey === 'string') {
+      serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
+    }
+
+    return serviceAccount as admin.ServiceAccount;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid FIREBASE_CONFIG_BASE64 value.';
+    throw new Error(`Unable to parse FIREBASE_CONFIG_BASE64: ${message}`);
   }
-
-  return serviceAccount;
 }
 
 function buildFirebaseServiceAccountFromEnv(): admin.ServiceAccount | null {
-  if (process.env.FIREBASE_CONFIG_BASE64) {
+  if (typeof process.env.FIREBASE_CONFIG_BASE64 === 'string' && process.env.FIREBASE_CONFIG_BASE64.trim().length > 0) {
     return parseBase64FirebaseConfig(process.env.FIREBASE_CONFIG_BASE64);
   }
 
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY
+    ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n')
+    : undefined;
 
   if (!projectId || !clientEmail || !privateKey) {
     return null;
@@ -52,21 +62,31 @@ function buildFirebaseServiceAccountFromEnv(): admin.ServiceAccount | null {
   return {
     projectId,
     clientEmail,
-    privateKey: privateKey.replace(/\\n/g, '\n'),
+    privateKey,
   };
 }
 
 const serviceAccount = buildFirebaseServiceAccountFromEnv();
+let db!: Firestore;
+let auth!: Auth;
+let firebaseInitError: string | null = null;
 
 if (!serviceAccount) {
-  throw new Error(
-    'Missing Firebase Admin service account configuration. Set FIREBASE_CONFIG_BASE64 or FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.',
-  );
+  firebaseInitError =
+    'Missing Firebase Admin service account configuration. Set FIREBASE_CONFIG_BASE64 or FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.';
+  console.error(firebaseInitError);
+} else {
+  try {
+    admin.initializeApp({
+      credential: cert(serviceAccount),
+    });
+    db = getFirestore();
+    auth = getAuth();
+  } catch (error) {
+    firebaseInitError = error instanceof Error ? error.message : 'Firebase Admin SDK initialization failed.';
+    console.error('Firebase Admin initialization error:', firebaseInitError);
+  }
 }
-
-admin.initializeApp({
-  credential: cert(serviceAccount),
-});
 
 const app = express();
 const PORT = Number(process.env.PORT || 9005);
@@ -156,26 +176,12 @@ function getHeaderValue(req: Request, name: string): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function getBearerToken(req: Request): string | undefined {
-  return getHeaderValue(req, 'authorization')?.replace(/^Bearer\s+/i, '');
-}
-
-function getRequiredEnv(name: string): string {
-  const value = process.env[name];
-
-  if (!value || value.trim().length === 0) {
-    throw new Error(`Missing required server environment variable: ${name}`);
-  }
-
-  return value;
-}
-
 function getEnv(name: string, fallbackName: string): string | undefined {
   return process.env[name] || process.env[fallbackName];
 }
 
 function getRequiredEnvWithFallback(name: string, fallbackName: string): string {
-  const value = getEnv(name, fallbackName);
+  const value = getEnv(name, fallbackName) ?? process.env[name] ?? process.env[fallbackName];
 
   if (!value || value.trim().length === 0) {
     throw new Error(`Missing required server environment variable: ${name} or ${fallbackName}`);
@@ -184,10 +190,16 @@ function getRequiredEnvWithFallback(name: string, fallbackName: string): string 
   return value;
 }
 
-const db: Firestore = getFirestore();
-const auth: Auth = getAuth();
+function getBearerToken(req: Request): string | undefined {
+  return getHeaderValue(req, 'authorization')?.replace(/^Bearer\s+/i, '');
+}
 
 app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/api') && req.path !== '/api/health' && firebaseInitError) {
+    res.status(500).json({ error: firebaseInitError });
+    return;
+  }
+
   const origin = getHeaderValue(req, 'origin');
 
   if (origin && ALLOWED_ORIGINS.has(origin)) {
@@ -208,6 +220,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use(express.json({ limit: '1mb' }));
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/api') && req.path !== '/api/health' && firebaseInitError) {
+    res.status(500).json({ error: firebaseInitError });
+    return;
+  }
+
+  next();
+});
 
 if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.use(express.static(FRONTEND_DIST_DIR));
@@ -333,7 +354,10 @@ function parseOrderDocument(value: DocumentData | undefined): OrderDocument | nu
   if (
     (status !== 'pending' && status !== 'paid' && status !== 'failed' && status !== 'delivered') ||
     !Array.isArray(value.items) ||
-    typeof value.total !== 'number'
+    typeof value.total !== 'number' ||
+    typeof value.paypalOrderId !== 'string' ||
+    !isShippingAddress(value.shippingAddress) ||
+    typeof value.createdAt !== 'string'
   ) {
     return null;
   }
@@ -381,8 +405,8 @@ async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
 
 function getPayPalCredentials(): { clientId: string; clientSecret: string } {
   return {
-    clientId: getRequiredEnvWithFallback('PAYPAL_CLIENT_ID', 'VITE_PAYPAL_CLIENT_ID'),
-    clientSecret: getRequiredEnv('PAYPAL_CLIENT_SECRET'),
+    clientId: getRequiredEnvWithFallback('PAYPAL_CLIENT_ID', 'VITE_PAYPAL_CLIENT_ID'), // VITE_ for frontend access if needed
+    clientSecret: getRequiredEnvWithFallback('PAYPAL_CLIENT_SECRET', 'PAYPAL_CLIENT_SECRET'),
   };
 }
 
@@ -478,9 +502,13 @@ async function failOrder(orderId: string, paypalOrderId: string, order: OrderDoc
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
-    status: 'success',
-    message: 'El backend de Tropicana esta vivo y conectado.',
+    status: firebaseInitError ? 'degraded' : 'success',
+    message: firebaseInitError
+      ? 'El backend está en línea pero Firebase Admin no está configurado correctamente.'
+      : 'El backend de Tropicana está vivo y conectado.',
     paypalMode: PAYPAL_MODE,
+    firebaseInitialized: !firebaseInitError,
+    firebaseInitError,
     timestamp: new Date().toISOString(),
   });
 });

@@ -82,6 +82,7 @@ function toProduct(id: string, data: Partial<FirestoreProduct>): Product | null 
     image: data.image,
     category: data.category,
     stock: typeof data.stock === 'number' ? data.stock : 0,
+    active: data.active !== false,
   };
 }
 

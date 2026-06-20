@@ -69,7 +69,7 @@ function toOrder(id: string, data: Partial<Order>): Order | null {
     typeof data.total !== 'number' ||
     (data.status !== 'pending' && data.status !== 'paid' && data.status !== 'failed' && data.status !== 'delivered') ||
     typeof data.shippingAddress !== 'object' ||
-    data.shippingAddress === null ||
+    !data.shippingAddress ||
     typeof data.createdAt !== 'string'
   ) {
     return null;
