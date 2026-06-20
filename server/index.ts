@@ -365,6 +365,38 @@ function parseOrderDocument(value: DocumentData | undefined): OrderDocument | nu
   return value as OrderDocument;
 }
 
+async function sendOrderNotificationWebhook(orderId: string, order: OrderDocument): Promise<void> {
+  const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL?.trim();
+
+  if (!webhookUrl) {
+    return;
+  }
+
+  const productLines = order.items
+    .map((item) => `- ${item.quantity} x ${item.name}`)
+    .join('\n');
+
+  const text = `🔔 ¡NUEVO PEDIDO CONFIRMADO EN TROPICAÑA! 🔔\n- Orden ID: ${orderId}\n- Cliente: ${order.shippingAddress.name || order.shippingAddress.email}\n- Total: $${toMoney(order.total)} MXN\n- Productos:\n${productLines}`;
+
+  const payload = {
+    content: text,
+    text,
+    username: 'Tropicaña Bot',
+  };
+
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Silently ignore webhook failures to avoid blocking order processing.
+  }
+}
+
 async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   const token = getBearerToken(req);
 
@@ -809,6 +841,12 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
       },
       { merge: true },
     );
+
+    await sendOrderNotificationWebhook(orderId, {
+      ...order,
+      status: 'paid',
+      paypalOrderId,
+    });
 
     res.status(200).json({
       status: 'paid',
