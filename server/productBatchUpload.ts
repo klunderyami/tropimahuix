@@ -1,4 +1,3 @@
-import { FieldValue } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 
 export interface ProductPayload {
@@ -12,48 +11,37 @@ export interface ProductPayload {
   active?: boolean;
 }
 
-export function isProductPayload(payload: Partial<ProductPayload>): payload is ProductPayload {
-  const stock = payload.stock;
-
+export function isProductPayload(value: unknown): value is ProductPayload {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const p = value as Record<string, unknown>;
   return (
-    typeof payload.name === 'string' &&
-    typeof payload.description === 'string' &&
-    typeof payload.price === 'number' &&
-    payload.price > 0 &&
-    typeof payload.volume === 'string' &&
-    typeof payload.image === 'string' &&
-    (payload.category === 'licor' || payload.category === 'torito') &&
-    typeof stock === 'number' &&
-    Number.isInteger(stock) &&
-    stock >= 0
+    typeof p.name === 'string' &&
+    typeof p.description === 'string' &&
+    typeof p.price === 'number' &&
+    typeof p.volume === 'string' &&
+    typeof p.image === 'string' &&
+    (p.category === 'licor' || p.category === 'torito') &&
+    typeof p.stock === 'number'
   );
 }
 
 export async function batchUploadProducts(db: Firestore, products: ProductPayload[]): Promise<string[]> {
-  if (products.length === 0) {
-    return [];
-  }
-
-  if (products.length > 500) {
-    throw new Error('Firestore batch writes are limited to 500 products per request.');
-  }
-
   const batch = db.batch();
-  const now = FieldValue.serverTimestamp();
-  const refs = products.map((product) => {
-    const productRef = db.collection('products').doc();
+  const ids: string[] = [];
 
-    batch.set(productRef, {
+  for (const product of products) {
+    const docRef = db.collection('products').doc();
+    batch.set(docRef, {
       ...product,
       active: product.active ?? true,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
-
-    return productRef;
-  });
+    ids.push(docRef.id);
+  }
 
   await batch.commit();
-
-  return refs.map((ref) => ref.id);
+  return ids;
 }

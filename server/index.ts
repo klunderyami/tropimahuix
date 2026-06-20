@@ -11,9 +11,11 @@ import type { DocumentData, FieldValue as FirestoreFieldValue, Firestore, Query 
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
 import type { ProductPayload } from './productBatchUpload.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Resolución jerárquica de archivos de entorno
 const envFiles = [
   path.resolve(__dirname, '.env'),
   path.resolve(__dirname, '..', '.env'),
@@ -21,7 +23,13 @@ const envFiles = [
 ];
 
 for (const envFile of envFiles) {
-  dotenv.config({ path: envFile });
+  if (fs.existsSync(envFile)) {
+    dotenv.config({ path: envFile });
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function parseBase64FirebaseConfig(base64Value: string): admin.ServiceAccount {
@@ -66,6 +74,7 @@ function buildFirebaseServiceAccountFromEnv(): admin.ServiceAccount | null {
   };
 }
 
+// Inicialización de Servicios Núcleo
 const serviceAccount = buildFirebaseServiceAccountFromEnv();
 let db!: Firestore;
 let auth!: Auth;
@@ -77,9 +86,11 @@ if (!serviceAccount) {
   console.error(firebaseInitError);
 } else {
   try {
-    admin.initializeApp({
-      credential: cert(serviceAccount),
-    });
+    if (!(admin as any).apps?.length) {
+  admin.initializeApp({
+    credential: cert(serviceAccount),
+  });
+    }
     db = getFirestore();
     auth = getAuth();
   } catch (error) {
@@ -92,11 +103,11 @@ const app = express();
 const PORT = Number(process.env.PORT || 9005);
 const ADMIN_UID = process.env.ADMIN_UID || process.env.VITE_ADMIN_UID;
 const PAYPAL_MODE = process.env.PAYPAL_MODE === 'live' || process.env.VITE_PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
-const PAYPAL_API_BASE =
-  PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+const PAYPAL_API_BASE = PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 const PAYPAL_CURRENCY = process.env.PAYPAL_CURRENCY || 'MXN';
 const FRONTEND_DIST_DIR = path.resolve(process.cwd(), 'dist');
 const FRONTEND_INDEX_HTML = path.join(FRONTEND_DIST_DIR, 'index.html');
+
 const ALLOWED_ORIGINS = new Set(
   ['http://localhost:5173', 'http://127.0.0.1:5173', process.env.CLIENT_ORIGIN].filter(
     (origin): origin is string => Boolean(origin),
@@ -194,6 +205,19 @@ function getBearerToken(req: Request): string | undefined {
   return getHeaderValue(req, 'authorization')?.replace(/^Bearer\s+/i, '');
 }
 
+function normalizeString(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function centsToMoney(cents: number): number {
+  return Number((cents / 100).toFixed(2));
+}
+
+function toMoney(value: number): string {
+  return (Math.round(value * 100) / 100).toFixed(2);
+}
+
+// Middlewares de Enrutamiento, CORS e Inyección JSON
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith('/api') && req.path !== '/api/health' && firebaseInitError) {
     res.status(500).json({ error: firebaseInitError });
@@ -201,7 +225,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   const origin = getHeaderValue(req, 'origin');
-
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Vary', 'Origin');
@@ -221,30 +244,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use(express.json({ limit: '1mb' }));
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.path.startsWith('/api') && req.path !== '/api/health' && firebaseInitError) {
-    res.status(500).json({ error: firebaseInitError });
-    return;
-  }
-
-  next();
-});
-
 if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.use(express.static(FRONTEND_DIST_DIR));
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function normalizeString(value: string): string {
-  return value.trim().replace(/\s+/g, ' ');
-}
-
+// Validadores de Estructura de Datos
 function isCheckoutItem(value: unknown): value is CheckoutItemInput {
   if (!isRecord(value)) return false;
-
   return (
     typeof value.id === 'string' &&
     value.id.trim().length > 0 &&
@@ -266,7 +272,6 @@ function parseCheckoutItems(value: unknown): CheckoutItemInput[] | null {
   }
 
   const itemMap = new Map<string, number>();
-
   for (const item of value) {
     const id = item.id.trim();
     itemMap.set(id, (itemMap.get(id) || 0) + item.quantity);
@@ -280,7 +285,6 @@ function parseCheckoutItems(value: unknown): CheckoutItemInput[] | null {
 
 function isShippingAddress(value: unknown): value is ShippingAddress {
   if (!isRecord(value)) return false;
-
   return (
     typeof value.name === 'string' &&
     value.name.trim().length >= 2 &&
@@ -323,8 +327,7 @@ function isProductUpdatePayload(payload: unknown): payload is Partial<ProductPay
 
   return (
     (payload.name === undefined || (typeof payload.name === 'string' && payload.name.trim().length > 0)) &&
-    (payload.description === undefined ||
-      (typeof payload.description === 'string' && payload.description.trim().length > 0)) &&
+    (payload.description === undefined || (typeof payload.description === 'string' && payload.description.trim().length > 0)) &&
     (payload.price === undefined || (typeof payload.price === 'number' && Number.isFinite(payload.price) && payload.price > 0)) &&
     (payload.volume === undefined || (typeof payload.volume === 'string' && payload.volume.trim().length > 0)) &&
     (payload.image === undefined || (typeof payload.image === 'string' && payload.image.trim().length > 0)) &&
@@ -338,17 +341,8 @@ function getRouteParam(value: string | string[] | undefined): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
-function centsToMoney(cents: number): number {
-  return Number((cents / 100).toFixed(2));
-}
-
-function toMoney(value: number): string {
-  return (Math.round(value * 100) / 100).toFixed(2);
-}
-
 function parseOrderDocument(value: DocumentData | undefined): OrderDocument | null {
   if (!value) return null;
-
   const status = value.status;
 
   if (
@@ -365,41 +359,30 @@ function parseOrderDocument(value: DocumentData | undefined): OrderDocument | nu
   return value as OrderDocument;
 }
 
+// Sistema de Notificaciones Webhook Automático
 async function sendOrderNotificationWebhook(orderId: string, order: OrderDocument): Promise<void> {
   const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL?.trim();
+  if (!webhookUrl) return;
 
-  if (!webhookUrl) {
-    return;
-  }
-
-  const productLines = order.items
-    .map((item) => `- ${item.quantity} x ${item.name}`)
-    .join('\n');
-
+  const productLines = order.items.map((item) => `- ${item.quantity} x ${item.name}`).join('\n');
   const text = `🔔 ¡NUEVO PEDIDO CONFIRMADO EN TROPICAÑA! 🔔\n- Orden ID: ${orderId}\n- Cliente: ${order.shippingAddress.name || order.shippingAddress.email}\n- Total: $${toMoney(order.total)} MXN\n- Productos:\n${productLines}`;
 
-  const payload = {
-    content: text,
-    text,
-    username: 'Tropicaña Bot',
-  };
+  const payload = { content: text, text, username: 'Tropicaña Bot' };
 
   try {
     await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
   } catch {
-    // Silently ignore webhook failures to avoid blocking order processing.
+    // Silently ignore webhook errors to avoid blocking transactional flow
   }
 }
 
+// Filtros de Autenticación y Control de Roles de Seguridad
 async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   const token = getBearerToken(req);
-
   if (!token) {
     res.status(401).json({ error: 'Missing Firebase ID token.' });
     return;
@@ -407,12 +390,10 @@ async function requireAdmin(req: AuthenticatedRequest, res: Response, next: Next
 
   try {
     const decodedToken = await auth.verifyIdToken(token);
-
     if (!ADMIN_UID || decodedToken.uid !== ADMIN_UID) {
       res.status(403).json({ error: 'Admin access required.' });
       return;
     }
-
     req.auth = { uid: decodedToken.uid };
     next();
   } catch {
@@ -422,10 +403,7 @@ async function requireAdmin(req: AuthenticatedRequest, res: Response, next: Next
 
 async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
   const token = getBearerToken(req);
-
-  if (!token) {
-    return 'guest';
-  }
+  if (!token) return 'guest';
 
   try {
     const decodedToken = await auth.verifyIdToken(token);
@@ -435,9 +413,10 @@ async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
   }
 }
 
+// Pasarela de Pagos (PayPal API Integration Engine)
 function getPayPalCredentials(): { clientId: string; clientSecret: string } {
   return {
-    clientId: getRequiredEnvWithFallback('PAYPAL_CLIENT_ID', 'VITE_PAYPAL_CLIENT_ID'), // VITE_ for frontend access if needed
+    clientId: getRequiredEnvWithFallback('PAYPAL_CLIENT_ID', 'VITE_PAYPAL_CLIENT_ID'),
     clientSecret: getRequiredEnvWithFallback('PAYPAL_CLIENT_SECRET', 'PAYPAL_CLIENT_SECRET'),
   };
 }
@@ -496,15 +475,7 @@ function getCapturedAmount(capture: PayPalCaptureResponse): { currency: string; 
   }
 
   const value = Number(amount.value);
-
-  if (!Number.isFinite(value) || value <= 0) {
-    return null;
-  }
-
-  return {
-    currency: amount.currency_code,
-    value,
-  };
+  return Number.isFinite(value) && value > 0 ? { currency: amount.currency_code, value } : null;
 }
 
 async function restoreOrderStock(order: OrderDocument): Promise<void> {
@@ -532,6 +503,7 @@ async function failOrder(orderId: string, paypalOrderId: string, order: OrderDoc
   );
 }
 
+// Endpoints REST de la API de Control (Express Routing)
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: firebaseInitError ? 'degraded' : 'success',
@@ -594,19 +566,13 @@ app.post('/api/products/batch', requireAdmin, async (req: Request, res: Response
     }
 
     const invalidIndex = products.findIndex((product) => !isProductPayload(product));
-
     if (invalidIndex >= 0) {
       res.status(400).json({ error: `Invalid product payload at index ${invalidIndex}.` });
       return;
     }
 
     const ids = await batchUploadProducts(db, products);
-
-    res.status(201).json({
-      status: 'created',
-      count: ids.length,
-      ids,
-    });
+    res.status(201).json({ status: 'created', count: ids.length, ids });
   } catch (error) {
     next(error);
   }
@@ -615,7 +581,6 @@ app.post('/api/products/batch', requireAdmin, async (req: Request, res: Response
 app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const productId = getRouteParam(req.params.productId);
-
     if (!productId) {
       res.status(400).json({ error: 'Missing product id.' });
       return;
@@ -627,10 +592,7 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
     }
 
     await db.collection('products').doc(productId).set(
-      {
-        ...req.body,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
+      { ...req.body, updatedAt: FieldValue.serverTimestamp() },
       { merge: true },
     );
 
@@ -643,17 +605,13 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
 app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const productId = getRouteParam(req.params.productId);
-
     if (!productId) {
       res.status(400).json({ error: 'Missing product id.' });
       return;
     }
 
     await db.collection('products').doc(productId).set(
-      {
-        active: false,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
+      { active: false, updatedAt: FieldValue.serverTimestamp() },
       { merge: true },
     );
 
@@ -675,13 +633,9 @@ app.get('/api/config', async (_req: Request, res: Response, next: NextFunction) 
 app.patch('/api/config', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     await db.collection('config').doc('site').set(
-      {
-        ...req.body,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
+      { ...req.body, updatedAt: FieldValue.serverTimestamp() },
       { merge: true },
     );
-
     res.status(200).json({ status: 'updated' });
   } catch (error) {
     next(error);
@@ -722,7 +676,6 @@ app.post('/api/orders/create', async (req: Request, res: Response, next: NextFun
         }
 
         const product = snapshot.data() as Partial<ProductPayload>;
-
         if (!isProductPayload(product) || product.active === false) {
           throw new Error(`Product ${item.id} is not available.`);
         }
@@ -801,7 +754,6 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
     }
 
     const order = parseOrderDocument(orderSnapshot.data());
-
     if (!order) {
       res.status(500).json({ error: 'Stored order is malformed.' });
       return;
@@ -868,7 +820,6 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
       next(rollbackError);
       return;
     }
-
     next(error);
   }
 });
@@ -907,10 +858,7 @@ app.patch('/api/orders/:orderId/status', requireAdmin, async (req: Request, res:
     }
 
     await db.collection('orders').doc(orderId).set(
-      {
-        status: body.status,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
+      { status: body.status, updatedAt: FieldValue.serverTimestamp() },
       { merge: true },
     );
 
@@ -920,12 +868,14 @@ app.patch('/api/orders/:orderId/status', requireAdmin, async (req: Request, res:
   }
 });
 
+// Enrutador Fallback Single Page Application (SPA Linker)
 if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.get(/^(?!\/api).*/, (_req: Request, res: Response) => {
     res.sendFile(FRONTEND_INDEX_HTML);
   });
 }
 
+// Middleware Global de Captura y Clasificación de Errores
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const message = error instanceof Error ? error.message : 'Unexpected server error.';
   const conflictSignals = ['stock', 'not available', 'was not found'];
