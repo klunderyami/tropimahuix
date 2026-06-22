@@ -80,17 +80,17 @@ let db!: Firestore;
 let auth!: Auth;
 let firebaseInitError: string | null = null;
 
+let firebaseInitialized = false;
+
 if (!serviceAccount) {
   firebaseInitError =
     'Missing Firebase Admin service account configuration. Set FIREBASE_CONFIG_BASE64 or FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.';
   console.error(firebaseInitError);
 } else {
   try {
-    if (!(admin as any).apps?.length) {
-  admin.initializeApp({
-    credential: cert(serviceAccount),
-  });
-    }
+    admin.initializeApp({
+      credential: cert(serviceAccount),
+    });
     db = getFirestore();
     auth = getAuth();
   } catch (error) {

@@ -1,0 +1,10 @@
+# Dependencias
+node_modules/
+
+# Producción
+dist/
+
+# Archivos de entorno (¡Seguridad vital!)
+.env
+.env.*
+!.env.example
