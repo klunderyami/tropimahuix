@@ -3,11 +3,10 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import dotenv from 'dotenv';
 import express from 'express';
-import type { NextFunction, Request, Response } from 'express';
-import admin, { cert } from 'firebase-admin';
-import type { Auth } from 'firebase-admin/auth';
-import { getAuth } from 'firebase-admin/auth';
-import type { DocumentData, FieldValue as FirestoreFieldValue, Firestore, Query } from 'firebase-admin/firestore';
+import type { NextFunction, Request, Response } from 'express'; // Mantener para Express
+import admin from 'firebase-admin';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import type { DocumentData, FieldValue as FirestoreFieldValue, Firestore, Query } from 'firebase-admin/firestore'; // Mantener para tipos
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
 import type { ProductPayload } from './productBatchUpload.js';
@@ -32,50 +31,53 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function buildFirebaseServiceAccountFromEnv(): admin.ServiceAccount | null {
+// --- INICIO: SECCIÓN DE INICIALIZACIÓN DE FIREBASE REFACTORIZADA ---
+
+let db: Firestore;
+let auth: Auth;
+let firebaseInitError: Error | null = null;
+
+function initializeFirebaseAdmin(): { db: Firestore; auth: Auth } | { error: Error } {
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY
-    ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
 
   if (!projectId || !clientEmail || !privateKey) {
-    return null;
+    const error = new Error(
+      'Missing Firebase Admin configuration. Set FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.',
+    );
+    console.error(`🚨 [Firebase Admin] ${error.message}`);
+    return { error };
   }
 
-  return {
-    projectId,
-    clientEmail,
-    privateKey,
-  };
-}
-
-// Inicialización de Servicios Núcleo
-let db!: Firestore;
-let auth!: Auth;
-let firebaseInitError: string | null = null;
-
-if ( // Validamos estrictamente las 3 variables de entorno requeridas por Render
-  !process.env.FIREBASE_ADMIN_PROJECT_ID ||
-  !process.env.FIREBASE_ADMIN_CLIENT_EMAIL ||
-  !process.env.FIREBASE_ADMIN_PRIVATE_KEY
-) {
-  firebaseInitError =
-    'Missing Firebase Admin service account configuration. Set FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.';
-  console.error(firebaseInitError);
-} else {
   try {
-    // Esta función ahora solo se llama si las variables existen
-    const serviceAccount = buildFirebaseServiceAccountFromEnv()!;
+    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
     admin.initializeApp({
-      credential: cert(serviceAccount),
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey: formattedPrivateKey,
+      }),
     });
-    db = getFirestore();
-    auth = getAuth();
-  } catch (error) {
-    firebaseInitError = error instanceof Error ? error.message : 'Firebase Admin SDK initialization failed.';
-    console.error('Firebase Admin initialization error:', firebaseInitError);
+    console.log('🚀 [Firebase Admin] Initialized successfully using environment variables.');
+    return { db: getFirestore(), auth: getAuth() };
+  } catch (error: unknown) {
+    const initError = error instanceof Error ? error : new Error('Firebase Admin SDK initialization failed.');
+    console.error('❌ [Firebase Admin] Initialization failed:', initError);
+    return { error: initError };
   }
 }
+
+const result = initializeFirebaseAdmin();
+
+if ('error' in result) {
+  firebaseInitError = result.error;
+} else {
+  db = result.db;
+  auth = result.auth;
+}
+
+// --- FIN: SECCIÓN DE INICIALIZACIÓN DE FIREBASE REFACTORIZADA ---
 
 const app = express();
 const PORT = Number(process.env.PORT || 9005);
@@ -198,7 +200,7 @@ function toMoney(value: number): string {
 // Middlewares de Enrutamiento, CORS e Inyección JSON
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith('/api') && req.path !== '/api/health' && firebaseInitError) {
-    res.status(500).json({ error: firebaseInitError });
+    res.status(500).json({ error: firebaseInitError.message });
     return;
   }
 
@@ -485,12 +487,10 @@ async function failOrder(orderId: string, paypalOrderId: string, order: OrderDoc
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: firebaseInitError ? 'degraded' : 'success',
-    message: firebaseInitError
-      ? 'El backend está en línea pero Firebase Admin no está configurado correctamente.'
-      : 'El backend de Tropicana está vivo y conectado.',
+    message: firebaseInitError ? firebaseInitError.message : 'El backend de Tropicana está vivo y conectado.',
     paypalMode: PAYPAL_MODE,
     firebaseInitialized: !firebaseInitError,
-    firebaseInitError,
+    firebaseInitError: firebaseInitError ? firebaseInitError.message : null,
     timestamp: new Date().toISOString(),
   });
 });
