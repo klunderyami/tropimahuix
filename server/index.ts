@@ -5,8 +5,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express'; // Mantener para Express
 import admin from 'firebase-admin';
+import { cert } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
-import type { DocumentData, FieldValue as FirestoreFieldValue, Firestore, Query } from 'firebase-admin/firestore'; // Mantener para tipos
+import type { DocumentData, FieldValue as FirestoreFieldValue, Firestore, Query } from 'firebase-admin/firestore';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
 import type { ProductPayload } from './productBatchUpload.js';
@@ -53,7 +54,7 @@ function initializeFirebaseAdmin(): { db: Firestore; auth: Auth } | { error: Err
   try {
     const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
     admin.initializeApp({
-      credential: admin.credential.cert({
+      credential: cert({
         projectId,
         clientEmail,
         privateKey: formattedPrivateKey,
