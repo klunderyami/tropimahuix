@@ -32,36 +32,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseBase64FirebaseConfig(base64Value: string): admin.ServiceAccount {
-  try {
-    const decodedJson = Buffer.from(base64Value, 'base64').toString('utf-8');
-    const serviceAccount = JSON.parse(decodedJson);
-
-    if (!isRecord(serviceAccount)) {
-      throw new Error('FIREBASE_CONFIG_BASE64 must decode to a valid JSON object.');
-    }
-
-    if (typeof serviceAccount.privateKey === 'string') {
-      serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
-    }
-
-    return serviceAccount as admin.ServiceAccount;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Invalid FIREBASE_CONFIG_BASE64 value.';
-    throw new Error(`Unable to parse FIREBASE_CONFIG_BASE64: ${message}`);
-  }
-}
-
 function buildFirebaseServiceAccountFromEnv(): admin.ServiceAccount | null {
-  if (typeof process.env.FIREBASE_CONFIG_BASE64 === 'string' && process.env.FIREBASE_CONFIG_BASE64.trim().length > 0) {
-    return parseBase64FirebaseConfig(process.env.FIREBASE_CONFIG_BASE64);
-  }
-
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY
-    ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n')
-    : undefined;
+    ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined;
 
   if (!projectId || !clientEmail || !privateKey) {
     return null;
@@ -75,19 +50,22 @@ function buildFirebaseServiceAccountFromEnv(): admin.ServiceAccount | null {
 }
 
 // Inicialización de Servicios Núcleo
-const serviceAccount = buildFirebaseServiceAccountFromEnv();
 let db!: Firestore;
 let auth!: Auth;
 let firebaseInitError: string | null = null;
 
-let firebaseInitialized = false;
-
-if (!serviceAccount) {
+if ( // Validamos estrictamente las 3 variables de entorno requeridas por Render
+  !process.env.FIREBASE_ADMIN_PROJECT_ID ||
+  !process.env.FIREBASE_ADMIN_CLIENT_EMAIL ||
+  !process.env.FIREBASE_ADMIN_PRIVATE_KEY
+) {
   firebaseInitError =
-    'Missing Firebase Admin service account configuration. Set FIREBASE_CONFIG_BASE64 or FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.';
+    'Missing Firebase Admin service account configuration. Set FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.';
   console.error(firebaseInitError);
 } else {
   try {
+    // Esta función ahora solo se llama si las variables existen
+    const serviceAccount = buildFirebaseServiceAccountFromEnv()!;
     admin.initializeApp({
       credential: cert(serviceAccount),
     });
