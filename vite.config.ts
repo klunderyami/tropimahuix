@@ -2,10 +2,14 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import path from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Carga las variables de entorno del sistema (producción) o del archivo .env (desarrollo)
+dotenv.config();
 
 export default defineConfig(({ mode }) => {
   // Carga las variables de entorno del archivo .env (en desarrollo) o del entorno del sistema (en producción).
@@ -13,8 +17,19 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiTarget = env.VITE_API_BASE_URL || `http://127.0.0.1:${env.VITE_BACKEND_PORT || '3001'}`;
 
+  // Transforma las variables cargadas (de .env o del sistema) en un formato
+  // que el bloque `define` de Vite pueda usar. Esto reemplazará `import.meta.env.VITE_*`
+  // con su valor real durante la compilación.
+  const envForDefine = Object.keys(env).reduce((acc, key) => {
+    if (key.startsWith('VITE_')) {
+      acc[`import.meta.env.${key}`] = JSON.stringify(env[key]);
+    }
+    return acc;
+  }, {});
+
   return {
     plugins: [react(), tailwindcss()],
+    define: envForDefine,
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
