@@ -17,10 +17,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiTarget = env.VITE_API_BASE_URL || `http://127.0.0.1:${env.VITE_BACKEND_PORT || '3001'}`;
 
-  // Transforma las variables cargadas (de .env o del sistema) en un formato
-  // que el bloque `define` de Vite pueda usar. Esto reemplazará `import.meta.env.VITE_*`
-  // con su valor real durante la compilación.
-  const envForDefine = Object.keys(env).reduce((acc, key) => {
+  // Transforma las variables cargadas en un formato que el bloque `define` de Vite pueda usar.
+  // Esto reemplazará `import.meta.env.VITE_*` con su valor real durante la compilación.
+  const envForDefine = Object.keys(env).reduce((acc: Record<string, string>, key) => {
     if (key.startsWith('VITE_')) {
       acc[`import.meta.env.${key}`] = JSON.stringify(env[key]);
     }

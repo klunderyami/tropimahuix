@@ -5,17 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"vite\"",
-    "build": "npm run server:build && vite build",
+    "build": "tsc -p server/tsconfig.json && tsc && vite build",
     "server:build": "tsc -p server/tsconfig.json",
     "server:dev": "tsx server/index.ts",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server/dist/index.js --env-file=.env"
+    "start": "node server/dist/index.js"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.0",
     "@paypal/react-paypal-js": "^10.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "firebase": "^11.0.0",
