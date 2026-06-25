@@ -3,6 +3,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocFromServer } from 'firebase/firestore';
 
 function getRequiredEnv(name: string): string {
+  // `import.meta.env` es el método estándar de Vite para acceder a las variables de entorno.
   const value = import.meta.env[name];
   if (!value) {
     throw new Error(`Missing required Firebase environment variable: ${name}`);
