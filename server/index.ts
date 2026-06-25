@@ -346,7 +346,7 @@ async function sendOrderNotificationWebhook(orderId: string, order: OrderDocumen
   if (!webhookUrl) return;
 
   const productLines = order.items.map((item) => `- ${item.quantity} x ${item.name}`).join('\n');
-  const text = `🔔 ¡NUEVO PEDIDO CONFIRMADO EN TROPICAÑA! 🔔\n- Orden ID: ${orderId}\n- Cliente: ${order.shippingAddress.name || order.shippingAddress.email}\n- Total: $${toMoney(order.total)} MXN\n- Productos:\n${productLines}`;
+  const text = `🔔 ¡NUEVO PEDIDO CONFIRMADO EN TROPICAÑA! 🔔\n- Orden ID: ${orderId}\n- Cliente: ${order.shippingAddress.name || order.shippingAddress.email}\n- Total: $${toMoney(order.total)}\n- Productos:\n${productLines}`;
 
   const payload = { content: text, text, username: 'Tropicaña Bot' };
 
