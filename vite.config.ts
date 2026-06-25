@@ -1,41 +1,29 @@
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-import path from 'node:path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Carga las variables de entorno del sistema (producción) o del archivo .env (desarrollo)
-dotenv.config();
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
-  // Carga las variables de entorno del archivo .env (en desarrollo) o del entorno del sistema (en producción).
-  // Vite expondrá automáticamente las variables con prefijo 'VITE_' a `import.meta.env`.
+  // Carga variables del entorno basadas en el modo de forma nativa y segura
   const env = loadEnv(mode, process.cwd(), '');
   const apiTarget = env.VITE_API_BASE_URL || `http://127.0.0.1:${env.VITE_BACKEND_PORT || '3001'}`;
 
-  // Transforma las variables cargadas en un formato que el bloque `define` de Vite pueda usar.
-  // Esto reemplazará `import.meta.env.VITE_*` con su valor real durante la compilación.
-  const envForDefine = Object.keys(env).reduce((acc: Record<string, string>, key) => {
-    if (key.startsWith('VITE_')) {
-      acc[`import.meta.env.${key}`] = JSON.stringify(env[key]);
-    }
-    return acc;
-  }, {});
-
   return {
     plugins: [react(), tailwindcss()],
-    define: envForDefine,
+    define: {
+      'process.env.VITE_FIREBASE_PROJECT_ID': JSON.stringify(env.VITE_FIREBASE_PROJECT_ID),
+      'process.env.VITE_FIREBASE_API_KEY': JSON.stringify(env.VITE_FIREBASE_API_KEY),
+      'process.env.VITE_FIREBASE_AUTH_DOMAIN': JSON.stringify(env.VITE_FIREBASE_AUTH_DOMAIN),
+      'process.env.VITE_FIREBASE_STORAGE_BUCKET': JSON.stringify(env.VITE_FIREBASE_STORAGE_BUCKET),
+      'process.env.VITE_FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+      'process.env.VITE_FIREBASE_APP_ID': JSON.stringify(env.VITE_FIREBASE_APP_ID),
+    },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': '/src',
       },
     },
     server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr: env.DISABLE_HMR !== 'true',
       proxy: {
         '/api': {
           target: apiTarget,
