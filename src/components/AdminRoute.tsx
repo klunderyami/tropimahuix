@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useAdminAccess } from '../hooks/useAdminAccess.js';
-import { login, auth } from '../firebase.js';
+import { login, auth, onAuthStateChanged } from '../firebase.js';
 
 interface AdminRouteProps {
   children: ReactNode;
@@ -10,15 +10,21 @@ interface AdminRouteProps {
 const AdminRoute = ({ children }: AdminRouteProps) => {
   const { isAdmin, loading } = useAdminAccess();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [currentUid, setCurrentUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUid(user?.uid || null);
+    });
+    return unsubscribe;
+  }, []);
 
   if (loading) {
     return <div className="min-h-screen p-8 text-center">Verificando permisos...</div>;
   }
 
   if (!isAdmin) {
-    // Obtener el UID del usuario actual para depuración
-    const currentUser = auth.currentUser;
-    const currentUid = currentUser?.uid || 'No autenticado';
+    const displayUid = currentUid || 'No has iniciado sesión';
 
     return (
       <div className="min-h-screen bg-paper px-4 py-10 font-sans text-stone-900 sm:px-6 lg:px-8">
@@ -29,17 +35,22 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             <p className="mt-3 text-sm text-stone-600">
               Debes iniciar sesión con la cuenta administrativa correcta para continuar.
             </p>
-            {currentUser && (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-xs">
-                <p className="font-bold text-amber-800">🔍 Tu UID actual:</p>
-                <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-amber-700 select-all">
-                  {currentUid}
-                </code>
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-xs">
+              <p className="font-bold text-amber-800">🔍 Tu UID actual:</p>
+              <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-amber-700 select-all">
+                {displayUid}
+              </code>
+              {currentUid && (
                 <p className="mt-2 text-amber-700">
                   Copia este UID y pégalo en tu <code className="bg-amber-100 px-1">.env</code> como <code className="bg-amber-100 px-1">VITE_FIREBASE_ADMIN_UID</code>
                 </p>
-              </div>
-            )}
+              )}
+              {!currentUid && (
+                <p className="mt-2 text-amber-700">
+                  Haz clic en "Iniciar sesión administrativa" para autenticarte con Google y ver tu UID.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
