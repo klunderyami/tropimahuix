@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocFromServer } from 'firebase/firestore';
 
 function getRequiredEnv(name: string): string {
@@ -29,8 +29,13 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Auth functions
-export const login = () => signInWithPopup(auth, googleProvider);
+export const login = () => signInWithRedirect(auth, googleProvider);
 export const logout = () => signOut(auth);
+
+// Manejar el resultado del redirect (cuando el usuario regresa de Google)
+getRedirectResult(auth).catch((error) => {
+  console.error('Error en redirect result:', error);
+});
 
 // Error Handling Spec for Firestore Operations
 export enum OperationType {
