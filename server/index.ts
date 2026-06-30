@@ -235,9 +235,20 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     "frame-ancestors 'self' https://tropimahuix-web.onrender.com http://localhost:5173;",
   );
 
-  // Cache-Control diferenciado
+  // Content-Type explícito si no está definido
+  if (!res.getHeader('Content-Type')) {
+    if (req.path.startsWith('/api')) {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    } else if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff2?|ttf|eot)$/)) {
+      // Dejar que Express static defina Content-Type para assets
+    } else {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+  }
+
+  // Cache-Control diferenciado (evitar 'no-store' que penaliza SEO/performance)
   if (req.path.startsWith('/api')) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   } else {
     res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
   }
