@@ -18,6 +18,8 @@
     color: var(--color-brand-brown);
     font-family: var(--font-sans);
     background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   
   h1, h2, h3, .font-script {

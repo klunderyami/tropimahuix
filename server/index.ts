@@ -104,6 +104,7 @@ if ('error' in result) {
 // --- FIN: SECCIÓN DE INICIALIZACIÓN DE FIREBASE REFACTORIZADA ---
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = Number(process.env.PORT || 9005);
 const ADMIN_UID = process.env.ADMIN_UID || process.env.FIREBASE_ADMIN_UID || process.env.VITE_FIREBASE_ADMIN_UID || process.env.VITE_ADMIN_UID;
 const PAYPAL_MODE = process.env.PAYPAL_MODE === 'live' || process.env.VITE_PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
@@ -221,36 +222,46 @@ function toMoney(value: number): string {
   return (Math.round(value * 100) / 100).toFixed(2);
 }
 
-// Middleware de Seguridad: Headers HTTP robustos
+// Middleware Global de Sanitización, Seguridad y Caché Quirúrgico
 app.use((req: Request, res: Response, next: NextFunction) => {
-  // Eliminar header obsoleto x-xss-protection
-  res.removeHeader('x-xss-protection');
+  // 1. Remover cabeceras heredadas, obsoletas o innecesarias
+  res.removeHeader('X-Powered-By');
+  res.removeHeader('X-XSS-Protection');
+  res.removeHeader('X-Frame-Options');
+  res.removeHeader('Expires');
+  res.removeHeader('Pragma');
 
-  // Prevenir que el navegador interprete MIME-types incorrectos
+  // 2. Cabeceras estrictas de Seguridad Moderna
   res.setHeader('X-Content-Type-Options', 'nosniff');
-
-  // Content-Security-Policy con frame-ancestors (reemplaza X-Frame-Options)
+  
+  // Reemplazo robusto de X-Frame-Options mediante estándar CSP frame-ancestors
   res.setHeader(
     'Content-Security-Policy',
-    "frame-ancestors 'self' https://tropimahuix-web.onrender.com http://localhost:5173;",
+    "frame-ancestors 'none'; block-all-mixed-content;"
   );
 
-  // Content-Type explícito si no está definido
-  if (!res.getHeader('Content-Type')) {
-    if (req.path.startsWith('/api')) {
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    } else if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff2?|ttf|eot)$/)) {
-      // Dejar que Express static defina Content-Type para assets
-    } else {
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    }
-  }
+  // 3. Gestión Inteligente de Caché y Content-Type por tipo de recurso
+  const url = req.url;
 
-  // Cache-Control diferenciado (evitar 'no-store' que penaliza SEO/performance)
-  if (req.path.startsWith('/api')) {
-    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
-  } else {
-    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  // Rutas de API Dinámica (No deben guardarse en caché bajo ninguna circunstancia)
+  if (url.startsWith('/api')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  } 
+  // Recursos Estáticos (Assets compilados, imágenes, etc.)
+  else {
+    // Forzar Content-Type correcto para archivos SVG e impedir mutaciones incorrectas
+    if (url.endsWith('.svg')) {
+      res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+    }
+    
+    // Si el recurso es un asset con hash de Vite o estático común
+    if (url.includes('/assets/') || url.match(/\.(jpg|jpeg|png|gif|ico|svg|woff|woff2|css|js)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      // Documentos raíz/HTML base que requieren validación constante
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
   }
 
   next();
