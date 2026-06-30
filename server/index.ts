@@ -221,6 +221,30 @@ function toMoney(value: number): string {
   return (Math.round(value * 100) / 100).toFixed(2);
 }
 
+// Middleware de Seguridad: Headers HTTP robustos
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // Eliminar header obsoleto x-xss-protection
+  res.removeHeader('x-xss-protection');
+
+  // Prevenir que el navegador interprete MIME-types incorrectos
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  // Content-Security-Policy con frame-ancestors (reemplaza X-Frame-Options)
+  res.setHeader(
+    'Content-Security-Policy',
+    "frame-ancestors 'self' https://tropimahuix-web.onrender.com http://localhost:5173;",
+  );
+
+  // Cache-Control diferenciado
+  if (req.path.startsWith('/api')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  }
+
+  next();
+});
+
 // Middlewares de Enrutamiento, CORS e Inyección JSON
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith('/api') && req.path !== '/api/health' && firebaseInitError) {
