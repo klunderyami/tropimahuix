@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocFromServer } from 'firebase/firestore';
 
 function getRequiredEnv(name: string): string {
@@ -28,8 +28,20 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Auth functions
-export const login = () => signInWithRedirect(auth, googleProvider);
+// Auth functions - intenta con popup primero, si falla usa redirect
+export const login = async () => {
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message?.includes('auth/popup-blocked')) {
+      // Fallback a redirect si el popup está bloqueado
+      await signInWithRedirect(auth, googleProvider);
+    } else {
+      throw error;
+    }
+  }
+};
+
 export const logout = () => signOut(auth);
 
 // Manejar el resultado del redirect (cuando el usuario regresa de Google)
