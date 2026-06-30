@@ -39,6 +39,29 @@ let auth: Auth;
 let firebaseInitError: Error | null = null;
 
 function initializeFirebaseAdmin(): { db: Firestore; auth: Auth } | { error: Error } {
+  // Ruta al archivo JSON de la cuenta de servicio en entorno local
+  const serviceAccountPath = path.resolve(__dirname, 'firebase-service-account.json');
+
+  // 1. Intentar cargar desde archivo JSON local (entorno de desarrollo)
+  if (fs.existsSync(serviceAccountPath)) {
+    try {
+      const rawData = fs.readFileSync(serviceAccountPath, 'utf-8');
+      const serviceAccount = JSON.parse(rawData) as admin.ServiceAccount;
+
+      admin.initializeApp({
+        credential: cert(serviceAccount),
+      });
+
+      console.log('🚀 [Firebase Admin] Initialized successfully using local service account file.');
+      return { db: getFirestore(), auth: getAuth() };
+    } catch (error: unknown) {
+      const initError = error instanceof Error ? error : new Error('Firebase Admin SDK initialization failed from local file.');
+      console.error('❌ [Firebase Admin] Local file initialization failed:', initError);
+      return { error: initError };
+    }
+  }
+
+  // 2. Fallback: variables de entorno (entorno de producción en Render)
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;

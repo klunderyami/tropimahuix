@@ -32,3 +32,5 @@ firebase-config.json
 # Ignorar dependencias y compilados
 node_modules/
 dist/
+server/firebase-service-account.json
+server/*.json

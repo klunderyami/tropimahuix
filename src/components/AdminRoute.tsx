@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useAdminAccess } from '../hooks/useAdminAccess.js';
-import { login } from '../firebase.js';
+import { login, auth } from '../firebase.js';
 
 interface AdminRouteProps {
   children: ReactNode;
@@ -16,6 +16,10 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   }
 
   if (!isAdmin) {
+    // Obtener el UID del usuario actual para depuración
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser?.uid || 'No autenticado';
+
     return (
       <div className="min-h-screen bg-paper px-4 py-10 font-sans text-stone-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-xl rounded-[2rem] border border-stone-200 bg-white p-10 shadow-xl">
@@ -25,6 +29,17 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             <p className="mt-3 text-sm text-stone-600">
               Debes iniciar sesión con la cuenta administrativa correcta para continuar.
             </p>
+            {currentUser && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-xs">
+                <p className="font-bold text-amber-800">🔍 Tu UID actual:</p>
+                <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-amber-700 select-all">
+                  {currentUid}
+                </code>
+                <p className="mt-2 text-amber-700">
+                  Copia este UID y pégalo en tu <code className="bg-amber-100 px-1">.env</code> como <code className="bg-amber-100 px-1">VITE_FIREBASE_ADMIN_UID</code>
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -55,7 +70,8 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
 
             <div className="rounded-3xl border border-stone-200 bg-stone-50 p-5 text-sm text-stone-600">
               Si ya estás conectado pero no tienes acceso, revisa que tu UID coincida con{' '}
-              <code className="rounded bg-white px-1 py-0.5 text-xs text-stone-700">VITE_ADMIN_UID</code>.
+              <code className="rounded bg-white px-1 py-0.5 text-xs text-stone-700">VITE_FIREBASE_ADMIN_UID</code>{' '}
+              en tu archivo <code className="rounded bg-white px-1 py-0.5 text-xs text-stone-700">.env</code>.
             </div>
           </div>
         </div>

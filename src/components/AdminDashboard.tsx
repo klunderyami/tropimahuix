@@ -92,28 +92,48 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [formState, setFormState] = useState<NewProduct>(blankProduct);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [siteConfig, setSiteConfig] = useState<Record<string, string>>({});
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'all'>('paid');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // --- Product Listener ---
     const unsubscribeProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       const nextProducts = snapshot.docs
         .map((documentSnapshot) => toProduct(documentSnapshot.id, documentSnapshot.data() as Partial<Product>))
         .filter((product): product is Product => product !== null)
         .sort((left, right) => left.name.localeCompare(right.name));
-
       setProducts(nextProducts);
     });
 
+    // --- Order Listener ---
     const unsubscribeOrders = onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snapshot) => {
       const nextOrders = snapshot.docs
         .map((documentSnapshot) => toOrder(documentSnapshot.id, documentSnapshot.data() as Partial<Order>))
         .filter((order): order is Order => order !== null);
-
       setOrders(nextOrders);
     });
+
+    // --- Site Config Fetcher ---
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/config`);
+        const payload = (await response.json()) as { config?: Record<string, string>; error?: string };
+        if (!response.ok) {
+          throw new Error(payload.error ?? 'Could not fetch site config');
+        }
+        if (payload.config) {
+          setSiteConfig(payload.config);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchConfig();
 
     return () => {
       unsubscribeProducts();
@@ -235,6 +255,34 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleConfigSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSavingConfig(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const headers = await getAdminHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/config`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(siteConfig),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'No se pudieron guardar los ajustes.');
+      }
+
+      setNotice('Ajustes del sitio actualizados.');
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'No se pudieron guardar los ajustes.');
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut(auth);
     window.location.href = '/';
@@ -284,112 +332,142 @@ const AdminDashboard = () => {
         )}
 
         <section className="grid gap-8 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
-            <div className="mb-6">
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Catálogo</p>
-              <h2 className="mt-2 text-4xl font-display text-brand-brown">
-                {editingProductId ? 'Editar botella' : 'Nuevo producto'}
-              </h2>
+          <div className="flex flex-col gap-8">
+            <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+              <div className="mb-6">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Catálogo</p>
+                <h2 className="mt-2 text-4xl font-display text-brand-brown">
+                  {editingProductId ? 'Editar botella' : 'Nuevo producto'}
+                </h2>
+              </div>
+
+              <form onSubmit={handleProductSubmit} className="grid gap-4">
+                <input
+                  value={formState.name}
+                  onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="Nombre"
+                  required
+                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                />
+                <textarea
+                  value={formState.description}
+                  onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Descripción"
+                  required
+                  className="min-h-28 rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <input
+                    type="number"
+                    min={1}
+                    step="0.01"
+                    value={formState.price}
+                    onChange={(event) => setFormState((current) => ({ ...current, price: Number(event.target.value) }))}
+                    placeholder="Precio"
+                    required
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={formState.stock}
+                    onChange={(event) => setFormState((current) => ({ ...current, stock: Number(event.target.value) }))}
+                    placeholder="Stock"
+                    required
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <input
+                    value={formState.volume}
+                    onChange={(event) => setFormState((current) => ({ ...current, volume: event.target.value }))}
+                    placeholder="Volumen"
+                    required
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                  <select
+                    value={formState.category}
+                    onChange={(event) =>
+                      setFormState((current) => ({
+                        ...current,
+                        category: event.target.value === 'torito' ? 'torito' : 'licor',
+                      }))
+                    }
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  >
+                    <option value="licor">Licor</option>
+                    <option value="torito">Torito</option>
+                  </select>
+                </div>
+                <input
+                  type="url"
+                  value={formState.image}
+                  onChange={(event) => setFormState((current) => ({ ...current, image: event.target.value }))}
+                  placeholder="URL de imagen"
+                  required
+                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                />
+                <div className="flex items-center gap-3">
+                  <input
+                    id="product-active"
+                    type="checkbox"
+                    checked={formState.active !== false}
+                    onChange={(event) => setFormState((current) => ({ ...current, active: event.target.checked }))}
+                    className="h-5 w-5 accent-brand-orange"
+                  />
+                  <label htmlFor="product-active" className="text-sm font-semibold text-stone-700">
+                    Visible en catálogo
+                  </label>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="submit"
+                    disabled={isSavingProduct}
+                    className="flex-1 rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:bg-stone-300"
+                  >
+                    {isSavingProduct ? 'Guardando...' : editingProductId ? 'Actualizar producto' : 'Crear producto'}
+                  </button>
+                  {editingProductId && (
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="rounded-3xl border border-stone-300 px-6 py-4 text-sm font-bold text-stone-700 hover:bg-stone-100"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
             </div>
 
-            <form onSubmit={handleProductSubmit} className="grid gap-4">
-              <input
-                value={formState.name}
-                onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Nombre"
-                required
-                className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-              />
-              <textarea
-                value={formState.description}
-                onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Descripción"
-                required
-                className="min-h-28 rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <input
-                  type="number"
-                  min={1}
-                  step="0.01"
-                  value={formState.price}
-                  onChange={(event) => setFormState((current) => ({ ...current, price: Number(event.target.value) }))}
-                  placeholder="Precio"
-                  required
-                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={formState.stock}
-                  onChange={(event) => setFormState((current) => ({ ...current, stock: Number(event.target.value) }))}
-                  placeholder="Stock"
-                  required
-                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                />
+            <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+              <div className="mb-6">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Ajustes del Sitio</p>
+                <h2 className="mt-2 text-4xl font-display text-brand-brown">Contenido Global</h2>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <form onSubmit={handleConfigSubmit} className="grid gap-4">
                 <input
-                  value={formState.volume}
-                  onChange={(event) => setFormState((current) => ({ ...current, volume: event.target.value }))}
-                  placeholder="Volumen"
-                  required
+                  value={siteConfig.heroTitle || ''}
+                  onChange={(event) => setSiteConfig((current) => ({ ...current, heroTitle: event.target.value }))}
+                  placeholder="Titular del Hero"
                   className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                 />
-                <select
-                  value={formState.category}
-                  onChange={(event) =>
-                    setFormState((current) => ({
-                      ...current,
-                      category: event.target.value === 'torito' ? 'torito' : 'licor',
-                    }))
-                  }
-                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                >
-                  <option value="licor">Licor</option>
-                  <option value="torito">Torito</option>
-                </select>
-              </div>
-              <input
-                type="url"
-                value={formState.image}
-                onChange={(event) => setFormState((current) => ({ ...current, image: event.target.value }))}
-                placeholder="URL de imagen"
-                required
-                className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-              />
-              <div className="flex items-center gap-3">
                 <input
-                  id="product-active"
-                  type="checkbox"
-                  checked={formState.active !== false}
-                  onChange={(event) => setFormState((current) => ({ ...current, active: event.target.checked }))}
-                  className="h-5 w-5 accent-brand-orange"
+                  value={siteConfig.contactPhone || ''}
+                  onChange={(event) => setSiteConfig((current) => ({ ...current, contactPhone: event.target.value }))}
+                  placeholder="Teléfono de Contacto"
+                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                 />
-                <label htmlFor="product-active" className="text-sm font-semibold text-stone-700">
-                  Visible en catálogo
-                </label>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="submit"
-                  disabled={isSavingProduct}
-                  className="flex-1 rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:bg-stone-300"
+                  disabled={isSavingConfig}
+                  className="flex-1 rounded-3xl bg-brand-brown px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-brown/90 disabled:bg-stone-300"
                 >
-                  {isSavingProduct ? 'Guardando...' : editingProductId ? 'Actualizar producto' : 'Crear producto'}
+                  {isSavingConfig ? 'Guardando...' : 'Guardar Ajustes del Sitio'}
                 </button>
-                {editingProductId && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="rounded-3xl border border-stone-300 px-6 py-4 text-sm font-bold text-stone-700 hover:bg-stone-100"
-                  >
-                    Cancelar
-                  </button>
-                )}
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
 
           <div className="glass-card border border-stone-200 bg-white/90 p-6 shadow-xl">

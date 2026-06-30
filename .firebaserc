@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "sitio-web-cb0c4"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

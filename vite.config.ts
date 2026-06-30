@@ -23,12 +23,17 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      hmr: env.DISABLE_HMR !== 'true',
+      port: 5173,
+      strictPort: true,
+      hmr: {
+        host: 'localhost',
+        protocol: 'ws',
+        port: 5173,
+      },
       proxy: {
         '/api': {
           target: apiTarget,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
     },
