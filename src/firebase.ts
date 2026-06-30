@@ -28,16 +28,24 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Auth functions - intenta con popup primero, si falla usa redirect
+// Detectar si estamos en producción (Render) o local
+const isProduction = !window.location.hostname.includes('localhost');
+
+// Auth functions
 export const login = async () => {
-  try {
-    await signInWithPopup(auth, googleProvider);
-  } catch (error: unknown) {
-    if (error instanceof Error && error.message?.includes('auth/popup-blocked')) {
-      // Fallback a redirect si el popup está bloqueado
-      await signInWithRedirect(auth, googleProvider);
-    } else {
-      throw error;
+  if (isProduction) {
+    // En producción (Render), usar redirect obligatoriamente
+    await signInWithRedirect(auth, googleProvider);
+  } else {
+    // En local, intentar con popup
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message?.includes('auth/popup-blocked')) {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        throw error;
+      }
     }
   }
 };
@@ -45,8 +53,23 @@ export const login = async () => {
 export const logout = () => signOut(auth);
 
 // Manejar el resultado del redirect (cuando el usuario regresa de Google)
-getRedirectResult(auth).catch((error) => {
-  console.error('Error en redirect result:', error);
+getRedirectResult(auth)
+  .then((result) => {
+    if (result?.user) {
+      console.log('✅ Usuario autenticado vía redirect:', result.user.uid);
+    }
+  })
+  .catch((error) => {
+    console.error('❌ Error en redirect result:', error);
+  });
+
+// Mostrar variables de entorno para diagnóstico
+console.log('🔍 Diagnóstico Firebase:', {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ? '✅ presente' : '❌ faltante',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '❌ faltante',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '❌ faltante',
+  isProduction,
+  hostname: window.location.hostname,
 });
 
 // Error Handling Spec for Firestore Operations
