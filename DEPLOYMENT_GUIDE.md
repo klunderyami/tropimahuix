@@ -57,36 +57,15 @@ PORT=3000
 CLIENT_ORIGIN=https://tropicana-xxxxx.onrender.com
 ADMIN_UID=[tu_uid_de_firebase]
 NOTIFICATION_WEBHOOK_URL=[opcional: webhook de Discord/Slack]
-PAYPAL_MODE=sandbox
+PAYPAL_MODE=LIVE
 PAYPAL_CURRENCY=MXN
 PAYPAL_CLIENT_ID=[tu_paypal_sandbox_id]
 PAYPAL_CLIENT_SECRET=[tu_paypal_secret]
-FIREBASE_CONFIG_BASE64=[tu_config_base64]
 ```
 
 ## Paso 4: Obtener Credenciales
 
-### 4.1 Firebase Admin Config (Base64)
-
-**En tu máquina local:**
-
-```bash
-# Descargar el JSON de credenciales desde Firebase Console
-# Project Settings → Service Accounts → Generate New Private Key
-
-# Convertir a Base64
-cat ruta/a/serviceAccountKey.json | base64
-
-# En macOS
-cat ruta/a/serviceAccountKey.json | base64 | pbcopy
-
-# En Windows PowerShell
-[Convert]::ToBase64String([System.IO.File]::ReadAllBytes("ruta\a\serviceAccountKey.json")) | Set-Clipboard
-```
-
-Pega el resultado en `FIREBASE_CONFIG_BASE64` en Render.
-
-### 4.2 Tu Admin UID
+### 4.1 Tu Admin UID
 
 1. **Accede a `https://tropicana-xxxxx.onrender.com/admin`**
 2. Haz clic en "Iniciar sesión administrativa"
@@ -198,7 +177,6 @@ npm run build
 npm start
 
 # 2. Que todas las variables de entorno están en Render
-# 3. Que FIREBASE_CONFIG_BASE64 es válido
 ```
 
 ### "Cannot find module 'vite'"
