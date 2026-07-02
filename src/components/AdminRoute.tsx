@@ -8,7 +8,7 @@ interface AdminRouteProps {
 }
 
 const AdminRoute = ({ children }: AdminRouteProps) => {
-  const { isAdmin, loading } = useAdminAccess();
+  const { isAdmin, loading, debugInfo } = useAdminAccess();
   const [authError, setAuthError] = useState<string | null>(null);
   const [currentUid, setCurrentUid] = useState<string | null>(null);
 
@@ -25,6 +25,7 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
 
   if (!isAdmin) {
     const displayUid = currentUid || 'No has iniciado sesión';
+    const envMissing = !debugInfo.hasEnvVar;
 
     return (
       <div className="min-h-screen bg-paper px-4 py-10 font-sans text-stone-900 sm:px-6 lg:px-8">
@@ -35,27 +36,61 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             <p className="mt-3 text-sm text-stone-600">
               Debes iniciar sesión con la cuenta administrativa correcta para continuar.
             </p>
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-xs">
-              <p className="font-bold text-amber-800">🔍 Tu UID actual:</p>
-              <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-amber-700 select-all">
-                {displayUid}
-              </code>
-              {currentUid && (
-                <p className="mt-2 text-amber-700">
-                  Copia este UID y pégalo en tu <code className="bg-amber-100 px-1">.env</code> como <code className="bg-amber-100 px-1">VITE_FIREBASE_ADMIN_UID</code>
+
+            {/* Error de variable de entorno */}
+            {envMissing && (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-left text-xs">
+                <p className="font-bold text-red-800">🚨 Error crítico:</p>
+                <p className="mt-1 text-red-700">
+                  La variable de entorno <code className="bg-red-100 px-1 rounded">VITE_FIREBASE_ADMIN_UID</code> no está configurada.
                 </p>
-              )}
-              {!currentUid && (
-                <p className="mt-2 text-amber-700">
-                  Haz clic en "Iniciar sesión administrativa" para autenticarte con Google y ver tu UID.
+                <p className="mt-2 text-red-700">
+                  <strong>Solución:</strong> Agrega la variable en tu archivo <code className="bg-red-100 px-1 rounded">.env</code>
                 </p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Debug info cuando estás autenticado pero sin permisos */}
+            {!envMissing && currentUid && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-xs">
+                <p className="font-bold text-amber-800">🔍 Tu UID actual:</p>
+                <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-amber-700 select-all">
+                  {currentUid}
+                </code>
+                <p className="mt-2 text-amber-700">
+                  Copia este UID y asegúrate de que coincida con <code className="bg-amber-100 px-1">VITE_FIREBASE_ADMIN_UID</code>
+                </p>
+                <details className="mt-2 text-amber-700 cursor-pointer">
+                  <summary className="font-semibold">📋 Info de depuración (click para expandir)</summary>
+                  <pre className="mt-1 bg-white rounded p-2 text-xs overflow-auto max-h-40">
+                    {JSON.stringify(
+                      {
+                        expectedUid: debugInfo.adminUid || 'NO CONFIGURADA',
+                        currentUid: debugInfo.currentUid || 'No autenticado',
+                        envVarExists: debugInfo.hasEnvVar,
+                      },
+                      null,
+                      2,
+                    )}
+                  </pre>
+                </details>
+              </div>
+            )}
+
+            {/* Instrucciones cuando NO estás autenticado */}
+            {!currentUid && !envMissing && (
+              <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-left text-xs">
+                <p className="text-stone-600">
+                  Haz clic en "Iniciar sesión administrativa" para autenticarte con Google.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
             <button
               type="button"
+              disabled={envMissing}
               onClick={async () => {
                 setAuthError(null);
                 try {
@@ -68,9 +103,13 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
                   );
                 }
               }}
-              className="w-full rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90"
+              className={`w-full rounded-3xl px-6 py-4 text-sm font-bold text-white transition ${
+                envMissing
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-brand-orange hover:bg-brand-orange/90'
+              }`}
             >
-              Iniciar sesión administrativa
+              {envMissing ? '⚠️ Configura VITE_FIREBASE_ADMIN_UID' : 'Iniciar sesión administrativa'}
             </button>
 
             {authError && (
@@ -80,9 +119,13 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             )}
 
             <div className="rounded-3xl border border-stone-200 bg-stone-50 p-5 text-sm text-stone-600">
-              Si ya estás conectado pero no tienes acceso, revisa que tu UID coincida con{' '}
-              <code className="rounded bg-white px-1 py-0.5 text-xs text-stone-700">VITE_FIREBASE_ADMIN_UID</code>{' '}
-              en tu archivo <code className="rounded bg-white px-1 py-0.5 text-xs text-stone-700">.env</code>.
+              <p className="font-semibold mb-2">💡 ¿Cómo configurar el acceso de admin?</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Abre la consola del navegador (F12)</li>
+                <li>Ejecuta: <code className="bg-white px-1 rounded">firebase.auth().currentUser.uid</code></li>
+                <li>Copia el resultado y agregalo a tu <code className="bg-white px-1 rounded">.env</code></li>
+                <li>Reinicia el servidor (<code className="bg-white px-1 rounded">npm run dev</code>)</li>
+              </ol>
             </div>
           </div>
         </div>
