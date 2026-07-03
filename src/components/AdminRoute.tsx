@@ -57,9 +57,11 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
                 <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-amber-700 select-all">
                   {currentUid}
                 </code>
-                <p className="mt-2 text-amber-700">
-                  Copia este UID y asegúrate de que coincida con <code className="bg-amber-100 px-1">VITE_FIREBASE_ADMIN_UID</code>
-                </p>
+                <div className="mt-2 text-amber-700">
+                  Copia este UID y asegúrate de que coincida con{' '}
+                  <code className="bg-amber-100 px-1 rounded">VITE_FIREBASE_ADMIN_UID</code> (o alternativamente{' '}
+                  <code className="bg-amber-100 px-1 rounded">VITE_ADMIN_UID</code>)
+                </div>
                 <details className="mt-2 text-amber-700 cursor-pointer">
                   <summary className="font-semibold">📋 Info de depuración (click para expandir)</summary>
                   <pre className="mt-1 bg-white rounded p-2 text-xs overflow-auto max-h-40">
@@ -123,7 +125,7 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
               <ol className="list-decimal list-inside space-y-1 text-xs">
                 <li>Abre la consola del navegador (F12)</li>
                 <li>Ejecuta: <code className="bg-white px-1 rounded">firebase.auth().currentUser.uid</code></li>
-                <li>Copia el resultado y agregalo a tu <code className="bg-white px-1 rounded">.env</code></li>
+                <li>Copia el resultado y agrégalo a tu <code className="bg-white px-1 rounded">.env</code></li>
                 <li>Reinicia el servidor (<code className="bg-white px-1 rounded">npm run dev</code>)</li>
               </ol>
             </div>

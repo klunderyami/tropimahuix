@@ -1,5 +1,5 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, unstable_useBlocker as useBlocker } from 'react-router-dom'; // Importa unstable_useBlocker
 import AdminRoute from './components/AdminRoute.js';
 import { useCart } from './contexts/CartContext.js';
 import { Navbar } from './components/Navbar.js';
@@ -45,7 +45,10 @@ function App() {
   }, []);
 
   return (
-    <Routes>
+    <Routes
+      // Habilitar future flags para compatibilidad con React Router v7
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <Route
         path="/"
         element={

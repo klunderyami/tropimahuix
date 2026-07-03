@@ -52,7 +52,8 @@ npm install
 
 #### Frontend (`.env` en raíz)
 ```dotenv
-VITE_ADMIN_UID=tu_admin_uid_aqui
+# ID de usuario de Firebase que tendrá acceso al panel de administración. Puedes usar VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID.
+VITE_FIREBASE_ADMIN_UID=tu_admin_uid_aqui
 VITE_API_BASE_URL=/
 VITE_PAYPAL_CLIENT_ID=tu_paypal_client_id_aqui
 
@@ -157,7 +158,8 @@ npm start
 
 **Frontend (Vite)**
 ```
-VITE_ADMIN_UID=tu_admin_uid_aqui
+# ID de usuario de Firebase que tendrá acceso al panel de administración. Puedes usar VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID.
+VITE_FIREBASE_ADMIN_UID=tu_admin_uid_aqui
 VITE_API_BASE_URL=/
 VITE_PAYPAL_CLIENT_ID=tu_paypal_sandbox_id
 VITE_FIREBASE_API_KEY=tu_api_key
@@ -210,7 +212,7 @@ FIREBASE_CONFIG_BASE64=eyJwcm9qZWN0SWQiOiAi... (tu config en Base64)
 
 ### Configurar como Admin
 
-1. Agrega tu UID a las variables de entorno:
+1. Agrega tu UID a las variables de entorno (puedes usar VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID para el frontend):
    - `.env` → `VITE_ADMIN_UID=tu_uid`
    - `server/.env` → `ADMIN_UID=tu_uid`
    - Render → `VITE_ADMIN_UID=tu_uid` y `ADMIN_UID=tu_uid`
@@ -280,7 +282,7 @@ tropimahuix/
 
 | Variable | Frontend/Backend | Requerida | Descripción |
 |----------|-----------------|----------|-------------|
-| `VITE_ADMIN_UID` | Frontend | ✅ | UID de Firebase del administrador |
+| `VITE_FIREBASE_ADMIN_UID` o `VITE_ADMIN_UID` | Frontend | ✅ | UID de Firebase del administrador |
 | `VITE_API_BASE_URL` | Frontend | ✅ | URL base de la API (/ en producción) |
 | `FIREBASE_*` | Frontend | ✅ | Credenciales de Firebase Client |
 | `PAYPAL_CLIENT_ID` | Frontend | ✅ | ID de cliente PayPal |
