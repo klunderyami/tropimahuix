@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, signInWithEmailAndPassword, User } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocFromServer } from 'firebase/firestore';
 
 function getRequiredEnv(name: string): string {
@@ -48,6 +48,10 @@ export const login = async () => {
       }
     }
   }
+};
+
+export const loginWithEmail = async (email: string, password: string) => {
+  await signInWithEmailAndPassword(auth, email, password);
 };
 
 export const logout = () => signOut(auth);
@@ -147,6 +151,7 @@ export {
   onSnapshot, 
   query, 
   orderBy,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signInWithEmailAndPassword
 };
 export type { User };
