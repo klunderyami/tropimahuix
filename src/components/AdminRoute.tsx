@@ -53,7 +53,6 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   }
 
   if (!isAdmin) {
-    const displayUid = currentUid || 'No has iniciado sesión';
     const envMissing = !debugInfo.hasEnvVar;
 
     return (

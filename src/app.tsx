@@ -1,5 +1,5 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
-import { Routes, Route, unstable_useBlocker as useBlocker } from 'react-router-dom'; // Importa unstable_useBlocker
+import { Routes, Route } from 'react-router-dom';
 import AdminRoute from './components/AdminRoute.js';
 import { useCart } from './contexts/CartContext.js';
 import { Navbar } from './components/Navbar.js';

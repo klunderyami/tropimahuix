@@ -106,7 +106,16 @@ if ('error' in result) {
 const app = express();
 app.disable('x-powered-by');
 const PORT = Number(process.env.PORT || 9005);
-const ADMIN_UID = process.env.ADMIN_UID || process.env.FIREBASE_ADMIN_UID; // Prioriza ADMIN_UID o FIREBASE_ADMIN_UID para el backend
+const ADMIN_UID =
+  process.env.ADMIN_UID ||
+  process.env.FIREBASE_ADMIN_UID ||
+  process.env.VITE_FIREBASE_ADMIN_UID ||
+  process.env.VITE_ADMIN_UID;
+if (!ADMIN_UID) {
+  console.warn(
+    '⚠️ No se ha configurado ningún UID de administrador. Define ADMIN_UID, FIREBASE_ADMIN_UID, VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID en tu entorno.',
+  );
+}
 const PAYPAL_MODE = process.env.PAYPAL_MODE === 'live' || process.env.VITE_PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
 const PAYPAL_API_BASE = PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 const PAYPAL_CURRENCY = process.env.PAYPAL_CURRENCY || 'MXN';
