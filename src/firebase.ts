@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider, DebugAppCheckProvider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, signInWithEmailAndPassword, User, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocFromServer } from 'firebase/firestore';
 
@@ -35,9 +35,10 @@ if (appCheckSiteKey) {
 } else if (!isProduction) {
   // Permitir App Check debug local cuando no se ha configurado la clave reCAPTCHA.
   // Esto evita el error auth/firebase-app-check-token-is-invalid durante el desarrollo local.
-  window.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  // En Firebase v11, el modo debug se activa con la variable de entorno antes de inicializar.
+  (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   initializeAppCheck(app, {
-    provider: new DebugAppCheckProvider(),
+    provider: new ReCaptchaV3Provider(appCheckSiteKey || '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'),
     isTokenAutoRefreshEnabled: true,
   });
 } else {
