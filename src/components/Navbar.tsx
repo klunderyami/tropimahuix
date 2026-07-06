@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import { auth, login, logout } from '../firebase.js';
+import { auth, sendLoginLink, logout } from '../firebase.js';
 import { useAdminAccess } from '../hooks/useAdminAccess.js';
 
 const SOCIAL_LINKS = {
@@ -77,27 +77,91 @@ const AdminLink: React.FC = () => {
 
 const AuthButton: React.FC = () => {
   const [userState, setUserState] = useState<User | null>(null);
+  const [isLoginStarted, setIsLoginStarted] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUserState(u));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUserState(u);
+      if (u) {
+        setIsLoginStarted(false);
+        setEmailSent(false);
+      }
+    });
     return () => unsub();
   }, []);
 
-  const handleAuth = async () => {
+  const handleLogout = async () => {
     try {
-      if (userState) {
-        await logout();
-      } else {
-        await login();
-      }
-    } catch {
-      // ignore
+      await logout();
+    } catch (e) {
+      setError('Error al cerrar sesión. Inténtalo de nuevo.');
+    }
+  };
+  
+  const handleLoginClick = () => {
+    setIsLoginStarted(true);
+  }
+
+  const handleSendLink: React.FormEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!email) {
+      setError('Por favor, introduce tu correo electrónico.');
+      return;
+    }
+    try {
+      await sendLoginLink(email);
+      window.localStorage.setItem('emailForSignIn', email);
+      setEmailSent(true);
+    } catch (err) {
+      setError('Error al enviar el enlace. Inténtalo de nuevo.');
+      console.error(err);
     }
   };
 
+  if (userState) {
+    return (
+      <button onClick={handleLogout} className="px-3 py-2 rounded-full border border-stone-200 bg-white text-sm hover:bg-stone-50">
+        Salir
+      </button>
+    );
+  }
+
+  if (emailSent) {
+    return (
+      <div className="text-sm text-center">
+        <p className="font-medium text-green-700">¡Enlace enviado!</p>
+        <p className="text-stone-600">Revisa tu correo para iniciar sesión.</p>
+      </div>
+    );
+  }
+
+  if (isLoginStarted) {
+    return (
+      <form onSubmit={handleSendLink} className="flex items-center gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@email.com"
+          className="px-3 py-2 text-sm border border-stone-300 rounded-full focus:ring-2 focus:ring-brand-orange focus:border-transparent transition"
+          aria-label="Email"
+          required
+        />
+        <button type="submit" className="px-3 py-2 rounded-full bg-brand-orange text-white text-sm font-semibold hover:bg-orange-600 transition-colors">
+          Enviar
+        </button>
+        {error && <p className="text-xs text-red-500 absolute -bottom-5">{error}</p>}
+      </form>
+    );
+  }
+
   return (
-    <button onClick={handleAuth} className="px-3 py-2 rounded-full border border-stone-200 bg-white text-sm hover:bg-stone-50">
-      {userState ? 'Salir' : 'Entrar'}
+    <button onClick={handleLoginClick} className="px-3 py-2 rounded-full border border-stone-200 bg-white text-sm hover:bg-stone-50">
+      Entrar
     </button>
   );
 };

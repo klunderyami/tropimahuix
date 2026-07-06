@@ -8,6 +8,9 @@ import { Catalog } from './components/Catalog.js';
 import { CartSidebar } from './components/CartSidebar.js';
 import { CheckoutForm } from './components/CheckoutForm.js';
 import { OrderConfirmation } from './components/OrderConfirmation.js';
+import { MagicLinkHandler } from './components/MagicLinkHandler.js';
+import { LoginAdmin } from './components/LoginAdmin.js';
+import { VerifyAdminLink } from './components/VerifyAdminLink.js';
 
 // Lazy load AdminDashboard to reduce main bundle size
 const AdminDashboard = lazy(() => import('./components/AdminDashboard.js'));
@@ -166,6 +169,9 @@ function App() {
           </AdminRoute>
         }
       />
+      <Route path="/auth/magic-link" element={<MagicLinkHandler />} />
+      <Route path="/admin/login" element={<LoginAdmin />} />
+      <Route path="/admin/verify-link" element={<VerifyAdminLink />} />
     </Routes>
   );
 }

@@ -157,7 +157,10 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
               </button>
             ) : (
               <form onSubmit={handleEmailLogin} className="space-y-3">
+                <label htmlFor="admin-email" className="sr-only">Correo electrónico</label>
                 <input
+                  id="admin-email"
+                  name="admin-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -166,7 +169,10 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
                   disabled={isSubmitting}
                   className="w-full rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                 />
+                <label htmlFor="admin-password" className="sr-only">Contraseña</label>
                 <input
+                  id="admin-password"
+                  name="admin-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

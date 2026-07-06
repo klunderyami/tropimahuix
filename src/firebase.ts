@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, signInWithEmailAndPassword, User } from 'firebase/auth';
+import { initializeAppCheck, ReCaptchaV3Provider, DebugAppCheckProvider } from 'firebase/app-check';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, signInWithEmailAndPassword, User, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocFromServer } from 'firebase/firestore';
 
 function getRequiredEnv(name: string): string {
@@ -23,21 +24,66 @@ const firebaseConfig = {
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_RECAPTCHA_SITE_KEY;
+const isProduction = !window.location.hostname.includes('localhost');
+
+if (appCheckSiteKey) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+} else if (!isProduction) {
+  // Permitir App Check debug local cuando no se ha configurado la clave reCAPTCHA.
+  // Esto evita el error auth/firebase-app-check-token-is-invalid durante el desarrollo local.
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  initializeAppCheck(app, {
+    provider: new DebugAppCheckProvider(),
+    isTokenAutoRefreshEnabled: true,
+  });
+} else {
+  console.warn(
+    '⚠️ No se ha configurado VITE_FIREBASE_RECAPTCHA_SITE_KEY. Si App Check está habilitado en Firebase y estás en producción, las solicitudes pueden fallar.',
+  );
+}
+
 export const db = getFirestore(app);
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Detectar si estamos en producción (Render) o local
-const isProduction = !window.location.hostname.includes('localhost');
+
+// -- General Auth --
+
+const actionCodeSettings = {
+  url: `${window.location.origin}/auth/magic-link`,
+  handleCodeInApp: true,
+};
+
+export const sendLoginLink = (email: string) => {
+  return sendSignInLinkToEmail(auth, email, actionCodeSettings);
+}
+
+export const completeLogin = (email: string, link: string) => {
+  return signInWithEmailLink(auth, email, link);
+}
+
+export const isLoginLink = (link: string) => {
+  return isSignInWithEmailLink(auth, link);
+}
+
+
+// -- Admin Auth --
+
+export const actionCodeSettingsAdmin = {
+  url: import.meta.env.VITE_ADMIN_REDIRECT_URL || 'http://localhost:5173/admin/verify-link',
+  handleCodeInApp: true,
+};
 
 // Auth functions
 export const login = async () => {
   if (isProduction) {
-    // En producción (Render), usar redirect obligatoriamente
     await signInWithRedirect(auth, googleProvider);
   } else {
-    // En local, intentar con popup
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: unknown) {
@@ -140,18 +186,21 @@ async function testConnection() {
 }
 testConnection();
 
-export { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
+export {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
   orderBy,
   onAuthStateChanged,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink
 };
 export type { User };
