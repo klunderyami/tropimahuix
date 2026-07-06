@@ -1,20 +1,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // --- FUNCIONES DE AUTENTICACIÓN Y ROLES ---
     function isAuthenticated() {
       return request.auth != null;
     }
 
     function isAdmin() {
-      return isAuthenticated() && request.auth.uid == "OsVU7qU5NOParGXVqejx0SacMLl2";
+      // Admin identificado ÚNICAMENTE por su correo electrónico verificado
+      return isAuthenticated()
+        && request.auth.token.email == "yamilethklunder@gmail.com";
+    }
+
+    function isOwner(userId: string) {
+      // El usuario autenticado es dueño de su propio documento
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
     // --- VALIDACIÓN DE PRODUCTOS ---
     function isValidProduct(data) {
       return data.keys().hasAll(['name', 'description', 'price', 'volume', 'image', 'category', 'stock']) &&
-        data.keys().hasOnly(['name', 'description', 'price', 'volume', 'image', 'category', 'stock', 'active']) &&
+        data.keys().hasOnly(['name', 'description', 'price', 'volume', 'image', 'category', 'stock', 'active', 'createdAt', 'updatedAt']) &&
         data.name is string &&
         data.name.size() > 0 &&
         data.name.size() <= 120 &&
@@ -28,6 +35,7 @@ service cloud.firestore {
         data.volume.size() <= 30 &&
         data.image is string &&
         data.image.size() > 0 &&
+        data.image.size() <= 2000 &&
         data.category in ['licor', 'torito'] &&
         data.stock is int &&
         data.stock >= 0 &&
@@ -54,48 +62,80 @@ service cloud.firestore {
         address.city.size() <= 120;
     }
 
+    // --- VALIDACIÓN DE ITEMS DE ÓRDENES ---
+    function isValidOrderItem(item) {
+      return item.keys().hasAll(['id', 'name', 'price', 'quantity']) &&
+        item.keys().hasOnly(['id', 'name', 'price', 'quantity']) &&
+        item.id is string &&
+        item.id.size() > 0 &&
+        item.id.size() <= 120 &&
+        item.name is string &&
+        item.name.size() > 0 &&
+        item.name.size() <= 120 &&
+        item.price is number &&
+        item.price > 0 &&
+        item.quantity is int &&
+        item.quantity >= 1 &&
+        item.quantity <= 99;
+    }
+
     // --- VALIDACIÓN DE ÓRDENES ---
     function isValidOrder(data) {
       return data.keys().hasAll(['userId', 'items', 'total', 'status', 'shippingAddress', 'paypalOrderId', 'createdAt']) &&
-        data.keys().hasOnly(['userId', 'items', 'total', 'status', 'shippingAddress', 'paypalOrderId', 'createdAt']) &&
         data.userId is string &&
+        data.userId.size() > 0 &&
         data.items is list &&
         data.items.size() > 0 &&
         data.items.size() <= 50 &&
+        data.items.all(isValidOrderItem) &&
         data.total is number &&
         data.total > 0 &&
-        data.status in ['pending', 'paid', 'failed', 'delivered'] &&
+        data.status == "pending" &&
         data.paypalOrderId is string &&
-        data.paypalOrderId.size() > 0 &&
-        data.paypalOrderId.size() <= 120 &&
+        data.paypalOrderId == "" &&
         data.createdAt is string &&
+        data.createdAt.size() > 0 &&
         isValidShippingAddress(data.shippingAddress);
     }
 
-    function isValidFulfillmentUpdate() {
-      return isValidOrder(request.resource.data) &&
-        resource.data.diff(request.resource.data).affectedKeys().hasOnly(['status']) &&
-        request.resource.data.status in ['pending', 'paid', 'failed', 'delivered'];
+    function isValidOrderUpdate(data) {
+      return data.keys().hasOnly(['status', 'paypalOrderId', 'paidAt', 'failedAt', 'updatedAt']) &&
+        (!('status' in data) || data.status in ['pending', 'paid', 'failed', 'delivered']) &&
+        (!('paypalOrderId' in data) || (data.paypalOrderId is string && data.paypalOrderId.size() > 0));
     }
 
     // --- REGLAS DE COLECCIONES ---
 
-    // Catálogo de Productos: Cualquiera los lee, solo tú los editas/creas
+    // Catálogo de Productos: Lectura pública, escritura exclusiva del admin
     match /products/{productId} {
       allow read: if true;
       allow create, update: if isAdmin() && isValidProduct(request.resource.data);
       allow delete: if isAdmin();
     }
 
-    // Órdenes de compra: Clientes y Admin crean (con datos válidos), solo tú las lees/actualizas
+    // Fotos de Productos: Lectura pública, escritura exclusiva del admin
+    match /photos/{photoId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow delete: if isAdmin();
+      allow update: if isAdmin();
+    }
+
+    // Órdenes de compra:
+    //   - Admin: lectura y escritura total
+    //   - Cliente autenticado: crear órdenes (create), leer sus propias órdenes
     match /orders/{orderId} {
-      allow create: if isValidOrder(request.resource.data);
-      allow read: if isAdmin();
-      allow update: if isAdmin() && isValidFulfillmentUpdate();
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && isValidOrder(request.resource.data);
+      allow read: if isAdmin() || (isAuthenticated()
+        && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin()
+        && isValidOrderUpdate(request.resource.data);
       allow delete: if false;
     }
 
-    // Configuraciones globales de la App
+    // Configuraciones globales de la App: lectura pública, escritura del admin
     match /config/{configId} {
       allow read: if true;
       allow write: if isAdmin();

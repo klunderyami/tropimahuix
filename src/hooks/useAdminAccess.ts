@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase.js';
 
+export const ADMIN_EMAIL = 'yamilethklunder@gmail.com';
+
 interface AdminAccessState {
   isAdmin: boolean;
   loading: boolean;
   debugInfo: {
-    adminUid: string | undefined;
+    expectedEmail: string;
+    currentEmail: string | null | undefined;
     currentUid: string | undefined;
-    hasEnvVar: boolean;
+    emailVerified: boolean;
   };
 }
 
@@ -17,21 +20,15 @@ export function useAdminAccess(): AdminAccessState {
     isAdmin: false,
     loading: true,
     debugInfo: {
-      adminUid: undefined,
+      expectedEmail: ADMIN_EMAIL,
+      currentEmail: undefined,
       currentUid: undefined,
-      hasEnvVar: false,
+      emailVerified: false,
     },
   });
 
   useEffect(() => {
-    const adminUid = import.meta.env.VITE_FIREBASE_ADMIN_UID || import.meta.env.VITE_ADMIN_UID;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    if (!adminUid) {
-      console.warn(
-        '⚠️ VITE_FIREBASE_ADMIN_UID no está configurada. Nadie podrá acceder al panel admin.',
-      );
-    }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (timeoutId) {
@@ -39,24 +36,30 @@ export function useAdminAccess(): AdminAccessState {
         timeoutId = null;
       }
 
-      const isAdminUser = Boolean(adminUid && user?.uid === adminUid);
+      const email = user?.email ?? null;
+      const emailVerified = user?.emailVerified ?? false;
+      const isAdminUser = Boolean(
+        user &&
+          email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
+          emailVerified
+      );
 
       if (isAdminUser) {
-        console.log('✅ Usuario administrador autenticado:', user?.uid);
-      } else if (adminUid && user?.uid && user?.uid !== adminUid) {
-        console.warn('❌ Acceso denegado: UID no coincide con VITE_FIREBASE_ADMIN_UID', {
-          expected: adminUid,
-          current: user?.uid,
-        });
+        console.log('✅ Administrador autenticado:', email);
+      } else if (user && email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && !emailVerified) {
+        console.warn('⚠️ Correo admin correcto pero NO verificado. Verifica el correo antes de acceder.');
+      } else if (user) {
+        console.warn('❌ Acceso denegado: correo no autorizado:', email);
       }
 
       setState({
         isAdmin: isAdminUser,
         loading: false,
         debugInfo: {
-          adminUid,
+          expectedEmail: ADMIN_EMAIL,
+          currentEmail: email,
           currentUid: user?.uid,
-          hasEnvVar: Boolean(adminUid),
+          emailVerified,
         },
       });
     });

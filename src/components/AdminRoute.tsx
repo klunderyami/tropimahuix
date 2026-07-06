@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useAdminAccess } from '../hooks/useAdminAccess.js';
+import { useAdminAccess, ADMIN_EMAIL } from '../hooks/useAdminAccess.js';
 import { login, loginWithEmail, auth, onAuthStateChanged } from '../firebase.js';
 
 interface AdminRouteProps {
@@ -10,7 +10,7 @@ interface AdminRouteProps {
 const AdminRoute = ({ children }: AdminRouteProps) => {
   const { isAdmin, loading, debugInfo } = useAdminAccess();
   const [authError, setAuthError] = useState<string | null>(null);
-  const [currentUid, setCurrentUid] = useState<string | null>(null);
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
 
   // Estado para el formulario de email/contraseña
   const [email, setEmail] = useState('');
@@ -20,7 +20,7 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUid(user?.uid || null);
+      setCurrentEmail(user?.email || null);
     });
     return unsubscribe;
   }, []);
@@ -53,8 +53,6 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   }
 
   if (!isAdmin) {
-    const envMissing = !debugInfo.hasEnvVar;
-
     return (
       <div className="min-h-screen bg-paper px-4 py-10 font-sans text-stone-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-xl rounded-[2rem] border border-stone-200 bg-white p-10 shadow-xl">
@@ -64,44 +62,29 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             <p className="mt-3 text-sm text-stone-600">
               Debes iniciar sesión con la cuenta administrativa correcta para continuar.
             </p>
-
-            {/* Error de variable de entorno */}
-            {envMissing && (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-left text-xs">
-                <p className="font-bold text-red-800">🚨 Error crítico:</p>
-                <p className="mt-1 text-red-700">
-                  La variable de entorno <code className="bg-red-100 px-1 rounded">VITE_FIREBASE_ADMIN_UID</code> no está configurada.
-                </p>
-                <p className="mt-2 text-red-700">
-                  <strong>Solución:</strong> Agrega la variable en tu archivo <code className="bg-red-100 px-1 rounded">.env</code>
-                </p>
-              </div>
-            )}
+            <p className="mt-1 text-xs font-semibold text-brand-orange">
+              Solo: {ADMIN_EMAIL}
+            </p>
 
             {/* Debug info cuando estás autenticado pero sin permisos */}
-            {!envMissing && currentUid && (
+            {currentEmail && (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-xs">
-                <p className="font-bold text-amber-800">🔍 Tu UID actual:</p>
-                <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-amber-700 select-all">
-                  {currentUid}
-                </code>
-                <div className="mt-2 text-amber-700">
-                  Copia este UID y asegúrate de que coincida con{' '}
-                  <code className="bg-amber-100 px-1 rounded">VITE_FIREBASE_ADMIN_UID</code> (o alternativamente{' '}
-                  <code className="bg-amber-100 px-1 rounded">VITE_ADMIN_UID</code>)
-                </div>
+                <p className="font-bold text-amber-800">🔍 Sesión actual:</p>
+                <p className="mt-1 text-amber-700">
+                  Correo: <span className="font-mono bg-amber-100 px-1 rounded select-all">{currentEmail}</span>
+                </p>
+                <p className="mt-1 text-amber-700">
+                  Correo esperado: <span className="font-mono bg-amber-100 px-1 rounded">{ADMIN_EMAIL}</span>
+                </p>
+                {currentEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase() && !debugInfo.emailVerified && (
+                  <p className="mt-2 font-bold text-red-600">
+                    ⚠️ El correo es correcto pero NO está verificado. Revisa tu bandeja de entrada y verifica tu correo antes de continuar.
+                  </p>
+                )}
                 <details className="mt-2 text-amber-700 cursor-pointer">
                   <summary className="font-semibold">📋 Info de depuración (click para expandir)</summary>
                   <pre className="mt-1 bg-white rounded p-2 text-xs overflow-auto max-h-40">
-                    {JSON.stringify(
-                      {
-                        expectedUid: debugInfo.adminUid || 'NO CONFIGURADA',
-                        currentUid: debugInfo.currentUid || 'No autenticado',
-                        envVarExists: debugInfo.hasEnvVar,
-                      },
-                      null,
-                      2,
-                    )}
+                    {JSON.stringify(debugInfo, null, 2)}
                   </pre>
                 </details>
               </div>
@@ -112,7 +95,6 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             {/* Botón de Google Login */}
             <button
               type="button"
-              disabled={envMissing}
               onClick={async () => {
                 setAuthError(null);
                 try {
@@ -125,13 +107,9 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
                   );
                 }
               }}
-              className={`w-full rounded-3xl px-6 py-4 text-sm font-bold text-white transition ${
-                envMissing
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-brand-orange hover:bg-brand-orange/90'
-              }`}
+              className="w-full rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90"
             >
-              {envMissing ? '⚠️ Configura VITE_FIREBASE_ADMIN_UID' : 'Iniciar sesión con Google'}
+              Iniciar sesión con Google
             </button>
 
             {/* Separador */}
@@ -145,13 +123,8 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             {!isEmailLogin ? (
               <button
                 type="button"
-                disabled={envMissing}
                 onClick={() => setIsEmailLogin(true)}
-                className={`w-full rounded-3xl border-2 px-6 py-4 text-sm font-bold transition ${
-                  envMissing
-                    ? 'border-gray-300 text-gray-400 cursor-not-allowed'
-                    : 'border-brand-brown text-brand-brown hover:bg-brand-brown hover:text-white'
-                }`}
+                className="w-full rounded-3xl border-2 border-brand-brown px-6 py-4 text-sm font-bold text-brand-brown transition hover:bg-brand-brown hover:text-white"
               >
                 Iniciar sesión con correo y contraseña
               </button>
@@ -184,9 +157,9 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
                 <div className="flex gap-2">
                   <button
                     type="submit"
-                    disabled={isSubmitting || envMissing}
+                    disabled={isSubmitting}
                     className={`flex-1 rounded-3xl px-6 py-4 text-sm font-bold text-white transition ${
-                      envMissing || isSubmitting
+                      isSubmitting
                         ? 'bg-gray-400 cursor-not-allowed'
                         : 'bg-brand-brown hover:bg-brand-brown/90'
                     }`}
@@ -215,14 +188,12 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             )}
 
             <div className="rounded-3xl border border-stone-200 bg-stone-50 p-5 text-sm text-stone-600">
-              <p className="font-semibold mb-2">💡 ¿Cómo configurar el acceso de admin?</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs">
-                <li>Inicia sesión con Google o correo/contraseña</li>
-                <li>Abre la consola del navegador (F12)</li>
-                <li>Busca el mensaje con tu UID o ejecuta: <code className="bg-white px-1 rounded">firebase.auth().currentUser.uid</code></li>
-                <li>Copia el UID y agrégalo a tu <code className="bg-white px-1 rounded">.env</code> como <code className="bg-white px-1 rounded">VITE_FIREBASE_ADMIN_UID</code></li>
-                <li>Reinicia el servidor (<code className="bg-white px-1 rounded">npm run dev</code>)</li>
-              </ol>
+              <p className="font-semibold mb-2">💡 Acceso administrativo</p>
+              <p className="text-xs">
+                El acceso está restringido exclusivamente al correo <strong>{ADMIN_EMAIL}</strong>.
+                Debes iniciar sesión con esa cuenta de Google o email/contraseña.
+                Asegúrate de que el correo esté <strong>verificado</strong> en Firebase Authentication.
+              </p>
             </div>
           </div>
         </div>

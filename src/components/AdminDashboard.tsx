@@ -6,6 +6,8 @@ import type { NewProduct, Order, OrderStatus, Product } from '../types.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 
+type AdminTab = 'products' | 'gallery' | 'orders';
+
 const blankProduct: NewProduct = {
   name: '',
   description: '',
@@ -88,6 +90,7 @@ function toOrder(id: string, data: Partial<Order>): Order | null {
 }
 
 const AdminDashboard = () => {
+  const [activeTab, setActiveTab] = useState<AdminTab>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [formState, setFormState] = useState<NewProduct>(blankProduct);
@@ -98,6 +101,11 @@ const AdminDashboard = () => {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Foto Gallery state
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoLabel, setPhotoLabel] = useState('');
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
 
   useEffect(() => {
     // --- Product Listener ---
@@ -283,10 +291,45 @@ const AdminDashboard = () => {
     }
   };
 
+  const handlePhotoSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSavingPhoto(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/photos`, {
+        method: 'POST',
+        headers: await getAdminHeaders(),
+        body: JSON.stringify({ url: photoUrl, label: photoLabel || 'Galería' }),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'No se pudo guardar la foto.');
+      }
+
+      setNotice('Foto agregada a la galería.');
+      setPhotoUrl('');
+      setPhotoLabel('');
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar la foto.');
+    } finally {
+      setIsSavingPhoto(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut(auth);
     window.location.href = '/';
   };
+
+  const tabs: { id: AdminTab; label: string; icon: string }[] = [
+    { id: 'products', label: 'Productos', icon: '📦' },
+    { id: 'gallery', label: 'Galería', icon: '🖼️' },
+    { id: 'orders', label: 'Pedidos', icon: '📋' },
+  ];
 
   return (
     <main className="min-h-screen bg-paper px-4 py-10 font-sans text-stone-900 sm:px-6 lg:px-8">
@@ -294,9 +337,9 @@ const AdminDashboard = () => {
         <header className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-brand-gold/20 bg-brand-brown px-6 py-7 text-white shadow-2xl sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.35em] text-brand-gold">Tropicaña Admin</p>
-            <h1 className="mt-3 text-5xl font-display">Operación transaccional</h1>
+            <h1 className="mt-3 text-5xl font-display">Panel de control</h1>
             <p className="mt-2 max-w-2xl text-sm text-stone-200">
-              Gestiona catálogo, inventario y órdenes pagadas desde el backend protegido por Firebase UID.
+              Gestión de productos, galería de fotos y monitor de pedidos.
             </p>
           </div>
           <button
@@ -307,12 +350,13 @@ const AdminDashboard = () => {
           </button>
         </header>
 
+        {/* Métricas */}
         <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ['Productos activos', metrics.activeProducts.toString()],
             ['Stock bajo', metrics.lowStock.toString()],
-            ['Órdenes pagadas', metrics.paidOrders.toString()],
-            ['Ingresos', `$${metrics.revenue.toFixed(2)}`],
+            ['Pedidos pagados', metrics.paidOrders.toString()],
+            ['Ingresos totales', `$${metrics.revenue.toFixed(2)}`],
           ].map(([label, value]) => (
             <div key={label} className="glass-card border border-stone-200 bg-white/85 p-5 shadow-lg">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400">{label}</p>
@@ -321,6 +365,7 @@ const AdminDashboard = () => {
           ))}
         </section>
 
+        {/* Notificaciones */}
         {(notice || error) && (
           <div
             className={`mb-8 rounded-3xl border px-5 py-4 text-sm font-bold ${
@@ -331,271 +376,422 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        <section className="grid gap-8 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="flex flex-col gap-8">
-            <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Catálogo</p>
-                <h2 className="mt-2 text-4xl font-display text-brand-brown">
-                  {editingProductId ? 'Editar botella' : 'Nuevo producto'}
-                </h2>
+        {/* Pestañas */}
+        <div className="mb-8 flex flex-wrap gap-2 rounded-2xl border border-stone-200 bg-white/70 p-2 shadow-sm">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition ${
+                activeTab === tab.id
+                  ? 'bg-brand-orange text-white shadow-md'
+                  : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* TAB: Gestión de Productos */}
+        {activeTab === 'products' && (
+          <section className="grid gap-8 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="flex flex-col gap-8">
+              <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Catálogo</p>
+                  <h2 className="mt-2 text-4xl font-display text-brand-brown">
+                    {editingProductId ? 'Editar producto' : 'Nuevo producto'}
+                  </h2>
+                </div>
+
+                <form onSubmit={handleProductSubmit} className="grid gap-4">
+                  <input
+                    value={formState.name}
+                    onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="Nombre del producto"
+                    required
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                  <textarea
+                    value={formState.description}
+                    onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
+                    placeholder="Descripción"
+                    required
+                    className="min-h-28 rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      type="number"
+                      min={1}
+                      step="0.01"
+                      value={formState.price}
+                      onChange={(event) => setFormState((current) => ({ ...current, price: Number(event.target.value) }))}
+                      placeholder="Precio"
+                      required
+                      className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={formState.stock}
+                      onChange={(event) => setFormState((current) => ({ ...current, stock: Number(event.target.value) }))}
+                      placeholder="Stock"
+                      required
+                      className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      value={formState.volume}
+                      onChange={(event) => setFormState((current) => ({ ...current, volume: event.target.value }))}
+                      placeholder="Volumen (ej: 750ml)"
+                      required
+                      className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                    />
+                    <select
+                      value={formState.category}
+                      onChange={(event) =>
+                        setFormState((current) => ({
+                          ...current,
+                          category: event.target.value === 'torito' ? 'torito' : 'licor',
+                        }))
+                      }
+                      className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                    >
+                      <option value="licor">Licor</option>
+                      <option value="torito">Torito</option>
+                    </select>
+                  </div>
+                  <input
+                    type="url"
+                    value={formState.image}
+                    onChange={(event) => setFormState((current) => ({ ...current, image: event.target.value }))}
+                    placeholder="URL de imagen"
+                    required
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="product-active"
+                      type="checkbox"
+                      checked={formState.active !== false}
+                      onChange={(event) => setFormState((current) => ({ ...current, active: event.target.checked }))}
+                      className="h-5 w-5 accent-brand-orange"
+                    />
+                    <label htmlFor="product-active" className="text-sm font-semibold text-stone-700">
+                      Visible en catálogo
+                    </label>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="submit"
+                      disabled={isSavingProduct}
+                      className="flex-1 rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:bg-stone-300"
+                    >
+                      {isSavingProduct ? 'Guardando...' : editingProductId ? 'Actualizar producto' : 'Crear producto'}
+                    </button>
+                    {editingProductId && (
+                      <button
+                        type="button"
+                        onClick={resetForm}
+                        className="rounded-3xl border border-stone-300 px-6 py-4 text-sm font-bold text-stone-700 hover:bg-stone-100"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                </form>
               </div>
 
-              <form onSubmit={handleProductSubmit} className="grid gap-4">
-                <input
-                  value={formState.name}
-                  onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="Nombre"
-                  required
-                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                />
-                <textarea
-                  value={formState.description}
-                  onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
-                  placeholder="Descripción"
-                  required
-                  className="min-h-28 rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <input
-                    type="number"
-                    min={1}
-                    step="0.01"
-                    value={formState.price}
-                    onChange={(event) => setFormState((current) => ({ ...current, price: Number(event.target.value) }))}
-                    placeholder="Precio"
-                    required
-                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={formState.stock}
-                    onChange={(event) => setFormState((current) => ({ ...current, stock: Number(event.target.value) }))}
-                    placeholder="Stock"
-                    required
-                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                  />
+              {/* Ajustes del Sitio */}
+              <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Ajustes</p>
+                  <h2 className="mt-2 text-4xl font-display text-brand-brown">Contenido Global</h2>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <form onSubmit={handleConfigSubmit} className="grid gap-4">
                   <input
-                    value={formState.volume}
-                    onChange={(event) => setFormState((current) => ({ ...current, volume: event.target.value }))}
-                    placeholder="Volumen"
-                    required
+                    value={siteConfig.heroTitle || ''}
+                    onChange={(event) => setSiteConfig((current) => ({ ...current, heroTitle: event.target.value }))}
+                    placeholder="Titular del Hero"
                     className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                   />
-                  <select
-                    value={formState.category}
-                    onChange={(event) =>
-                      setFormState((current) => ({
-                        ...current,
-                        category: event.target.value === 'torito' ? 'torito' : 'licor',
-                      }))
-                    }
-                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                  >
-                    <option value="licor">Licor</option>
-                    <option value="torito">Torito</option>
-                  </select>
-                </div>
-                <input
-                  type="url"
-                  value={formState.image}
-                  onChange={(event) => setFormState((current) => ({ ...current, image: event.target.value }))}
-                  placeholder="URL de imagen"
-                  required
-                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                />
-                <div className="flex items-center gap-3">
                   <input
-                    id="product-active"
-                    type="checkbox"
-                    checked={formState.active !== false}
-                    onChange={(event) => setFormState((current) => ({ ...current, active: event.target.checked }))}
-                    className="h-5 w-5 accent-brand-orange"
+                    value={siteConfig.contactPhone || ''}
+                    onChange={(event) => setSiteConfig((current) => ({ ...current, contactPhone: event.target.value }))}
+                    placeholder="Teléfono de Contacto"
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                   />
-                  <label htmlFor="product-active" className="text-sm font-semibold text-stone-700">
-                    Visible en catálogo
-                  </label>
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row">
                   <button
                     type="submit"
-                    disabled={isSavingProduct}
-                    className="flex-1 rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:bg-stone-300"
+                    disabled={isSavingConfig}
+                    className="flex-1 rounded-3xl bg-brand-brown px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-brown/90 disabled:bg-stone-300"
                   >
-                    {isSavingProduct ? 'Guardando...' : editingProductId ? 'Actualizar producto' : 'Crear producto'}
+                    {isSavingConfig ? 'Guardando...' : 'Guardar Ajustes del Sitio'}
                   </button>
-                  {editingProductId && (
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="rounded-3xl border border-stone-300 px-6 py-4 text-sm font-bold text-stone-700 hover:bg-stone-100"
-                    >
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
 
+            {/* Lista de Productos */}
+            <div className="glass-card border border-stone-200 bg-white/90 p-6 shadow-xl">
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Inventario</p>
+                  <h2 className="mt-2 text-4xl font-display text-brand-brown">
+                    Todos los productos
+                    <span className="ml-2 text-base font-normal text-stone-400">({products.length})</span>
+                  </h2>
+                </div>
+              </div>
+              {products.length === 0 ? (
+                <div className="rounded-3xl border border-stone-200 bg-stone-50 p-8 text-center text-sm font-semibold text-stone-500">
+                  No hay productos. Crea tu primer producto.
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {products.map((product) => (
+                    <article key={product.id} className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm lg:grid-cols-[96px_1fr_auto]">
+                      <img src={product.image} alt={product.name} className="h-24 w-24 rounded-2xl object-cover" />
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-black text-brand-brown">{product.name}</h3>
+                          <span className="rounded-full bg-brand-lime px-3 py-1 text-xs font-bold text-brand-brown">{product.category}</span>
+                          {product.active === false && (
+                            <span className="rounded-full bg-stone-200 px-3 py-1 text-xs font-bold text-stone-600">Archivado</span>
+                          )}
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-sm text-stone-500">{product.description}</p>
+                        <p className="mt-2 text-sm font-bold text-stone-700">
+                          ${product.price.toFixed(2)} MXN · {product.volume} · Stock {product.stock}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 lg:flex-col lg:items-stretch">
+                        <button
+                          onClick={() => handleEditProduct(product)}
+                          className="rounded-full bg-brand-brown px-4 py-2 text-xs font-bold text-white hover:bg-brand-brown/90"
+                        >
+                          Editar
+                        </button>
+                        {product.active !== false && (
+                          <button
+                            onClick={() => handleArchiveProduct(product.id)}
+                            className="rounded-full border border-rose-200 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                          >
+                            Archivar
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* TAB: Galería de Fotos */}
+        {activeTab === 'gallery' && (
+          <section className="grid gap-8 xl:grid-cols-[0.5fr_1fr]">
             <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
               <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Ajustes del Sitio</p>
-                <h2 className="mt-2 text-4xl font-display text-brand-brown">Contenido Global</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Galería</p>
+                <h2 className="mt-2 text-4xl font-display text-brand-brown">Agregar foto</h2>
+                <p className="mt-2 text-sm text-stone-500">
+                  Añade imágenes promocionales o fotos de productos.
+                </p>
               </div>
-              <form onSubmit={handleConfigSubmit} className="grid gap-4">
+              <form onSubmit={handlePhotoSubmit} className="grid gap-4">
                 <input
-                  value={siteConfig.heroTitle || ''}
-                  onChange={(event) => setSiteConfig((current) => ({ ...current, heroTitle: event.target.value }))}
-                  placeholder="Titular del Hero"
+                  type="url"
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                  placeholder="URL de la imagen"
+                  required
                   className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                 />
                 <input
-                  value={siteConfig.contactPhone || ''}
-                  onChange={(event) => setSiteConfig((current) => ({ ...current, contactPhone: event.target.value }))}
-                  placeholder="Teléfono de Contacto"
+                  value={photoLabel}
+                  onChange={(e) => setPhotoLabel(e.target.value)}
+                  placeholder="Descripción o etiqueta (opcional)"
                   className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                 />
                 <button
                   type="submit"
-                  disabled={isSavingConfig}
-                  className="flex-1 rounded-3xl bg-brand-brown px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-brown/90 disabled:bg-stone-300"
+                  disabled={isSavingPhoto}
+                  className="rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:bg-stone-300"
                 >
-                  {isSavingConfig ? 'Guardando...' : 'Guardar Ajustes del Sitio'}
+                  {isSavingPhoto ? 'Guardando...' : 'Agregar a galería'}
                 </button>
               </form>
             </div>
-          </div>
 
-          <div className="glass-card border border-stone-200 bg-white/90 p-6 shadow-xl">
-            <div className="mb-6 flex items-center justify-between gap-4">
+            <div className="glass-card border border-stone-200 bg-white/90 p-6 shadow-xl">
+              <div className="mb-6">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Fotos</p>
+                <h2 className="mt-2 text-4xl font-display text-brand-brown">Previsualización</h2>
+              </div>
+              {photoUrl ? (
+                <div className="overflow-hidden rounded-3xl border border-stone-200">
+                  <img
+                    src={photoUrl}
+                    alt={photoLabel || 'Vista previa'}
+                    className="h-64 w-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Error+de+imagen';
+                    }}
+                  />
+                  {photoLabel && (
+                    <div className="bg-stone-50 px-4 py-2 text-sm font-semibold text-stone-600">
+                      {photoLabel}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-48 items-center justify-center rounded-3xl border-2 border-dashed border-stone-300">
+                  <p className="text-sm font-semibold text-stone-400">
+                    Ingresa la URL de una imagen para previsualizarla
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* TAB: Monitor de Pedidos */}
+        {activeTab === 'orders' && (
+          <section className="glass-card border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Inventario</p>
-                <h2 className="mt-2 text-4xl font-display text-brand-brown">Productos</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Fulfillment</p>
+                <h2 className="mt-2 text-4xl font-display text-brand-brown">
+                  Pedidos y compras
+                  <span className="ml-2 text-base font-normal text-stone-400">({orders.length})</span>
+                </h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(['all', 'pending', 'paid', 'delivered'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setOrderFilter(status)}
+                    className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+                      orderFilter === status ? 'bg-brand-orange text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                    }`}
+                  >
+                    {statusLabels[status]}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="grid gap-4">
-              {products.map((product) => (
-                <article key={product.id} className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm lg:grid-cols-[96px_1fr_auto]">
-                  <img src={product.image} alt={product.name} className="h-24 w-24 rounded-2xl object-cover" />
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-black text-brand-brown">{product.name}</h3>
-                      <span className="rounded-full bg-brand-lime px-3 py-1 text-xs font-bold text-brand-brown">{product.category}</span>
-                      {product.active === false && (
-                        <span className="rounded-full bg-stone-200 px-3 py-1 text-xs font-bold text-stone-600">Archivado</span>
-                      )}
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-sm text-stone-500">{product.description}</p>
-                    <p className="mt-2 text-sm font-bold text-stone-700">
-                      ${product.price.toFixed(2)} MXN · {product.volume} · Stock {product.stock}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 lg:flex-col lg:items-stretch">
-                    <button
-                      onClick={() => handleEditProduct(product)}
-                      className="rounded-full bg-brand-brown px-4 py-2 text-xs font-bold text-white hover:bg-brand-brown/90"
-                    >
-                      Editar
-                    </button>
-                    {product.active !== false && (
-                      <button
-                        onClick={() => handleArchiveProduct(product.id)}
-                        className="rounded-full border border-rose-200 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"
-                      >
-                        Archivar
-                      </button>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        <section className="glass-card mt-8 border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Fulfillment</p>
-              <h2 className="mt-2 text-4xl font-display text-brand-brown">Órdenes</h2>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(['all', 'pending', 'paid', 'delivered'] as const).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setOrderFilter(status)}
-                  className={`rounded-full px-4 py-2 text-xs font-bold transition ${
-                    orderFilter === status ? 'bg-brand-orange text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                  }`}
-                >
-                  {statusLabels[status]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4">
             {filteredOrders.length === 0 ? (
               <div className="rounded-3xl border border-stone-200 bg-stone-50 p-8 text-center text-sm font-semibold text-stone-500">
-                No hay órdenes en este estado.
+                No hay pedidos en este estado.
               </div>
             ) : (
-              filteredOrders.map((order) => (
-                <article key={order.id} className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="break-all font-mono text-sm font-black text-brand-brown">{order.id}</h3>
-                        <span className="rounded-full bg-brand-lime px-3 py-1 text-xs font-bold text-brand-brown">
-                          {statusLabels[order.status]}
-                        </span>
+              <div className="grid gap-4">
+                {filteredOrders.map((order) => (
+                  <article key={order.id} className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="break-all font-mono text-sm font-black text-brand-brown">{order.id}</h3>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${
+                              order.status === 'paid'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : order.status === 'delivered'
+                                ? 'bg-blue-100 text-blue-800'
+                                : order.status === 'failed'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {statusLabels[order.status]}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-stone-600">
+                          {order.shippingAddress.name} · {order.shippingAddress.phone} · {order.shippingAddress.city}
+                        </p>
+                        <p className="mt-1 text-xs text-stone-400">{new Date(order.createdAt).toLocaleString()}</p>
+                        <p className="mt-1 text-xs text-stone-400">Usuario: {order.userId}</p>
                       </div>
-                      <p className="mt-2 text-sm text-stone-600">
-                        {order.shippingAddress.name} · {order.shippingAddress.phone} · {order.shippingAddress.city}
+                      <div className="text-left lg:text-right">
+                        <p className="text-2xl font-black text-brand-orange">${order.total.toFixed(2)}</p>
+                        {order.paypalOrderId && (
+                          <p className="break-all font-mono text-xs text-stone-400">
+                            PayPal: {order.paypalOrderId}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 border-t border-stone-200 pt-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400">
+                        Productos solicitados ({order.items.length})
                       </p>
-                      <p className="mt-1 text-xs text-stone-400">{new Date(order.createdAt).toLocaleString()}</p>
-                    </div>
-                    <div className="text-left lg:text-right">
-                      <p className="text-2xl font-black text-brand-orange">${order.total.toFixed(2)}</p>
-                      {order.paypalOrderId && <p className="break-all font-mono text-xs text-stone-400">{order.paypalOrderId}</p>}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-2 border-t border-stone-200 pt-4">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-4 text-sm">
-                        <span className="font-semibold text-stone-700">
-                          {item.quantity} x {item.name}
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between gap-4 text-sm">
+                          <span className="font-semibold text-stone-700">
+                            {item.quantity} x {item.name}
+                          </span>
+                          <span className="font-bold text-brand-brown">
+                            ${(item.price * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="mt-2 flex items-center justify-between border-t border-dashed border-stone-200 pt-2">
+                        <span className="text-sm font-bold text-stone-700">Total</span>
+                        <span className="text-lg font-black text-brand-orange">
+                          ${order.total.toFixed(2)}
                         </span>
-                        <span className="font-bold text-brand-brown">${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
-                    ))}
-                  </div>
+                    </div>
 
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleOrderStatus(order.id, 'paid')}
-                      disabled={order.status === 'paid'}
-                      className="rounded-full bg-brand-brown px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-brown/90 disabled:cursor-not-allowed disabled:bg-stone-300"
-                    >
-                      Marcar pagada
-                    </button>
-                    <button
-                      onClick={() => handleOrderStatus(order.id, 'delivered')}
-                      disabled={order.status === 'delivered'}
-                      className="rounded-full bg-brand-orange px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-orange/90 disabled:cursor-not-allowed disabled:bg-stone-300"
-                    >
-                      Marcar entregada
-                    </button>
-                  </div>
-                </article>
-              ))
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleOrderStatus(order.id, 'paid')}
+                        disabled={order.status === 'paid' || order.status === 'delivered'}
+                        className={`rounded-full px-4 py-2 text-xs font-bold text-white transition ${
+                          order.status === 'paid' || order.status === 'delivered'
+                            ? 'cursor-not-allowed bg-stone-300'
+                            : 'bg-brand-brown hover:bg-brand-brown/90'
+                        }`}
+                      >
+                        Marcar pagada
+                      </button>
+                      <button
+                        onClick={() => handleOrderStatus(order.id, 'delivered')}
+                        disabled={order.status === 'delivered'}
+                        className={`rounded-full px-4 py-2 text-xs font-bold text-white transition ${
+                          order.status === 'delivered'
+                            ? 'cursor-not-allowed bg-stone-300'
+                            : 'bg-brand-orange hover:bg-brand-orange/90'
+                        }`}
+                      >
+                        Marcar entregada
+                      </button>
+                      <button
+                        onClick={() => handleOrderStatus(order.id, 'failed')}
+                        disabled={order.status === 'failed'}
+                        className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+                          order.status === 'failed'
+                            ? 'cursor-not-allowed bg-stone-200 text-stone-400'
+                            : 'border border-rose-300 text-rose-600 hover:bg-rose-50'
+                        }`}
+                      >
+                        Marcar fallida
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
             )}
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </main>
   );
