@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { collection, onSnapshot } from '../firebase.js';
-import { db } from '../firebase.js';
+import { subscribeToProducts } from '../supabase.js';
 import type { Product } from '../types.js';
 
 type CatalogCategory = 'all' | Product['category'];
@@ -11,10 +10,6 @@ interface CatalogProps {
   onChangeCategory: (category: CatalogCategory) => void;
   onAddToCart: (product: Product) => void;
 }
-
-type FirestoreProduct = Omit<Product, 'id'> & {
-  active?: boolean;
-};
 
 const categoryTabs: {
   label: string;
@@ -57,57 +52,15 @@ const categoryPriceClasses: Record<Product['category'], string> = {
   torito: 'text-brand-lime',
 };
 
-function isValidCategory(category: unknown): category is Product['category'] {
-  return category === 'licor' || category === 'torito';
-}
-
-function toProduct(id: string, data: Partial<FirestoreProduct>): Product | null {
-  if (
-    typeof data.name !== 'string' ||
-    typeof data.description !== 'string' ||
-    typeof data.price !== 'number' ||
-    typeof data.volume !== 'string' ||
-    typeof data.image !== 'string' ||
-    !isValidCategory(data.category)
-  ) {
-    return null;
-  }
-
-  return {
-    id,
-    name: data.name,
-    description: data.description,
-    price: data.price,
-    volume: data.volume,
-    image: data.image,
-    category: data.category,
-    stock: typeof data.stock === 'number' ? data.stock : 0,
-    active: data.active !== false,
-  };
-}
-
 export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: CatalogProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, 'products'),
-      (snapshot) => {
-        const firestoreProducts = snapshot.docs
-          .map((documentSnapshot) => {
-            const data = documentSnapshot.data() as Partial<FirestoreProduct>;
-
-            if (data.active === false) {
-              return null;
-            }
-
-            return toProduct(documentSnapshot.id, data);
-          })
-          .filter((product): product is Product => product !== null);
-
-        setProducts(firestoreProducts);
+    const unsubscribe = subscribeToProducts(
+      (fetchedProducts) => {
+        setProducts(fetchedProducts);
         setLoadError(null);
         setIsLoading(false);
       },

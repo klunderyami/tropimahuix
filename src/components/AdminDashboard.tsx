@@ -1,10 +1,19 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { signOut } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, uploadProductImage } from '../firebase.js';
-import { auth, db } from '../firebase.js';
-import type { NewProduct, Order, OrderStatus, Product } from '../types.js';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
+import { auth } from '../firebase.js';
+import {
+  subscribeToProducts,
+  createProduct,
+  updateProduct,
+  archiveProduct,
+  getOrders,
+  updateOrderStatus,
+  getSiteConfig,
+  updateSiteConfig,
+  addGalleryPhoto,
+} from '../supabase.js';
+import { uploadProductImage } from '../firebase.js';
+import type { NewProduct, Order, OrderStatus, Product, SiteConfig } from '../types.js';
 
 type AdminTab = 'products' | 'gallery' | 'orders';
 
@@ -27,66 +36,10 @@ const statusLabels: Record<OrderStatus | 'all', string> = {
   delivered: 'Entregadas',
 };
 
-async function getAdminHeaders(): Promise<HeadersInit> {
+async function getAccessToken(): Promise<string> {
   const token = await auth.currentUser?.getIdToken();
-
-  if (!token) {
-    throw new Error('No hay una sesión administrativa activa.');
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-}
-
-function toProduct(id: string, data: Partial<Product>): Product | null {
-  if (
-    typeof data.name !== 'string' ||
-    typeof data.description !== 'string' ||
-    typeof data.price !== 'number' ||
-    typeof data.volume !== 'string' ||
-    typeof data.image !== 'string' ||
-    (data.category !== 'licor' && data.category !== 'torito')
-  ) {
-    return null;
-  }
-
-  return {
-    id,
-    name: data.name,
-    description: data.description,
-    price: data.price,
-    volume: data.volume,
-    image: data.image,
-    category: data.category,
-    stock: typeof data.stock === 'number' ? data.stock : 0,
-    active: data.active !== false,
-  };
-}
-
-function toOrder(id: string, data: Partial<Order>): Order | null {
-  if (
-    !Array.isArray(data.items) ||
-    typeof data.total !== 'number' ||
-    (data.status !== 'pending' && data.status !== 'paid' && data.status !== 'failed' && data.status !== 'delivered') ||
-    typeof data.shippingAddress !== 'object' ||
-    !data.shippingAddress ||
-    typeof data.createdAt !== 'string'
-  ) {
-    return null;
-  }
-
-  return {
-    id,
-    userId: typeof data.userId === 'string' ? data.userId : 'guest',
-    items: data.items,
-    total: data.total,
-    status: data.status,
-    shippingAddress: data.shippingAddress,
-    paypalOrderId: typeof data.paypalOrderId === 'string' ? data.paypalOrderId : '',
-    createdAt: data.createdAt,
-  };
+  if (!token) throw new Error('No hay una sesión administrativa activa.');
+  return token;
 }
 
 const AdminDashboard = () => {
@@ -95,7 +48,7 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [formState, setFormState] = useState<NewProduct>(blankProduct);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [siteConfig, setSiteConfig] = useState<Record<string, string>>({});
+  const [siteConfig, setSiteConfig] = useState<Partial<SiteConfig>>({});
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'all'>('paid');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -114,44 +67,37 @@ const AdminDashboard = () => {
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
 
   useEffect(() => {
-    // --- Product Listener ---
-    const unsubscribeProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const nextProducts = snapshot.docs
-        .map((documentSnapshot) => toProduct(documentSnapshot.id, documentSnapshot.data() as Partial<Product>))
-        .filter((product): product is Product => product !== null)
-        .sort((left, right) => left.name.localeCompare(right.name));
-      setProducts(nextProducts);
-    });
+    // --- Product Listener (Supabase realtime) ---
+    const unsubscribeProducts = subscribeToProducts(
+      (nextProducts) => setProducts(nextProducts),
+      (err) => console.error('Error en productos:', err),
+    );
 
-    // --- Order Listener ---
-    const unsubscribeOrders = onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snapshot) => {
-      const nextOrders = snapshot.docs
-        .map((documentSnapshot) => toOrder(documentSnapshot.id, documentSnapshot.data() as Partial<Order>))
-        .filter((order): order is Order => order !== null);
-      setOrders(nextOrders);
-    });
+    // --- Orders fetcher (Supabase) ---
+    const fetchOrders = async () => {
+      try {
+        const token = await getAccessToken();
+        const nextOrders = await getOrders(token);
+        setOrders(nextOrders);
+      } catch (err) {
+        console.error('Error fetching orders:', err);
+      }
+    };
+    fetchOrders();
 
-    // --- Site Config Fetcher ---
+    // --- Site Config Fetcher (Supabase) ---
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/config`);
-        const payload = (await response.json()) as { config?: Record<string, string>; error?: string };
-        if (!response.ok) {
-          throw new Error(payload.error ?? 'Could not fetch site config');
-        }
-        if (payload.config) {
-          setSiteConfig(payload.config);
-        }
+        const config = await getSiteConfig();
+        if (config) setSiteConfig(config);
       } catch (err) {
         console.error(err);
       }
     };
-
     fetchConfig();
 
     return () => {
       unsubscribeProducts();
-      unsubscribeOrders();
     };
   }, []);
 
@@ -208,26 +154,30 @@ const AdminDashboard = () => {
         setIsUploadingImage(false);
       }
 
+      const accessToken = await getAccessToken();
+
       // 2. Guardar producto con la URL de la imagen
-      const headers = await getAdminHeaders();
-      const response = await fetch(
-        editingProductId ? `${API_BASE_URL}/api/products/${editingProductId}` : `${API_BASE_URL}/api/products`,
-        {
-          method: editingProductId ? 'PATCH' : 'POST',
-          headers,
-          body: JSON.stringify({
+      if (editingProductId) {
+        await updateProduct(
+          editingProductId,
+          {
             ...formState,
             image: imageUrl,
             price: Number(formState.price),
             stock: Number(formState.stock),
-          }),
-        },
-      );
-
-      const payload = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'No se pudo guardar el producto.');
+          },
+          accessToken,
+        );
+      } else {
+        await createProduct(
+          {
+            ...formState,
+            image: imageUrl,
+            price: Number(formState.price),
+            stock: Number(formState.stock),
+          },
+          accessToken,
+        );
       }
 
       setNotice(editingProductId ? 'Producto actualizado.' : 'Producto creado.');
@@ -260,16 +210,8 @@ const AdminDashboard = () => {
     setNotice(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
-        method: 'DELETE',
-        headers: await getAdminHeaders(),
-      });
-      const payload = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'No se pudo archivar el producto.');
-      }
-
+      const accessToken = await getAccessToken();
+      await archiveProduct(productId, accessToken);
       setNotice('Producto archivado.');
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo archivar el producto.');
@@ -281,17 +223,11 @@ const AdminDashboard = () => {
     setNotice(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: await getAdminHeaders(),
-        body: JSON.stringify({ status }),
-      });
-      const payload = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'No se pudo actualizar la orden.');
-      }
-
+      const accessToken = await getAccessToken();
+      await updateOrderStatus(orderId, status, accessToken);
+      // Refresh orders
+      const nextOrders = await getOrders(accessToken);
+      setOrders(nextOrders);
       setNotice('Orden actualizada.');
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar la orden.');
@@ -305,19 +241,8 @@ const AdminDashboard = () => {
     setNotice(null);
 
     try {
-      const headers = await getAdminHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/config`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(siteConfig),
-      });
-
-      const payload = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'No se pudieron guardar los ajustes.');
-      }
-
+      const accessToken = await getAccessToken();
+      await updateSiteConfig(siteConfig, accessToken);
       setNotice('Ajustes del sitio actualizados.');
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudieron guardar los ajustes.');
@@ -333,18 +258,8 @@ const AdminDashboard = () => {
     setNotice(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/photos`, {
-        method: 'POST',
-        headers: await getAdminHeaders(),
-        body: JSON.stringify({ url: photoUrl, label: photoLabel || 'Galería' }),
-      });
-
-      const payload = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'No se pudo guardar la foto.');
-      }
-
+      const accessToken = await getAccessToken();
+      await addGalleryPhoto(photoUrl, photoLabel || 'Galería', accessToken);
       setNotice('Foto agregada a la galería.');
       setPhotoUrl('');
       setPhotoLabel('');
@@ -473,7 +388,6 @@ const AdminDashboard = () => {
                       onChange={handleFileSelect}
                       className="hidden"
                     />
-                    {/* Input oculto para mantener compatibilidad con el formState.image */}
                     <input type="hidden" name="image" value={formState.image} />
                   </div>
                   <input

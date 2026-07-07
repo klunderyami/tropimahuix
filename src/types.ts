@@ -53,16 +53,25 @@ export interface HeroSlide {
 }
 
 export interface SiteConfig {
-  heroSlides: HeroSlide[];
-  introTitle: string;
-  introText: string;
-  videoTitle: string;
-  videoSubtitle: string;
-  videoImage: string;
-  licoresHeaderImage: string;
-  toritosHeaderImage: string;
-  contactPhone: string;
-  footerText: string;
+  heroSlides?: HeroSlide[];
+  heroTitle?: string;
+  heroSubtitle?: string;
+  introTitle?: string;
+  introText?: string;
+  videoTitle?: string;
+  videoSubtitle?: string;
+  videoImage?: string;
+  licoresHeaderImage?: string;
+  toritosHeaderImage?: string;
+  contactPhone?: string;
+  footerText?: string;
+}
+
+export interface GalleryPhoto {
+  id: string;
+  url: string;
+  label: string;
+  createdAt: string;
 }
 
 export type Page = 'home' | 'licores' | 'toritos' | 'cart' | 'admin';
