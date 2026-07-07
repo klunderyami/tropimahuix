@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, signInWithEmailAndPassword, User, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocFromServer } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 function getRequiredEnv(name: string): string {
   // `import.meta.env` es el método estándar y seguro en Vite para acceder a las variables de entorno del cliente.
@@ -48,6 +49,7 @@ if (appCheckSiteKey) {
 }
 
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
@@ -205,3 +207,32 @@ export {
   signInWithEmailLink
 };
 export type { User };
+
+// ─── Firebase Storage: Subida de imágenes ────────────────────────────────────
+
+/**
+ * Sube un archivo de imagen a Firebase Storage dentro de la carpeta 'productos/'.
+ * @param file - Archivo de imagen seleccionado por el usuario.
+ * @param productName - Nombre del producto (para generar un nombre legible).
+ * @returns La URL de descarga pública de la imagen subida.
+ */
+export async function uploadProductImage(file: File, productName: string): Promise<string> {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const safeName = productName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
+    .slice(0, 60) || 'producto';
+
+  const extension = file.name.split('.').pop() || 'jpg';
+  const fileName = `${timestamp}-${safeName}.${extension}`;
+  const storageRef = ref(storage, `productos/${fileName}`);
+
+  const snapshot = await uploadBytes(storageRef, file);
+  const downloadUrl = await getDownloadURL(snapshot.ref);
+
+  return downloadUrl;
+}

@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { signOut } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy } from '../firebase.js';
+import { collection, onSnapshot, query, orderBy, uploadProductImage } from '../firebase.js';
 import { auth, db } from '../firebase.js';
 import type { NewProduct, Order, OrderStatus, Product } from '../types.js';
 
@@ -102,6 +102,12 @@ const AdminDashboard = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Subida de imagen de producto
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Foto Gallery state
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoLabel, setPhotoLabel] = useState('');
@@ -164,9 +170,26 @@ const AdminDashboard = () => {
     };
   }, [orders, products]);
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFile(file);
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+  };
+
   const resetForm = () => {
     setEditingProductId(null);
     setFormState(blankProduct);
+    setSelectedFile(null);
+    setImagePreview(null);
   };
 
   const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -176,6 +199,16 @@ const AdminDashboard = () => {
     setNotice(null);
 
     try {
+      // 1. Subir imagen a Firebase Storage si hay un archivo seleccionado
+      let imageUrl = formState.image;
+      if (selectedFile) {
+        setIsUploadingImage(true);
+        const productName = formState.name.trim() || 'producto';
+        imageUrl = await uploadProductImage(selectedFile, productName);
+        setIsUploadingImage(false);
+      }
+
+      // 2. Guardar producto con la URL de la imagen
       const headers = await getAdminHeaders();
       const response = await fetch(
         editingProductId ? `${API_BASE_URL}/api/products/${editingProductId}` : `${API_BASE_URL}/api/products`,
@@ -184,6 +217,7 @@ const AdminDashboard = () => {
           headers,
           body: JSON.stringify({
             ...formState,
+            image: imageUrl,
             price: Number(formState.price),
             stock: Number(formState.stock),
           }),
@@ -202,6 +236,7 @@ const AdminDashboard = () => {
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.');
     } finally {
       setIsSavingProduct(false);
+      setIsUploadingImage(false);
     }
   };
 
@@ -407,6 +442,40 @@ const AdminDashboard = () => {
                 </div>
 
                 <form onSubmit={handleProductSubmit} className="grid gap-4">
+                  {/* Subida de imagen con preview */}
+                  <div>
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed px-4 py-6 transition ${
+                        imagePreview ? 'border-emerald-300 bg-emerald-50/50' : 'border-stone-300 bg-white hover:border-brand-orange hover:bg-brand-orange/5'
+                      }`}
+                    >
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="Vista previa" className="mb-3 max-h-40 rounded-2xl object-cover shadow-sm" />
+                      ) : formState.image && !selectedFile ? (
+                        <img src={formState.image} alt="Imagen actual" className="mb-3 max-h-40 rounded-2xl object-cover shadow-sm" />
+                      ) : (
+                        <svg className="mb-3 h-10 w-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                      <p className="text-sm font-semibold text-stone-500">
+                        {imagePreview || (formState.image && !selectedFile)
+                          ? 'Toca para cambiar imagen'
+                          : 'Haz clic para seleccionar imagen'}
+                      </p>
+                      <p className="mt-1 text-xs text-stone-400">PNG, JPG o WebP</p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    {/* Input oculto para mantener compatibilidad con el formState.image */}
+                    <input type="hidden" name="image" value={formState.image} />
+                  </div>
                   <input
                     value={formState.name}
                     onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
@@ -465,14 +534,6 @@ const AdminDashboard = () => {
                       <option value="torito">Torito</option>
                     </select>
                   </div>
-                  <input
-                    type="url"
-                    value={formState.image}
-                    onChange={(event) => setFormState((current) => ({ ...current, image: event.target.value }))}
-                    placeholder="URL de imagen"
-                    required
-                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                  />
                   <div className="flex items-center gap-3">
                     <input
                       id="product-active"
