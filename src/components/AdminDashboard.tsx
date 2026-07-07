@@ -549,10 +549,10 @@ const AdminDashboard = () => {
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <button
                       type="submit"
-                      disabled={isSavingProduct}
+                      disabled={isSavingProduct || isUploadingImage}
                       className="flex-1 rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:bg-stone-300"
                     >
-                      {isSavingProduct ? 'Guardando...' : editingProductId ? 'Actualizar producto' : 'Crear producto'}
+                      {isUploadingImage ? 'Subiendo imagen...' : isSavingProduct ? 'Guardando...' : editingProductId ? 'Actualizar producto' : 'Crear producto'}
                     </button>
                     {editingProductId && (
                       <button

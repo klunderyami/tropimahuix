@@ -25,6 +25,8 @@ const firebaseConfig = {
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 
+// App Check: solo se inicializa si hay una clave configurada explícitamente
+// Si no hay clave, NO se inicializa App Check para evitar bloqueos
 const appCheckSiteKey = import.meta.env.VITE_FIREBASE_RECAPTCHA_SITE_KEY;
 const isProduction = !window.location.hostname.includes('localhost');
 
@@ -33,19 +35,6 @@ if (appCheckSiteKey) {
     provider: new ReCaptchaV3Provider(appCheckSiteKey),
     isTokenAutoRefreshEnabled: true,
   });
-} else if (!isProduction) {
-  // Permitir App Check debug local cuando no se ha configurado la clave reCAPTCHA.
-  // Esto evita el error auth/firebase-app-check-token-is-invalid durante el desarrollo local.
-  // En Firebase v11, el modo debug se activa con la variable de entorno antes de inicializar.
-  (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(appCheckSiteKey || '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'),
-    isTokenAutoRefreshEnabled: true,
-  });
-} else {
-  console.warn(
-    '⚠️ No se ha configurado VITE_FIREBASE_RECAPTCHA_SITE_KEY. Si App Check está habilitado en Firebase y estás en producción, las solicitudes pueden fallar.',
-  );
 }
 
 export const db = getFirestore(app);
