@@ -2,7 +2,7 @@
 -- Tropicaña - Esquema Inicial de Base de Datos
 -- Migración: 202607070001
 -- Descripción: Tablas de productos, configuración del sitio, órdenes y fotos
--- con políticas RLS para lectura pública y control exclusivo del admin.
+-- con políticas RLS para lectura pública y control via service_role.
 -- ============================================================================
 
 -- 1. TABLA: products (Catálogo de productos - licores y toritos)
@@ -73,6 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_gallery_photos_created_at ON public.gallery_photo
 
 -- ============================================================================
 -- POLÍTICAS DE SEGURIDAD (RLS)
+-- Arquitectura híbrida: Firebase Auth (frontend) + Supabase Service Role (backend)
 -- ============================================================================
 
 -- Habilitar RLS en todas las tablas
@@ -82,31 +83,29 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gallery_photos ENABLE ROW LEVEL SECURITY;
 
 -- === PRODUCTS ===
--- Lectura pública: cualquier persona puede ver productos activos
+-- Lectura pública: cualquier persona (anon) puede ver productos activos
 CREATE POLICY "products_select_public" ON public.products
   FOR SELECT
   USING (active = true OR active IS NULL);
 
--- Lectura admin: puede ver todos los productos (incluyendo inactivos)
-CREATE POLICY "products_select_admin" ON public.products
+-- Lectura total: el service_role (backend Express con service_role key) puede ver todo
+CREATE POLICY "products_select_service" ON public.products
   FOR SELECT
-  USING (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  USING (auth.role() = 'service_role');
 
--- Inserción solo admin
-CREATE POLICY "products_insert_admin" ON public.products
+-- Inserción/Actualización/Eliminación: solo service_role
+CREATE POLICY "products_insert_service" ON public.products
   FOR INSERT
-  WITH CHECK (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  WITH CHECK (auth.role() = 'service_role');
 
--- Actualización solo admin
-CREATE POLICY "products_update_admin" ON public.products
+CREATE POLICY "products_update_service" ON public.products
   FOR UPDATE
-  USING (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid)
-  WITH CHECK (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
--- Eliminación solo admin
-CREATE POLICY "products_delete_admin" ON public.products
+CREATE POLICY "products_delete_service" ON public.products
   FOR DELETE
-  USING (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  USING (auth.role() = 'service_role');
 
 -- === SITE_CONFIG ===
 -- Lectura pública
@@ -114,35 +113,32 @@ CREATE POLICY "site_config_select_public" ON public.site_config
   FOR SELECT
   USING (true);
 
--- Escritura solo admin
-CREATE POLICY "site_config_insert_admin" ON public.site_config
+-- Escritura solo service_role
+CREATE POLICY "site_config_insert_service" ON public.site_config
   FOR INSERT
-  WITH CHECK (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  WITH CHECK (auth.role() = 'service_role');
 
-CREATE POLICY "site_config_update_admin" ON public.site_config
+CREATE POLICY "site_config_update_service" ON public.site_config
   FOR UPDATE
-  USING (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid)
-  WITH CHECK (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 -- === ORDERS ===
--- El usuario puede ver sus propias órdenes; el admin puede ver todas
-CREATE POLICY "orders_select_own" ON public.orders
+-- Lectura: solo service_role puede ver órdenes
+CREATE POLICY "orders_select_service" ON public.orders
   FOR SELECT
-  USING (
-    auth.uid() = user_id::uuid
-    OR auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid
-  );
+  USING (auth.role() = 'service_role');
 
--- Inserción: cualquier usuario autenticado puede crear una orden
-CREATE POLICY "orders_insert_authenticated" ON public.orders
+-- Inserción: service_role (backend Express) crea órdenes
+CREATE POLICY "orders_insert_service" ON public.orders
   FOR INSERT
-  WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+  WITH CHECK (auth.role() = 'service_role');
 
--- Actualización solo admin
-CREATE POLICY "orders_update_admin" ON public.orders
+-- Actualización solo service_role
+CREATE POLICY "orders_update_service" ON public.orders
   FOR UPDATE
-  USING (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid)
-  WITH CHECK (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 -- === GALLERY_PHOTOS ===
 -- Lectura pública
@@ -150,14 +146,14 @@ CREATE POLICY "gallery_photos_select_public" ON public.gallery_photos
   FOR SELECT
   USING (true);
 
--- Escritura solo admin
-CREATE POLICY "gallery_photos_insert_admin" ON public.gallery_photos
+-- Escritura solo service_role
+CREATE POLICY "gallery_photos_insert_service" ON public.gallery_photos
   FOR INSERT
-  WITH CHECK (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  WITH CHECK (auth.role() = 'service_role');
 
-CREATE POLICY "gallery_photos_delete_admin" ON public.gallery_photos
+CREATE POLICY "gallery_photos_delete_service" ON public.gallery_photos
   FOR DELETE
-  USING (auth.uid() = 'OsVU7qU5NOParGXVqejx0SacMLl2'::uuid);
+  USING (auth.role() = 'service_role');
 
 -- ============================================================================
 -- FUNCIÓN PARA ACTUALIZAR updated_at AUTOMÁTICAMENTE

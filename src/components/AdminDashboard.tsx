@@ -183,8 +183,20 @@ const AdminDashboard = () => {
       setNotice(editingProductId ? 'Producto actualizado.' : 'Producto creado.');
       resetForm();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.');
+      // Asegurar que el loading se desactive inmediatamente en caso de error
+      setIsSavingProduct(false);
+      setIsUploadingImage(false);
+      
+      const errorMessage = caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.';
+      setError(errorMessage);
+      
+      // Mostrar error en consola para debugging
+      console.error('Error al guardar producto:', caughtError);
+      
+      // Mostrar alerta al usuario
+      alert(errorMessage);
     } finally {
+      // Asegurar que los estados de loading se desactiven
       setIsSavingProduct(false);
       setIsUploadingImage(false);
     }
