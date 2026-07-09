@@ -158,6 +158,8 @@ const AdminDashboard = () => {
           const msg = uploadErr instanceof Error ? uploadErr.message : 'Error subiendo la imagen.';
           console.error('Error en uploadProductImage:', uploadErr);
           setError(msg);
+          // Asegurarse de desactivar el spinner principal si la subida falla
+          setIsSavingProduct(false);
           alert(msg);
           return; // No intentar guardar producto si la imagen falla
         } finally {
@@ -401,7 +403,7 @@ const AdminDashboard = () => {
                         <img src={formState.image} alt="Imagen actual" className="mb-3 max-h-40 rounded-2xl object-cover shadow-sm" />
                       ) : (
                         <svg className="mb-3 h-10 w-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2[...]
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2[...]" />
                         </svg>
                       )}
                       <p className="text-sm font-semibold text-stone-500">
