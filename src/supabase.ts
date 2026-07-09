@@ -90,23 +90,22 @@ export async function createProduct(
   product: Omit<Product, 'id'>,
   accessToken: string,
 ): Promise<string> {
-  const { data, error } = await supabase
-    .from('products')
-    .insert({
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      volume: product.volume,
-      image: product.image,
-      category: product.category,
-      stock: product.stock,
-      active: product.active ?? true,
-    })
-    .select('id')
-    .single();
+  const response = await fetch('/api/products', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(product),
+  });
 
-  if (error) throw new Error(`Error creating product: ${error.message}`);
-  return data!.id;
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Error creating product from API');
+  }
+
+  return data.id;
 }
 
 /**
@@ -117,15 +116,19 @@ export async function updateProduct(
   product: Partial<Omit<Product, 'id'>>,
   accessToken: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('products')
-    .update({
-      ...product,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id);
+  const response = await fetch(`/api/products/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(product),
+  });
 
-  if (error) throw new Error(`Error updating product: ${error.message}`);
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({})); // Gracefully handle non-JSON responses
+    throw new Error(data.error || `Error updating product from API: ${response.statusText}`);
+  }
 }
 
 /**
@@ -135,12 +138,9 @@ export async function archiveProduct(
   id: string,
   accessToken: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('products')
-    .update({ active: false, updated_at: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) throw new Error(`Error archiving product: ${error.message}`);
+  // Re-utiliza la función `updateProduct` que ya se comunica con el API seguro.
+  // Archivar es simplemente una actualización que cambia el estado a inactivo.
+  await updateProduct(id, { active: false }, accessToken);
 }
 
 // ─── Configuración del Sitio ─────────────────────────────────────────────────
@@ -149,14 +149,13 @@ export async function archiveProduct(
  * Obtiene la configuración del sitio.
  */
 export async function getSiteConfig(): Promise<SiteConfig | null> {
-  const { data, error } = await supabase
-    .from('site_config')
-    .select('*')
-    .eq('id', 'site')
-    .single();
-
-  if (error) return null;
-  return data ? mapSiteConfig(data) : null;
+  const response = await fetch('/api/config');
+  if (!response.ok) {
+    // No lanzar error si no se encuentra, simplemente devolver null
+    return null;
+  }
+  const { config } = await response.json();
+  return config ? mapSiteConfig(config) : null;
 }
 
 /**
@@ -166,11 +165,19 @@ export async function updateSiteConfig(
   config: Partial<SiteConfig>,
   accessToken: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('site_config')
-    .upsert({ id: 'site', ...config, updated_at: new Date().toISOString() });
+  const response = await fetch('/api/config', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(config),
+  });
 
-  if (error) throw new Error(`Error updating site config: ${error.message}`);
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Error updating site config from API');
+  }
 }
 
 // ─── Órdenes ─────────────────────────────────────────────────────────────────
@@ -212,19 +219,27 @@ export async function createOrder(order: {
  * Obtiene órdenes (admin: todas, usuario: propias).
  */
 export async function getOrders(
-  accessToken?: string,
+  accessToken: string,
   statusFilter?: string,
 ): Promise<Order[]> {
-  let query = supabase.from('orders').select('*');
-
-  if (statusFilter && ['pending', 'paid', 'failed', 'delivered'].includes(statusFilter)) {
-    query = query.eq('status', statusFilter);
+  const url = new URL('/api/orders', window.location.origin);
+  if (statusFilter) {
+    url.searchParams.set('status', statusFilter);
   }
 
-  const { data, error } = await query.order('created_at', { ascending: false }).limit(100);
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
-  if (error) throw new Error(`Error fetching orders: ${error.message}`);
-  return (data ?? []).map(mapOrder);
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Error fetching orders from API');
+  }
+
+  const { orders } = await response.json();
+  return (orders ?? []).map(mapOrder);
 }
 
 /**
@@ -235,20 +250,19 @@ export async function updateOrderStatus(
   status: 'pending' | 'paid' | 'failed' | 'delivered',
   accessToken: string,
 ): Promise<void> {
-  const updateData: Record<string, unknown> = {
-    status,
-    updated_at: new Date().toISOString(),
-  };
+  const response = await fetch(`/api/orders/${orderId}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ status }),
+  });
 
-  if (status === 'paid') updateData.paid_at = new Date().toISOString();
-  if (status === 'failed') updateData.failed_at = new Date().toISOString();
-
-  const { error } = await supabase
-    .from('orders')
-    .update(updateData)
-    .eq('id', orderId);
-
-  if (error) throw new Error(`Error updating order status: ${error.message}`);
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Error updating order status from API');
+  }
 }
 
 // ─── Galería de Fotos ────────────────────────────────────────────────────────
@@ -261,27 +275,34 @@ export async function addGalleryPhoto(
   label: string,
   accessToken: string,
 ): Promise<string> {
-  const { data, error } = await supabase
-    .from('gallery_photos')
-    .insert({ url, label })
-    .select('id')
-    .single();
+  const response = await fetch('/api/gallery', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ url, label }),
+  });
 
-  if (error) throw new Error(`Error adding photo: ${error.message}`);
-  return data!.id;
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Error adding photo from API');
+  }
+
+  return data.id;
 }
 
 /**
  * Obtiene todas las fotos de la galería.
  */
 export async function getGalleryPhotos(): Promise<GalleryPhoto[]> {
-  const { data, error } = await supabase
-    .from('gallery_photos')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw new Error(`Error fetching gallery: ${error.message}`);
-  return (data ?? []).map(mapGalleryPhoto);
+  const response = await fetch('/api/gallery');
+  if (!response.ok) {
+    return [];
+  }
+  const { photos } = await response.json();
+  return (photos ?? []).map(mapGalleryPhoto);
 }
 
 // ─── Funciones de mapeo ──────────────────────────────────────────────────────
