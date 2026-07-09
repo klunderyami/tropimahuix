@@ -3,8 +3,8 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../firebase.js';
 import {
   subscribeToProducts,
-  createProduct,
-  updateProduct,
+  // createProduct,
+  // updateProduct,
   archiveProduct,
   getOrders,
   updateOrderStatus,
@@ -149,51 +149,63 @@ const AdminDashboard = () => {
       let imageUrl = formState.image;
       if (selectedFile) {
         setIsUploadingImage(true);
-        const productName = formState.name.trim() || 'producto';
-        imageUrl = await uploadProductImage(selectedFile, productName);
-        setIsUploadingImage(false);
+        try {
+          console.log('Admin: iniciando subida de imagen...');
+          const productName = formState.name.trim() || 'producto';
+          imageUrl = await uploadProductImage(selectedFile, productName);
+          console.log('Admin: imagen subida OK', imageUrl);
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : 'Error subiendo la imagen.';
+          console.error('Error en uploadProductImage:', uploadErr);
+          setError(msg);
+          alert(msg);
+          return; // No intentar guardar producto si la imagen falla
+        } finally {
+          setIsUploadingImage(false);
+        }
       }
 
+      // 2. Guardar producto en el backend (API server) usando token de Firebase
       const accessToken = await getAccessToken();
 
-      // 2. Guardar producto con la URL de la imagen
-      if (editingProductId) {
-        await updateProduct(
-          editingProductId,
-          {
-            ...formState,
-            image: imageUrl,
-            price: Number(formState.price),
-            stock: Number(formState.stock),
-          },
-          accessToken,
-        );
-      } else {
-        await createProduct(
-          {
-            ...formState,
-            image: imageUrl,
-            price: Number(formState.price),
-            stock: Number(formState.stock),
-          },
-          accessToken,
-        );
+      const payload = {
+        name: formState.name,
+        description: formState.description,
+        price: Number(formState.price),
+        volume: formState.volume,
+        image: imageUrl,
+        category: formState.category,
+        stock: Number(formState.stock),
+        active: formState.active ?? true,
+      };
+
+      const url = editingProductId ? `/api/products/${encodeURIComponent(editingProductId)}` : '/api/products';
+      const method = editingProductId ? 'PATCH' : 'POST';
+
+      console.log(`Admin: ${method} ${url}`, payload);
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const serverMsg = result?.error ?? response.statusText;
+        throw new Error(typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg));
       }
 
       setNotice(editingProductId ? 'Producto actualizado.' : 'Producto creado.');
       resetForm();
     } catch (caughtError) {
-      // Asegurar que el loading se desactive inmediatamente en caso de error
-      setIsSavingProduct(false);
-      setIsUploadingImage(false);
-      
       const errorMessage = caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.';
       setError(errorMessage);
-      
-      // Mostrar error en consola para debugging
       console.error('Error al guardar producto:', caughtError);
-      
-      // Mostrar alerta al usuario
       alert(errorMessage);
     } finally {
       // Asegurar que los estados de loading se desactiven
@@ -223,7 +235,13 @@ const AdminDashboard = () => {
 
     try {
       const accessToken = await getAccessToken();
-      await archiveProduct(productId, accessToken);
+      // Llamar al endpoint del servidor
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? res.statusText);
       setNotice('Producto archivado.');
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo archivar el producto.');
@@ -383,7 +401,7 @@ const AdminDashboard = () => {
                         <img src={formState.image} alt="Imagen actual" className="mb-3 max-h-40 rounded-2xl object-cover shadow-sm" />
                       ) : (
                         <svg className="mb-3 h-10 w-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2[...]
                         </svg>
                       )}
                       <p className="text-sm font-semibold text-stone-500">
