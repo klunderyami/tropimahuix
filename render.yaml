@@ -19,9 +19,9 @@ services:
       - key: FIREBASE_ADMIN_PRIVATE_KEY
         sync: false
 
-      # Firebase Frontend (Vite)
+      # Firebase Frontend (Vite) - Configurar manualmente en Render Dashboard
       - key: VITE_FIREBASE_API_KEY
-        value: AIzaSyDYp6WBRVP1-UqjQxA_yxpcJYobqeRcNdU
+        sync: false
       - key: VITE_FIREBASE_AUTH_DOMAIN
         value: sitio-web-cb0c4.firebaseapp.com
       - key: VITE_FIREBASE_PROJECT_ID
