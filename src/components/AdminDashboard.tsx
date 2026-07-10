@@ -151,7 +151,8 @@ const AdminDashboard = () => {
         setIsUploadingImage(true);
         const productName = formState.name.trim() || 'producto';
         imageUrl = await uploadProductImage(selectedFile, productName);
-        // setIsUploadingImage(false); // Se mueve al bloque finally para asegurar que siempre se resetee
+      }
+      
       const accessToken = await getAccessToken();
 
       const productPayload = {
@@ -179,19 +180,14 @@ const AdminDashboard = () => {
       setNotice(editingProductId ? 'Producto actualizado.' : 'Producto creado.');
       resetForm();
     } catch (caughtError) {
-      // Asegurar que el loading se desactive inmediatamente en caso de error
-      setIsSavingProduct(false);
       // Mostrar error en consola para debugging
       console.error('Error detallado al guardar producto:', caughtError);
       const errorMessage = caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.';
       setError(errorMessage);
-      
-      // Mostrar alerta al usuario
-      alert(errorMessage);
     } finally {
-      // Asegurar que los estados de loading se desactiven
+      // Asegurar que los estados de loading se desactiven SIEMPRE
       setIsSavingProduct(false);
-      setIsUploadingImage(false); // Asegurar que este estado siempre se resetee
+      setIsUploadingImage(false);
     }
   };
 

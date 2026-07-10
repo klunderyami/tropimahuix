@@ -52,9 +52,7 @@ function initializeServices(): { supabase: SupabaseClient; auth: Auth } | { erro
       } else {
         const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
         const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-        const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/
-/g, '
-');
+        const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
         if (!projectId || !clientEmail || !privateKey) {
           throw new Error('Missing Firebase Admin environment variables for token verification.');
         }
@@ -279,23 +277,51 @@ if (fs.existsSync(FRONTEND_INDEX_HTML)) {
 
 // Validadores de Estructura de Datos
 function isCheckoutItem(value: unknown): value is CheckoutItemInput {
-    // ... (implementation unchanged)
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.id === 'string' && typeof item.quantity === 'number';
 }
 
 function parseCheckoutItems(value: unknown): CheckoutItemInput[] | null {
-    // ... (implementation unchanged)
+  if (!Array.isArray(value)) return null;
+  return value.filter(isCheckoutItem);
 }
 
 function isShippingAddress(value: unknown): value is ShippingAddress {
-    // ... (implementation unchanged)
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const addr = value as Record<string, unknown>;
+  return (
+    typeof addr.name === 'string' &&
+    typeof addr.email === 'string' &&
+    typeof addr.phone === 'string' &&
+    typeof addr.street === 'string' &&
+    typeof addr.city === 'string'
+  );
 }
 
 function normalizeShippingAddress(address: ShippingAddress): ShippingAddress {
-    // ... (implementation unchanged)
+  return {
+    name: normalizeString(address.name),
+    email: normalizeString(address.email),
+    phone: normalizeString(address.phone),
+    street: normalizeString(address.street),
+    city: normalizeString(address.city),
+  };
 }
 
 function isProductUpdatePayload(payload: unknown): payload is Partial<ProductPayload> {
-    // ... (implementation unchanged)
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return false;
+  const p = payload as Record<string, unknown>;
+  const isValid =
+    (p.name === undefined || typeof p.name === 'string') &&
+    (p.description === undefined || typeof p.description === 'string') &&
+    (p.price === undefined || typeof p.price === 'number') &&
+    (p.volume === undefined || typeof p.volume === 'string') &&
+    (p.image === undefined || typeof p.image === 'string') &&
+    (p.category === undefined || (p.category === 'licor' || p.category === 'torito')) &&
+    (p.stock === undefined || typeof p.stock === 'number') &&
+    (p.active === undefined || typeof p.active === 'boolean');
+  return isValid;
 }
 
 function getRouteParam(value: string | string[] | undefined): string | null {
@@ -307,8 +333,7 @@ async function sendOrderNotificationWebhook(orderId: string, order: Order): Prom
   const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL?.trim();
   if (!webhookUrl) return;
 
-  const productLines = order.items.map((item) => `- ${item.quantity} x ${item.name}`).join('
-');
+  const productLines = order.items.map((item) => `- ${item.quantity} x ${item.name}`).join('\n');
   const text = `🔔 ¡NUEVO PEDIDO CONFIRMADO EN TROPICAÑA! 🔔
 - Orden ID: ${orderId}
 - Cliente: ${order.shipping_address.name || order.shipping_address.email}
@@ -335,11 +360,43 @@ async function requireAdmin(req: AuthenticatedRequest, res: Response, next: Next
 }
 
 async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
-    // ... (implementation unchanged)
+  const token = getBearerToken(req);
+  if (!token) return 'guest';
+  
+  try {
+    const decoded = await auth.verifyIdToken(token);
+    return decoded.uid;
+  } catch {
+    return 'guest';
+  }
 }
 
 // Pasarela de Pagos (PayPal)
-// ... (PayPal functions unchanged)
+async function capturePayPalOrder(paypalOrderId: string): Promise<PayPalCaptureResponse> {
+  const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${paypalOrderId}/capture`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.PAYPAL_CLIENT_SECRET}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`PayPal capture failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+function getCapturedAmount(paypalCapture: PayPalCaptureResponse): { currency_code?: string; value?: string } | undefined {
+  try {
+    const purchaseUnit = paypalCapture.purchase_units?.[0];
+    const capture = purchaseUnit?.payments?.captures?.[0];
+    return capture?.amount;
+  } catch {
+    return undefined;
+  }
+}
 
 // Endpoints REST de la API
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -360,7 +417,11 @@ app.post('/api/products', requireAdmin, async (req: Request, res: Response, next
     }
 
     // Asegurarse de que la categoría se guarde en minúsculas
-    productData.category = productData.category.toLowerCase();
+    const category = productData.category?.toLowerCase();
+    if (category !== 'licor' && category !== 'torito') {
+      return res.status(400).json({ error: 'Invalid category. Must be "licor" or "torito".' });
+    }
+    productData.category = category;
 
     const { data, error } = await supabase
       .from('products')
@@ -394,7 +455,11 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
 
     // Asegurarse de que la categoría se guarde en minúsculas si se proporciona
     if (productUpdateData.category) {
-      productUpdateData.category = productUpdateData.category.toLowerCase();
+      const category = productUpdateData.category.toLowerCase();
+      if (category !== 'licor' && category !== 'torito') {
+        return res.status(400).json({ error: 'Invalid category. Must be "licor" or "torito".' });
+      }
+      productUpdateData.category = category;
     }
 
     const { error } = await supabase
@@ -547,7 +612,7 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
     const paypalCapture = await capturePayPalOrder(paypalOrderId);
     const capturedAmount = getCapturedAmount(paypalCapture);
 
-    if (!capturedAmount || capturedAmount.currency !== PAYPAL_CURRENCY || toMoney(capturedAmount.value) !== toMoney(order.total)) {
+    if (!capturedAmount || capturedAmount.currency_code !== PAYPAL_CURRENCY || toMoney(Number(capturedAmount.value)) !== toMoney(order.total)) {
         await supabase.rpc('fail_order', { p_order_id: orderId });
         return res.status(400).json({ error: 'PayPal capture failed or amount mismatch.' });
     }
@@ -563,7 +628,11 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
 
     res.status(200).json({ status: 'paid', orderId, paypalOrderId, paypalCaptureId: paypalCapture.id });
   } catch (error) {
-    await supabase.rpc('fail_order', { p_order_id: orderId }).catch(e => console.error(e));
+    try {
+      await supabase.rpc('fail_order', { p_order_id: orderId });
+    } catch (rpcError) {
+      console.error('Error calling fail_order RPC:', rpcError);
+    }
     next(error);
   }
 });
@@ -575,9 +644,24 @@ if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   });
 }
 
-// Error Handler
+// Error Handler global - CRÍTICO: Siempre debe enviar una respuesta HTTP válida
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    // ... (implementation unchanged)
+  console.error('Error global del servidor:', error);
+  
+  // Asegurar que SIEMPRE se envíe una respuesta JSON válida para que el frontend no se quede colgado
+  const statusCode = error instanceof Error && 'statusCode' in error 
+    ? (error as Error & { statusCode: number }).statusCode 
+    : 500;
+  
+  const message = error instanceof Error 
+    ? error.message 
+    : 'Error interno del servidor.';
+  
+  // Nunca retornar sin enviar respuesta - esto causa el loading infinito en el frontend
+  res.status(statusCode).json({ 
+    error: message,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, () => {
