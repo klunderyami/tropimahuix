@@ -41,6 +41,12 @@ services:
       - key: API_BASE_URL
         value: https://tropimahuix-web.onrender.com
 
+      # Supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+
       # PayPal
       - key: PAYPAL_CLIENT_ID
         sync: false
