@@ -151,31 +151,27 @@ const AdminDashboard = () => {
         setIsUploadingImage(true);
         const productName = formState.name.trim() || 'producto';
         imageUrl = await uploadProductImage(selectedFile, productName);
-        setIsUploadingImage(false);
-      }
-
+        // setIsUploadingImage(false); // Se mueve al bloque finally para asegurar que siempre se resetee
       const accessToken = await getAccessToken();
 
-      // 2. Guardar producto con la URL de la imagen
+      const productPayload = {
+        ...formState,
+        image: imageUrl,
+        price: Number(formState.price),
+        stock: Number(formState.stock),
+        category: formState.category.toLowerCase() as 'licor' | 'torito', // Forzar a minúsculas
+      };
+
+      // 2. Guardar/Actualizar producto con la URL de la imagen
       if (editingProductId) {
         await updateProduct(
           editingProductId,
-          {
-            ...formState,
-            image: imageUrl,
-            price: Number(formState.price),
-            stock: Number(formState.stock),
-          },
+          productPayload,
           accessToken,
         );
       } else {
         await createProduct(
-          {
-            ...formState,
-            image: imageUrl,
-            price: Number(formState.price),
-            stock: Number(formState.stock),
-          },
+          productPayload,
           accessToken,
         );
       }
@@ -185,20 +181,17 @@ const AdminDashboard = () => {
     } catch (caughtError) {
       // Asegurar que el loading se desactive inmediatamente en caso de error
       setIsSavingProduct(false);
-      setIsUploadingImage(false);
-      
+      // Mostrar error en consola para debugging
+      console.error('Error detallado al guardar producto:', caughtError);
       const errorMessage = caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.';
       setError(errorMessage);
-      
-      // Mostrar error en consola para debugging
-      console.error('Error al guardar producto:', caughtError);
       
       // Mostrar alerta al usuario
       alert(errorMessage);
     } finally {
       // Asegurar que los estados de loading se desactiven
       setIsSavingProduct(false);
-      setIsUploadingImage(false);
+      setIsUploadingImage(false); // Asegurar que este estado siempre se resetee
     }
   };
 
@@ -240,6 +233,10 @@ const AdminDashboard = () => {
       // Refresh orders
       const nextOrders = await getOrders(accessToken);
       setOrders(nextOrders);
+      // Update local state instead of re-fetching all orders
+      setOrders((prevOrders) =>
+        prevOrders.map((order) => (order.id === orderId ? { ...order, status } : order)),
+      );
       setNotice('Orden actualizada.');
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar la orden.');

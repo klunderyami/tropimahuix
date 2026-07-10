@@ -350,12 +350,65 @@ app.get('/api/products', async (_req: Request, res: Response, next: NextFunction
     // ... (implementation unchanged)
 });
 
+// Endpoint para crear un nuevo producto
 app.post('/api/products', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const productData = req.body;
+    // Validar la estructura del payload del producto
+    if (!isProductPayload(productData)) {
+      return res.status(400).json({ error: 'Invalid product data provided.' });
+    }
+
+    // Asegurarse de que la categoría se guarde en minúsculas
+    productData.category = productData.category.toLowerCase();
+
+    const { data, error } = await supabase
+      .from('products')
+      .insert([productData])
+      .select('id')
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Failed to create product, no data returned.');
+
+    res.status(201).json({ id: data.id, message: 'Product created successfully.' });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    next(error); // Pasar el error al manejador global de errores
+  }
 });
 
+// Endpoint para actualizar un producto existente
 app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const productId = getRouteParam(req.params.productId);
+    if (!productId) {
+      return res.status(400).json({ error: 'Missing product id.' });
+    }
+
+    const productUpdateData = req.body;
+    // Validar la estructura del payload de actualización del producto
+    if (!isProductUpdatePayload(productUpdateData)) {
+      return res.status(400).json({ error: 'Invalid product update data provided.' });
+    }
+
+    // Asegurarse de que la categoría se guarde en minúsculas si se proporciona
+    if (productUpdateData.category) {
+      productUpdateData.category = productUpdateData.category.toLowerCase();
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ ...productUpdateData, updated_at: new Date().toISOString() })
+      .eq('id', productId);
+
+    if (error) throw error;
+
+    res.status(200).json({ status: 'updated', message: 'Product updated successfully.' });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    next(error); // Pasar el error al manejador global de errores
+  }
 });
 
 app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
