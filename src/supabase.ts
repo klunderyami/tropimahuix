@@ -90,22 +90,31 @@ export async function createProduct(
   product: Omit<Product, 'id'>,
   accessToken: string,
 ): Promise<string> {
-  const response = await fetch('/api/products', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(product),
-  });
+  try {
+    const response = await fetch('/api/products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(product),
+    });
 
-  const data = await response.json();
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Error creating product from API: ${response.statusText}`);
+    }
 
-  if (!response.ok) {
-    throw new Error(data.error || 'Error creating product from API');
+    const data = await response.json();
+    if (!data.id) {
+      throw new Error('Product created but no ID returned from API');
+    }
+    
+    return data.id;
+  } catch (err) {
+    console.error('Error in createProduct:', err);
+    throw err instanceof Error ? err : new Error(String(err));
   }
-
-  return data.id;
 }
 
 /**
@@ -116,18 +125,23 @@ export async function updateProduct(
   product: Partial<Omit<Product, 'id'>>,
   accessToken: string,
 ): Promise<void> {
-  const response = await fetch(`/api/products/${id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(product),
-  });
+  try {
+    const response = await fetch(`/api/products/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(product),
+    });
 
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({})); // Gracefully handle non-JSON responses
-    throw new Error(data.error || `Error updating product from API: ${response.statusText}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Error updating product from API: ${response.statusText}`);
+    }
+  } catch (err) {
+    console.error('Error in updateProduct:', err);
+    throw err instanceof Error ? err : new Error(String(err));
   }
 }
 

@@ -356,7 +356,23 @@ ${productLines}`;
 
 // Filtros de Autenticación y Control de Roles de Seguridad
 async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-    // ... (implementation unchanged)
+  const token = getBearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: 'Authorization token required.' });
+    return;
+  }
+  
+  try {
+    const decoded = await auth.verifyIdToken(token);
+    if (decoded.uid !== ADMIN_UID) {
+      res.status(403).json({ error: 'Admin access required.' });
+      return;
+    }
+    (req as AuthenticatedRequest).auth = { uid: decoded.uid };
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid or expired token.' });
+  }
 }
 
 async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
@@ -434,8 +450,9 @@ app.post('/api/products', requireAdmin, async (req: Request, res: Response, next
 
     res.status(201).json({ id: data.id, message: 'Product created successfully.' });
   } catch (error) {
-    console.error('Error creating product:', error);
-    next(error); // Pasar el error al manejador global de errores
+    console.error('[API] Error creating product:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error while creating product.';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -471,12 +488,13 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
 
     res.status(200).json({ status: 'updated', message: 'Product updated successfully.' });
   } catch (error) {
-    console.error('Error updating product:', error);
-    next(error); // Pasar el error al manejador global de errores
+    console.error('[API] Error updating product:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error while updating product.';
+    res.status(500).json({ error: message });
   }
 });
 
-app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: Response) => {
   try {
     const productId = getRouteParam(req.params.productId);
     if (!productId) {
@@ -491,7 +509,9 @@ app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: R
 
     res.status(200).json({ status: 'archived' });
   } catch (error) {
-    next(error);
+    console.error('[API] Error archiving product:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error while archiving product.';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -574,12 +594,14 @@ app.post('/api/orders/create', async (req: Request, res: Response, next: NextFun
 
     for (const item of items) {
         const { error: stockError } = await supabase.rpc('decrement_stock', { p_id: item.id, p_quantity: item.quantity });
-        if (stockError) console.error(`Stock decrement failed for product ${item.id}: ${stockError.message}`);
+        if (stockError) throw stockError;
     }
 
     res.status(201).json({ orderId: newOrder.id, total, currency: PAYPAL_CURRENCY, items: orderItems });
   } catch (error) {
-    next(error);
+    console.error('[API] Error creating order:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error while creating order.';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -628,12 +650,14 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
 
     res.status(200).json({ status: 'paid', orderId, paypalOrderId, paypalCaptureId: paypalCapture.id });
   } catch (error) {
+    console.error('[API] Error capturing PayPal order:', error);
     try {
       await supabase.rpc('fail_order', { p_order_id: orderId });
     } catch (rpcError) {
       console.error('Error calling fail_order RPC:', rpcError);
     }
-    next(error);
+    const message = error instanceof Error ? error.message : 'Internal server error while capturing order.';
+    res.status(500).json({ error: message });
   }
 });
 

@@ -151,8 +151,7 @@ const AdminDashboard = () => {
         setIsUploadingImage(true);
         const productName = formState.name.trim() || 'producto';
         imageUrl = await uploadProductImage(selectedFile, productName);
-      }
-      
+      }      
       const accessToken = await getAccessToken();
 
       const productPayload = {
@@ -182,7 +181,9 @@ const AdminDashboard = () => {
     } catch (caughtError) {
       // Mostrar error en consola para debugging
       console.error('Error detallado al guardar producto:', caughtError);
-      const errorMessage = caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.';
+      const errorMessage = `No se pudo guardar el producto. Causa: ${
+        caughtError instanceof Error ? caughtError.message : 'Error desconocido'
+      }`;
       setError(errorMessage);
     } finally {
       // Asegurar que los estados de loading se desactiven SIEMPRE
