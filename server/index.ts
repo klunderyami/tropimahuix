@@ -359,8 +359,9 @@ async function requireAdmin(req: AuthenticatedRequest, res: Response, next: Next
   try {
     const token = getBearerToken(req);
     if (!token) {
-      console.error('❌ [Auth Error] No token provided in Authorization header');
-      return res.status(401).json({ error: 'Missing authorization token.' });
+      console.error('[Auth Error] No token provided in Authorization header');
+      res.status(401).json({ error: 'Missing authorization token.' });
+      return;
     }
 
     try {
@@ -369,19 +370,21 @@ async function requireAdmin(req: AuthenticatedRequest, res: Response, next: Next
 
       // Validar que sea admin si está configurado ADMIN_UID
       if (ADMIN_UID && uid !== ADMIN_UID) {
-        console.error(`❌ [Auth Error] User ${uid} is not admin (expected ${ADMIN_UID})`);
-        return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+        console.error(`[Auth Error] User ${uid} is not admin (expected ${ADMIN_UID})`);
+        res.status(403).json({ error: 'Forbidden: Admin access required.' });
+        return;
       }
 
       req.auth = { uid };
       next();
     } catch (tokenError) {
-      console.error('❌ [Firebase Token Verification] Invalid or expired token:', tokenError instanceof Error ? tokenError.message : String(tokenError));
-      return res.status(401).json({ error: 'Invalid or expired authorization token.' });
+      console.error('[Firebase Token Verification] Invalid or expired token:', tokenError instanceof Error ? tokenError.message : String(tokenError));
+      res.status(401).json({ error: 'Invalid or expired authorization token.' });
+      return;
     }
   } catch (error) {
-    console.error('❌ [Auth Middleware Error]', error instanceof Error ? error.message : String(error));
-    return res.status(500).json({ error: 'Authentication middleware error.' });
+    console.error('[Auth Middleware Error]', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Authentication middleware error.' });
   }
 }
 

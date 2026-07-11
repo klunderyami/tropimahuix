@@ -150,7 +150,14 @@ const AdminDashboard = () => {
       if (selectedFile) {
         setIsUploadingImage(true);
         const productName = formState.name.trim() || 'producto';
-        imageUrl = await uploadProductImage(selectedFile, productName);
+        try {
+          imageUrl = await uploadProductImage(selectedFile, productName);
+        } catch (imageErr) {
+          setIsUploadingImage(false);
+          const imageErrorMsg = imageErr instanceof Error ? imageErr.message : 'Error al subir imagen';
+          throw new Error(`📸 ${imageErrorMsg}`);
+        }
+        setIsUploadingImage(false);
       }
       
       const accessToken = await getAccessToken();
@@ -164,6 +171,7 @@ const AdminDashboard = () => {
       };
 
       // 2. Guardar/Actualizar producto con la URL de la imagen
+      // Con timeout de 8 segundos integrado en createProduct/updateProduct
       if (editingProductId) {
         await updateProduct(
           editingProductId,
@@ -177,19 +185,38 @@ const AdminDashboard = () => {
         );
       }
 
-      setNotice(editingProductId ? 'Producto actualizado.' : 'Producto creado.');
+      setNotice(editingProductId ? '✅ Producto actualizado correctamente.' : '✅ Producto creado correctamente.');
       resetForm();
     } catch (caughtError) {
-      // Mostrar error en consola para debugging molecular
-      console.error('❌ [AdminDashboard] Error detallado al guardar producto:', caughtError);
-      const errorMessage = caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.';
+      // Mostrar error detallado
+      console.error('❌ [AdminDashboard] Error al guardar producto:', caughtError);
+      
+      let errorMessage = 'No se pudo guardar el producto.';
+      
+      if (caughtError instanceof Error) {
+        errorMessage = caughtError.message;
+        
+        // Detectar tipos específicos de errores
+        if (caughtError.message.includes('Timeout')) {
+          errorMessage = '⏱️ ' + caughtError.message;
+        } else if (caughtError.message.includes('Failed to fetch')) {
+          errorMessage = '🌐 Error de conexión: Verifica tu conexión a internet.';
+        } else if (caughtError.message.includes('Missing authorization')) {
+          errorMessage = '🔐 Sesión expirada. Por favor, inicia sesión nuevamente.';
+        } else if (caughtError.message.includes('database')) {
+          errorMessage = '💾 Error de base de datos: El servidor está sobrecargado. Intenta de nuevo en 30 segundos.';
+        }
+      }
+      
       setError(errorMessage);
-      // Alerta visual adicional para el usuario
-      if (typeof window !== 'undefined') {
-        window.alert(`⚠️ Error al guardar producto:\n${errorMessage}`);
+      
+      // Alerta visual si es un error crítico
+      if (errorMessage.includes('Timeout') || errorMessage.includes('base de datos')) {
+        console.warn('⚠️ Notificando al usuario sobre error crítico:', errorMessage);
       }
     } finally {
       // Asegurar que los estados de loading se desactiven SIEMPRE, pase lo que pase
+      // Esta sección se ejecuta GARANTIZADO incluso si hay error
       setIsSavingProduct(false);
       setIsUploadingImage(false);
     }

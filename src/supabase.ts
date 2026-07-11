@@ -84,21 +84,57 @@ export function subscribeToProducts(
 }
 
 /**
+ * Utilidad para envolver promesas con timeout de 8 segundos.
+ * Si la promesa tarda más, lanza un error y cancela con AbortController.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number = 8000,
+  abortController?: AbortController
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      const timeoutId = setTimeout(() => {
+        if (abortController) {
+          abortController.abort();
+        }
+        reject(
+          new Error(
+            `⏱️ Timeout: El servidor tardó más de ${timeoutMs}ms en responder. La conexión fue cancelada. Por favor, intenta de nuevo.`
+          )
+        );
+      }, timeoutMs);
+      
+      // Limpiar timeout si la promesa se completa antes
+      promise.finally(() => clearTimeout(timeoutId));
+    }),
+  ]);
+}
+
+/**
  * Crea un nuevo producto (solo admin).
  */
 export async function createProduct(
   product: Omit<Product, 'id'>,
   accessToken: string,
 ): Promise<string> {
+  const abortController = new AbortController();
+  
   try {
-    const response = await fetch('/api/products', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(product),
-    });
+    const response = await withTimeout(
+      fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(product),
+        signal: abortController.signal,
+      }),
+      8000,
+      abortController
+    );
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
@@ -112,8 +148,20 @@ export async function createProduct(
     
     return data.id;
   } catch (err) {
-    console.error('Error in createProduct:', err);
-    throw err instanceof Error ? err : new Error(String(err));
+    // Cancelar la petición si aún está en progreso
+    abortController.abort();
+    
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error('❌ [createProduct] Error:', errorMessage);
+    
+    // Re-lanzar con mensaje mejorado
+    if (errorMessage.includes('Timeout')) {
+      throw new Error(errorMessage); // Preservar mensaje de timeout
+    } else if (errorMessage.includes('Failed to fetch')) {
+      throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
+    } else {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 }
 
@@ -125,23 +173,42 @@ export async function updateProduct(
   product: Partial<Omit<Product, 'id'>>,
   accessToken: string,
 ): Promise<void> {
+  const abortController = new AbortController();
+  
   try {
-    const response = await fetch(`/api/products/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(product),
-    });
+    const response = await withTimeout(
+      fetch(`/api/products/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(product),
+        signal: abortController.signal,
+      }),
+      8000,
+      abortController
+    );
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       throw new Error(data.error || `Error updating product from API: ${response.statusText}`);
     }
   } catch (err) {
-    console.error('Error in updateProduct:', err);
-    throw err instanceof Error ? err : new Error(String(err));
+    // Cancelar la petición si aún está en progreso
+    abortController.abort();
+    
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error('❌ [updateProduct] Error:', errorMessage);
+    
+    // Re-lanzar con mensaje mejorado
+    if (errorMessage.includes('Timeout')) {
+      throw new Error(errorMessage); // Preservar mensaje de timeout
+    } else if (errorMessage.includes('Failed to fetch')) {
+      throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
+    } else {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 }
 
