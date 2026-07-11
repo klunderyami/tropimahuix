@@ -151,7 +151,8 @@ const AdminDashboard = () => {
         setIsUploadingImage(true);
         const productName = formState.name.trim() || 'producto';
         imageUrl = await uploadProductImage(selectedFile, productName);
-      }      
+      }
+      
       const accessToken = await getAccessToken();
 
       const productPayload = {
@@ -179,14 +180,16 @@ const AdminDashboard = () => {
       setNotice(editingProductId ? 'Producto actualizado.' : 'Producto creado.');
       resetForm();
     } catch (caughtError) {
-      // Mostrar error en consola para debugging
-      console.error('Error detallado al guardar producto:', caughtError);
-      const errorMessage = `No se pudo guardar el producto. Causa: ${
-        caughtError instanceof Error ? caughtError.message : 'Error desconocido'
-      }`;
+      // Mostrar error en consola para debugging molecular
+      console.error('❌ [AdminDashboard] Error detallado al guardar producto:', caughtError);
+      const errorMessage = caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el producto.';
       setError(errorMessage);
+      // Alerta visual adicional para el usuario
+      if (typeof window !== 'undefined') {
+        window.alert(`⚠️ Error al guardar producto:\n${errorMessage}`);
+      }
     } finally {
-      // Asegurar que los estados de loading se desactiven SIEMPRE
+      // Asegurar que los estados de loading se desactiven SIEMPRE, pase lo que pase
       setIsSavingProduct(false);
       setIsUploadingImage(false);
     }
@@ -216,6 +219,7 @@ const AdminDashboard = () => {
       await archiveProduct(productId, accessToken);
       setNotice('Producto archivado.');
     } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al archivar producto:', caughtError);
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo archivar el producto.');
     }
   };
@@ -236,6 +240,7 @@ const AdminDashboard = () => {
       );
       setNotice('Orden actualizada.');
     } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al actualizar orden:', caughtError);
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar la orden.');
     }
   };
@@ -251,6 +256,7 @@ const AdminDashboard = () => {
       await updateSiteConfig(siteConfig, accessToken);
       setNotice('Ajustes del sitio actualizados.');
     } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al guardar configuración:', caughtError);
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudieron guardar los ajustes.');
     } finally {
       setIsSavingConfig(false);
@@ -270,6 +276,7 @@ const AdminDashboard = () => {
       setPhotoUrl('');
       setPhotoLabel('');
     } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al guardar foto:', caughtError);
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar la foto.');
     } finally {
       setIsSavingPhoto(false);
