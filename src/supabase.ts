@@ -11,19 +11,90 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+/**
+ * Configuración mejorada de Supabase con:
+ * - Auto-refresco de tokens
+ * - Persistencia de sesión
+ * - Detección de sesión en URL
+ * - Realtime con reconexion automática
+ */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
   },
+  realtime: {
+    // Configuración de Realtime para evitar idle_shutdown
+    params: {
+      eventsPerSecond: 10, // Permitir hasta 10 eventos por segundo
+    },
+  },
 });
 
 // ─── Productos ───────────────────────────────────────────────────────────────
 
+
 /**
- * Obtiene todos los productos activos del catálogo.
+ * Mantiene vivo el tenant de Supabase escuchando cambios en la tabla 'productos'.
+ * Esto previene que el tenant se cierre por idle_shutdown cuando no hay usuarios
+ * escuchando activamente el canal de Realtime.
+ * 
+ * @returns Una función para desuscribirse del canal
  */
+export function subscribeToRealtimeKeepAlive(): (() => void) {
+  console.log('[Realtime KeepAlive] Inicializando suscripción persistente al canal de productos...');
+  
+  // Crear canal 'admin-products' para escuchar cambios en la tabla productos
+  const channel = supabase.channel('admin-products-keep-alive', {
+    config: {
+      // Permitir que este canal se mantenga activo incluso sin subscriptores explícitos
+      broadcast: { ack: true },
+      presence: { key: 'keep-alive' },
+    },
+  });
+
+  // Escuchar cambios en la tabla 'productos' para mantener viva la conexión
+  channel
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'products' },
+      (payload) => {
+        console.log('[Realtime KeepAlive] Cambio detectado en productos:', payload.eventType);
+      }
+    )
+    .on('presence', { event: 'sync' }, () => {
+      console.log('[Realtime KeepAlive] Presencia sincronizada - tenant activo');
+    })
+    .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+      console.log(`[Realtime KeepAlive] Usuario unido al canal: ${key}`);
+    })
+    .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+      console.log(`[Realtime KeepAlive] Usuario salió del canal: ${key}`);
+    })
+    .subscribe(async (status, err) => {
+      if (err) {
+        console.error('[Realtime KeepAlive] Error en suscripción:', err);
+        return;
+      }
+      
+      if (status === 'SUBSCRIBED') {
+        console.log('[Realtime KeepAlive] Canal activo - transmitiendo presencia');
+        // Avisar de presencia para mantener el canal activo
+        await channel.track({ online_at: new Date().toISOString() });
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[Realtime KeepAlive] Error en el canal');
+      } else if (status === 'CLOSED') {
+        console.warn('[Realtime KeepAlive] Canal cerrado');
+      }
+    });
+
+  // Retornar función de desuscripción
+  return () => {
+    console.log('[Realtime KeepAlive] Desuscribiendo del canal...');
+    channel.unsubscribe();
+  };
+}
 export async function getProducts(): Promise<Product[]> {
   const { data, error } = await supabase
     .from('products')

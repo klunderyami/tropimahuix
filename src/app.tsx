@@ -2,6 +2,7 @@ import { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import AdminRoute from './components/AdminRoute.js';
 import { useCart } from './contexts/CartContext.js';
+import { useRealtimeKeepAlive } from './hooks/useRealtimeKeepAlive.js';
 import { Navbar } from './components/Navbar.js';
 import { Hero } from './components/Hero.js';
 import { Catalog } from './components/Catalog.js';
@@ -36,6 +37,9 @@ function App() {
   const [serverStatus, setServerStatus] = useState<string>('Verificando conexión...');
   const { cart, addToCart, updateQuantity, removeFromCart, clearCart, cartItemCount, isCartOpen, setIsCartOpen } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
+
+  // Mantener viva la suscripción a Realtime de Supabase para evitar idle_shutdown
+  useRealtimeKeepAlive();
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/health`)
