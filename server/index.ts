@@ -356,7 +356,33 @@ ${productLines}`;
 
 // Filtros de Autenticación y Control de Roles de Seguridad
 async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-    // ... (implementation unchanged)
+  try {
+    const token = getBearerToken(req);
+    if (!token) {
+      console.error('❌ [Auth Error] No token provided in Authorization header');
+      return res.status(401).json({ error: 'Missing authorization token.' });
+    }
+
+    try {
+      const decoded = await auth.verifyIdToken(token);
+      const uid = decoded.uid;
+
+      // Validar que sea admin si está configurado ADMIN_UID
+      if (ADMIN_UID && uid !== ADMIN_UID) {
+        console.error(`❌ [Auth Error] User ${uid} is not admin (expected ${ADMIN_UID})`);
+        return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+      }
+
+      req.auth = { uid };
+      next();
+    } catch (tokenError) {
+      console.error('❌ [Firebase Token Verification] Invalid or expired token:', tokenError instanceof Error ? tokenError.message : String(tokenError));
+      return res.status(401).json({ error: 'Invalid or expired authorization token.' });
+    }
+  } catch (error) {
+    console.error('❌ [Auth Middleware Error]', error instanceof Error ? error.message : String(error));
+    return res.status(500).json({ error: 'Authentication middleware error.' });
+  }
 }
 
 async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
@@ -400,11 +426,24 @@ function getCapturedAmount(paypalCapture: PayPalCaptureResponse): { currency_cod
 
 // Endpoints REST de la API
 app.get('/api/health', (_req: Request, res: Response) => {
-    // ... (implementation unchanged)
+  res.status(200).json({ status: 'healthy' });
 });
 
 app.get('/api/products', async (_req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .or('active.eq.true,active.is.null')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+
+    res.status(200).json({ products: data ?? [] });
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    next(error);
+  }
 });
 
 // Endpoint para crear un nuevo producto
@@ -496,27 +535,123 @@ app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: R
 });
 
 app.get('/api/config', async (_req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const { data, error } = await supabase
+      .from('site_config')
+      .select('*')
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+
+    res.status(200).json({ config: data ?? {} });
+  } catch (error) {
+    console.error('Error fetching config:', error);
+    next(error);
+  }
 });
 
 app.patch('/api/config', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const configData = req.body;
+    const { error } = await supabase
+      .from('site_config')
+      .upsert({ ...configData, updated_at: new Date().toISOString() })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(200).json({ message: 'Config updated successfully.' });
+  } catch (error) {
+    console.error('Error updating config:', error);
+    next(error);
+  }
 });
 
 app.get('/api/gallery', async (_req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const { data, error } = await supabase
+      .from('gallery')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.status(200).json({ photos: data ?? [] });
+  } catch (error) {
+    console.error('Error fetching gallery:', error);
+    next(error);
+  }
 });
 
 app.post('/api/gallery', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const { url, label } = req.body;
+
+    if (typeof url !== 'string' || !url.trim()) {
+      return res.status(400).json({ error: 'Invalid photo URL.' });
+    }
+
+    const { data, error } = await supabase
+      .from('gallery')
+      .insert({ url, label: label || 'Gallery' })
+      .select('id')
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Failed to add photo.');
+
+    res.status(201).json({ id: data.id, message: 'Photo added successfully.' });
+  } catch (error) {
+    console.error('Error adding photo:', error);
+    next(error);
+  }
 });
 
 app.get('/api/orders', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const status = req.query.status as string | undefined;
+    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    res.status(200).json({ orders: data ?? [] });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    next(error);
+  }
 });
 
 app.patch('/api/orders/:orderId/status', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-    // ... (implementation unchanged)
+  try {
+    const orderId = getRouteParam(req.params.orderId);
+    const { status } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ error: 'Missing order id.' });
+    }
+    if (!status || !['pending', 'paid', 'failed', 'delivered'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status.' });
+    }
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', orderId);
+
+    if (error) throw error;
+
+    res.status(200).json({ message: 'Order status updated successfully.' });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    next(error);
+  }
 });
 
 app.post('/api/orders/create', async (req: Request, res: Response, next: NextFunction) => {
