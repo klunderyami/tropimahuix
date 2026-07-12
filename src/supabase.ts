@@ -420,6 +420,40 @@ export async function updateOrderStatus(
 // ─── Galería de Fotos ────────────────────────────────────────────────────────
 
 /**
+ * Sube una imagen a Supabase Storage y retorna la URL pública.
+ * @param imageBase64 - Imagen en formato base64 (data:image/jpeg;base64,...)
+ * @param fileName - Nombre del archivo (sin ruta)
+ * @param accessToken - Token de acceso del admin
+ * @returns URL pública de la imagen subida
+ */
+export async function uploadImageToStorage(
+  imageBase64: string,
+  fileName: string,
+  accessToken: string,
+): Promise<string> {
+  const response = await fetch('/api/upload/image', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ imageBase64, fileName }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Error uploading image to storage');
+  }
+
+  const data = await response.json();
+  if (!data.url) {
+    throw new Error('No URL returned from upload endpoint');
+  }
+
+  return data.url;
+}
+
+/**
  * Agrega una foto a la galería (solo admin).
  */
 export async function addGalleryPhoto(

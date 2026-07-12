@@ -12,7 +12,7 @@ import {
   updateSiteConfig,
   addGalleryPhoto,
 } from '../supabase.js';
-import { uploadProductImage } from '../firebase.js';
+import { uploadImageToStorage } from '../supabase.js';
 import type { NewProduct, Order, OrderStatus, Product, SiteConfig } from '../types.js';
 
 type AdminTab = 'products' | 'gallery' | 'orders';
@@ -223,13 +223,16 @@ const AdminDashboard = () => {
     setNotice(null);
 
     try {
-      // 1. Subir imagen a Firebase Storage si hay un archivo seleccionado
+      // 1. Subir imagen a Supabase Storage si hay un archivo seleccionado
       let imageUrl = formState.image;
       if (selectedFile) {
         setIsUploadingImage(true);
         const productName = formState.name.trim() || 'producto';
         try {
-          imageUrl = await uploadProductImage(selectedFile, productName);
+          // Convertir archivo a base64
+          const imageBase64 = await fileToBase64(selectedFile);
+          const accessToken = await getAccessToken();
+          imageUrl = await uploadImageToStorage(imageBase64, productName, accessToken);
         } catch (imageErr) {
           setIsUploadingImage(false);
           const imageErrorMsg = imageErr instanceof Error ? imageErr.message : 'Error al subir imagen';
@@ -298,6 +301,16 @@ const AdminDashboard = () => {
       setIsSavingProduct(false);
       setIsUploadingImage(false);
     }
+  };
+
+  // Helper para convertir archivo a base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Error al leer el archivo de imagen'));
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleEditProduct = (product: Product) => {

@@ -11,6 +11,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
 import type { ProductPayload } from './productBatchUpload.js';
 
+// Configuración de Supabase Storage
+const supabaseStorageUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -34,10 +38,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 // --- INICIO: SECCIÓN DE INICIALIZACIÓN DE SERVICIOS ---
 
 let supabase: SupabaseClient;
+let supabaseStorage: SupabaseClient;
 let auth: Auth;
 let serviceInitializationError: Error | null = null;
 
-function initializeServices(): { supabase: SupabaseClient; auth: Auth } | { error: Error } {
+function initializeServices(): { supabase: SupabaseClient; supabaseStorage: SupabaseClient; auth: Auth } | { error: Error } {
   // 1. Inicializar Firebase Admin solo para Autenticación
   // Esto es necesario para verificar los tokens de ID de Firebase del frontend.
   try {
@@ -84,7 +89,21 @@ function initializeServices(): { supabase: SupabaseClient; auth: Auth } | { erro
       },
     });
     console.log('🚀 [Supabase Admin] Initialized successfully.');
-    return { supabase: supabaseClient, auth };
+    
+    // Inicializar cliente de Supabase Storage con credenciales S3
+    if (!supabaseStorageUrl || !supabaseServiceKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY for Storage.');
+    }
+    
+    const supabaseStorageClient = createClient(supabaseStorageUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+    console.log('🚀 [Supabase Storage] Initialized successfully.');
+    
+    return { supabase: supabaseClient, supabaseStorage: supabaseStorageClient, auth };
   } catch (error) {
     const initError = error instanceof Error ? error : new Error('Supabase Admin client failed to initialize.');
     console.error('❌ [Supabase Admin]', initError);
@@ -98,6 +117,7 @@ if ('error' in result) {
   serviceInitializationError = result.error;
 } else {
   supabase = result.supabase;
+  supabaseStorage = result.supabaseStorage;
   auth = result.auth;
 }
 
@@ -533,6 +553,49 @@ app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: R
 
     res.status(200).json({ status: 'archived' });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Endpoint para subir imágenes a Supabase Storage
+app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { imageBase64, fileName } = req.body;
+    
+    if (!imageBase64 || !fileName) {
+      return res.status(400).json({ error: 'Se requiere imageBase64 y fileName' });
+    }
+    
+    // Convertir base64 a buffer
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Generar nombre único para el archivo
+    const timestamp = Date.now();
+    const safeFileName = `${timestamp}-${fileName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+    const filePath = `productos/${safeFileName}`;
+    
+    // Subir a Supabase Storage
+    const { data, error } = await supabaseStorage.storage
+      .from('productos')
+      .upload(filePath, buffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+    
+    if (error) {
+      console.error('Error subiendo imagen:', error);
+      throw error;
+    }
+    
+    // Obtener URL pública
+    const { data: publicUrl } = supabaseStorage.storage
+      .from('productos')
+      .getPublicUrl(filePath);
+    
+    res.status(200).json({ url: publicUrl });
+  } catch (error) {
+    console.error('Error en /api/upload/image:', error);
     next(error);
   }
 });
