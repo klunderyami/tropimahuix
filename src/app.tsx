@@ -47,7 +47,7 @@ function App() {
         if (!res.ok) throw new Error('Servidor no responde');
         return res.json();
       })
-      .then((data) => setServerStatus(data.message))
+      .then((data) => setServerStatus(data.message ?? 'Verificando conexión...'))
       .catch(() => setServerStatus('⚠️ Backend no disponible'));
   }, []);
 
@@ -90,12 +90,12 @@ function App() {
                   <span className="flex h-3 w-3 relative">
                     <span
                       className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                        serverStatus.includes('⚠️') ? 'bg-rose-400' : 'bg-emerald-400'
+                        (serverStatus ?? '').includes('⚠️') ? 'bg-rose-400' : 'bg-emerald-400'
                       }`}
                     ></span>
                     <span
                       className={`relative inline-flex rounded-full h-3 w-3 ${
-                        serverStatus.includes('⚠️') ? 'bg-rose-500' : 'bg-emerald-500'
+                        (serverStatus ?? '').includes('⚠️') ? 'bg-rose-500' : 'bg-emerald-500'
                       }`}
                     ></span>
                   </span>
