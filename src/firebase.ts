@@ -218,6 +218,71 @@ function withTimeout<T>(p: Promise<T>, ms = 30000): Promise<T> {
 }
 
 /**
+ * Comprime una imagen usando Canvas API para reducir su tamaño antes de subirla
+ * @param file - Archivo de imagen original
+ * @param maxWidth - Ancho máximo (default 1200px)
+ * @param quality - Calidad de compresión 0-1 (default 0.8)
+ * @returns Promise con el archivo comprimido
+ */
+async function compressImage(file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo aspect ratio
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        // Crear canvas y dibujar imagen redimensionada
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('No se pudo crear el contexto de canvas'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a blob
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Error al comprimir la imagen'));
+              return;
+            }
+            
+            // Crear nuevo archivo con el blob comprimido
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            
+            console.log(`📸 Imagen comprimida: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reducción)`);
+            
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Error al cargar la imagen para compresión'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Error al leer el archivo de imagen'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Sube un archivo de imagen a Firebase Storage dentro de la carpeta 'productos/'.
  * @param file - Archivo de imagen seleccionado por el usuario.
  * @param productName - Nombre del producto (para generar un nombre legible).
@@ -234,20 +299,29 @@ export async function uploadProductImage(file: File, productName: string): Promi
     .toLowerCase()
     .slice(0, 60) || 'producto';
 
-  const extension = file.name.split('.').pop() || 'jpg';
-  const fileName = `${timestamp}-${safeName}.${extension}`;
+  // Usar extensión .jpg para todas las imágenes (mejor compresión)
+  const fileName = `${timestamp}-${safeName}.jpg`;
   const storageRef = ref(storage, `productos/${fileName}`);
 
   try {
-    // Validar tamaño del archivo (máximo 5MB)
+    // Validar tamaño del archivo (máximo 5MB antes de comprimir)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      throw new Error(`La imagen es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). El tamaño máximo permitido es 5MB. Por favor, comprime la imagen antes de subirla.`);
+      throw new Error(`La imagen es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). El tamaño máximo permitido es 5MB. Por favor, selecciona una imagen más pequeña.`);
     }
 
-    // Subida con timeout extendido (60s) para imágenes grandes
-    const snapshot = await withTimeout(uploadBytes(storageRef, file), 60000);
+    // Comprimir imagen para reducir tiempo de subida
+    console.log('📸 Comprimiendo imagen...');
+    const compressedFile = await compressImage(file, 1200, 0.8);
+    
+    // Subida con timeout extendido (90s) para conexiones lentas
+    console.log('📤 Subiendo imagen a Firebase Storage...');
+    const snapshot = await withTimeout(uploadBytes(storageRef, compressedFile), 90000);
+    
+    // Obtener URL con timeout de 15s
     const downloadUrl = await withTimeout(getDownloadURL(snapshot.ref), 15000);
+    
+    console.log('✅ Imagen subida exitosamente:', downloadUrl);
     return downloadUrl;
   } catch (err) {
     console.error('Error en uploadProductImage:', err);
@@ -260,8 +334,10 @@ export async function uploadProductImage(file: File, productName: string): Promi
         throw new Error('🔐 No tienes permisos para subir imágenes. Verifica que estés autenticado como administrador.');
       } else if (err.message.includes('canceled')) {
         throw new Error('🚫 La subida de la imagen fue cancelada.');
+      } else if (err.message.includes('demasiado grande')) {
+        throw err; // Ya tiene un mensaje amigable
       } else {
-        throw err;
+        throw new Error(`Error al subir la imagen: ${err.message}`);
       }
     }
     throw new Error('Error desconocido al subir la imagen. Por favor, intenta de nuevo.');
