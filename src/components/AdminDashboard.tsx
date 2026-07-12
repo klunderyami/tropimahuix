@@ -61,6 +61,65 @@ const AdminDashboard = () => {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Función para comprimir imagen (reutilizamos la lógica de firebase.ts)
+  const compressImageLocally = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          const maxWidth = 800;
+          
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            reject(new Error('No se pudo crear el contexto de canvas'));
+            return;
+          }
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Error al comprimir la imagen'));
+                return;
+              }
+              
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              
+              const reduction = Math.round((1 - compressedFile.size / file.size) * 100);
+              console.log(`📸 Imagen comprimida al seleccionar: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB (${reduction}% reducción)`);
+              
+              resolve(compressedFile);
+            },
+            'image/jpeg',
+            0.7
+          );
+        };
+        img.onerror = () => reject(new Error('Error al cargar la imagen'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Foto Gallery state
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoLabel, setPhotoLabel] = useState('');
@@ -116,17 +175,36 @@ const AdminDashboard = () => {
     };
   }, [orders, products]);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
-    setSelectedFile(file);
-
+    
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Comprimir imagen inmediatamente al seleccionarla
+        console.log('📸 Comprimiendo imagen seleccionada...');
+        const compressedFile = await compressImageLocally(file);
+        setSelectedFile(compressedFile);
+        
+        // Actualizar preview con la imagen comprimida
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+        
+        console.log(`✅ Imagen lista para subir: ${(compressedFile.size / 1024).toFixed(1)}KB`);
+      } catch (err) {
+        console.error('Error al comprimir imagen:', err);
+        // Si falla la compresión, usar la imagen original
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     } else {
+      setSelectedFile(null);
       setImagePreview(null);
     }
   };
