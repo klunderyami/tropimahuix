@@ -562,6 +562,14 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
   try {
     const { imageBase64, fileName } = req.body;
     
+    console.log('📤 [Upload] Recibida solicitud de subida:', {
+      hasImageBase64: !!imageBase64,
+      hasFileName: !!fileName,
+      fileName,
+      imageBase64Length: imageBase64?.length || 0,
+      imageBase64Prefix: imageBase64?.substring(0, 50) || 'none'
+    });
+    
     if (!imageBase64 || !fileName) {
       return res.status(400).json({ error: 'Se requiere imageBase64 y fileName' });
     }
@@ -570,10 +578,17 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
     
+    console.log('📤 [Upload] Buffer creado:', {
+      bufferSize: buffer.length,
+      bufferSizeKB: (buffer.length / 1024).toFixed(2)
+    });
+    
     // Generar nombre único para el archivo
     const timestamp = Date.now();
     const safeFileName = `${timestamp}-${fileName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
     const filePath = `productos/${safeFileName}`;
+    
+    console.log('📤 [Upload] Intentando subir a:', filePath);
     
     // Subir a Supabase Storage
     const { data, error } = await supabaseStorage.storage
@@ -584,19 +599,31 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
       });
     
     if (error) {
-      console.error('Error subiendo imagen:', error);
-      throw error;
+      console.error('❌ [Upload] Error de Supabase:', {
+        message: error.message,
+        statusCode: error.statusCode,
+        details: error
+      });
+      throw new Error(`Error de Supabase Storage: ${error.message}`);
     }
+    
+    console.log('✅ [Upload] Archivo subido exitosamente:', data);
     
     // Obtener URL pública
     const { data: publicUrl } = supabaseStorage.storage
       .from('productos')
       .getPublicUrl(filePath);
     
+    console.log('✅ [Upload] URL pública generada:', publicUrl);
+    
     res.status(200).json({ url: publicUrl });
   } catch (error) {
-    console.error('Error en /api/upload/image:', error);
-    next(error);
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    console.error('❌ [Upload] Error completo:', {
+      message: errorMessage,
+      error
+    });
+    res.status(500).json({ error: errorMessage });
   }
 });
 
