@@ -431,6 +431,8 @@ const AdminDashboard = () => {
                     <input type="hidden" name="image" value={formState.image} />
                   </div>
                   <input
+                    id="product-name"
+                    name="product-name"
                     value={formState.name}
                     onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
                     placeholder="Nombre del producto"
@@ -438,6 +440,8 @@ const AdminDashboard = () => {
                     className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                   />
                   <textarea
+                    id="product-description"
+                    name="product-description"
                     value={formState.description}
                     onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
                     placeholder="Descripción"
@@ -446,6 +450,8 @@ const AdminDashboard = () => {
                   />
                   <div className="grid gap-4 sm:grid-cols-2">
                     <input
+                      id="product-price"
+                      name="product-price"
                       type="number"
                       min={1}
                       step="0.01"
@@ -456,6 +462,8 @@ const AdminDashboard = () => {
                       className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                     />
                     <input
+                      id="product-stock"
+                      name="product-stock"
                       type="number"
                       min={0}
                       step={1}
@@ -468,6 +476,8 @@ const AdminDashboard = () => {
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <input
+                      id="product-volume"
+                      name="product-volume"
                       value={formState.volume}
                       onChange={(event) => setFormState((current) => ({ ...current, volume: event.target.value }))}
                       placeholder="Volumen (ej: 750ml)"

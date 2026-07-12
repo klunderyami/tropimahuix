@@ -220,11 +220,11 @@ function withTimeout<T>(p: Promise<T>, ms = 30000): Promise<T> {
 /**
  * Comprime una imagen usando Canvas API para reducir su tamaño antes de subirla
  * @param file - Archivo de imagen original
- * @param maxWidth - Ancho máximo (default 1200px)
- * @param quality - Calidad de compresión 0-1 (default 0.8)
+ * @param maxWidth - Ancho máximo (default 800px para mejor rendimiento)
+ * @param quality - Calidad de compresión 0-1 (default 0.7)
  * @returns Promise con el archivo comprimido
  */
-async function compressImage(file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> {
+async function compressImage(file: File, maxWidth: number = 800, quality: number = 0.7): Promise<File> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -235,7 +235,7 @@ async function compressImage(file: File, maxWidth: number = 1200, quality: numbe
         let height = img.height;
         
         if (width > maxWidth) {
-          height = (height * maxWidth) / width;
+          height = Math.round((height * maxWidth) / width);
           width = maxWidth;
         }
 
@@ -250,9 +250,12 @@ async function compressImage(file: File, maxWidth: number = 1200, quality: numbe
           return;
         }
 
+        // Mejorar calidad de compresión
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Convertir a blob
+        // Convertir a blob con calidad reducida
         canvas.toBlob(
           (blob) => {
             if (!blob) {
@@ -261,12 +264,17 @@ async function compressImage(file: File, maxWidth: number = 1200, quality: numbe
             }
             
             // Crear nuevo archivo con el blob comprimido
-            const compressedFile = new File([blob], file.name, {
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
               type: 'image/jpeg',
               lastModified: Date.now(),
             });
             
-            console.log(`📸 Imagen comprimida: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reducción)`);
+            const reduction = Math.round((1 - compressedFile.size / file.size) * 100);
+            console.log(`📸 Imagen comprimida: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB (${reduction}% reducción)`);
+            
+            if (compressedFile.size > 2 * 1024 * 1024) {
+              console.warn('⚠️ Imagen aún es grande, considera usar una imagen más pequeña');
+            }
             
             resolve(compressedFile);
           },
@@ -312,11 +320,25 @@ export async function uploadProductImage(file: File, productName: string): Promi
 
     // Comprimir imagen para reducir tiempo de subida
     console.log('📸 Comprimiendo imagen...');
-    const compressedFile = await compressImage(file, 1200, 0.8);
+    const compressedFile = await compressImage(file, 800, 0.7);
     
-    // Subida con timeout extendido (90s) para conexiones lentas
+    // Verificar tamaño después de compresión
+    if (compressedFile.size > 1.5 * 1024 * 1024) {
+      console.warn('⚠️ Imagen comprimida aún es grande, intentando compresión adicional...');
+      const highlyCompressed = await compressImage(compressedFile, 600, 0.6);
+      console.log(`📸 Segunda compresión: ${(compressedFile.size / 1024).toFixed(1)}KB → ${(highlyCompressed.size / 1024).toFixed(1)}KB`);
+      
+      // Subir con timeout muy extendido (120s) para archivos grandes
+      console.log('📤 Subiendo imagen comprimida a Firebase Storage...');
+      const snapshot = await withTimeout(uploadBytes(storageRef, highlyCompressed), 120000);
+      const downloadUrl = await withTimeout(getDownloadURL(snapshot.ref), 15000);
+      console.log('✅ Imagen subida exitosamente:', downloadUrl);
+      return downloadUrl;
+    }
+    
+    // Subida con timeout extendido (120s) para conexiones lentas
     console.log('📤 Subiendo imagen a Firebase Storage...');
-    const snapshot = await withTimeout(uploadBytes(storageRef, compressedFile), 90000);
+    const snapshot = await withTimeout(uploadBytes(storageRef, compressedFile), 120000);
     
     // Obtener URL con timeout de 15s
     const downloadUrl = await withTimeout(getDownloadURL(snapshot.ref), 15000);
@@ -329,13 +351,17 @@ export async function uploadProductImage(file: File, productName: string): Promi
     // Mejorar mensaje de error para el usuario
     if (err instanceof Error) {
       if (err.message.includes('timed out')) {
-        throw new Error('⏱️ La subida de la imagen tardó demasiado. Verifica tu conexión a internet e intenta con una imagen más pequeña (máximo 5MB).');
+        const timeoutMatch = err.message.match(/after (\d+)ms/);
+        const seconds = timeoutMatch ? Math.round(parseInt(timeoutMatch[1]) / 1000) : 120;
+        throw new Error(`⏱️ La subida de la imagen tardó demasiado (${seconds}s). Verifica tu conexión a internet e intenta con una imagen más pequeña (máximo 5MB, recomendado <1MB).`);
       } else if (err.message.includes('permission-denied') || err.message.includes('unauthenticated')) {
         throw new Error('🔐 No tienes permisos para subir imágenes. Verifica que estés autenticado como administrador.');
       } else if (err.message.includes('canceled')) {
         throw new Error('🚫 La subida de la imagen fue cancelada.');
       } else if (err.message.includes('demasiado grande')) {
         throw err; // Ya tiene un mensaje amigable
+      } else if (err.message.includes('network') || err.message.includes('fetch')) {
+        throw new Error('🌐 Error de red. Verifica tu conexión a internet e intenta de nuevo.');
       } else {
         throw new Error(`Error al subir la imagen: ${err.message}`);
       }
