@@ -11,10 +11,6 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
 import type { ProductPayload } from './productBatchUpload.js';
 
-// Configuración de Supabase Storage
-const supabaseStorageUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -77,11 +73,14 @@ function initializeServices(): { supabase: SupabaseClient; supabaseStorage: Supa
   // 2. Inicializar el cliente Admin de Supabase
   // Este cliente usa la SERVICE_ROLE_KEY para bypass RLS.
   try {
+    // Leer variables de entorno DESPUÉS de cargar dotenv
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+    
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables.');
     }
+    
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -91,11 +90,8 @@ function initializeServices(): { supabase: SupabaseClient; supabaseStorage: Supa
     console.log('🚀 [Supabase Admin] Initialized successfully.');
     
     // Inicializar cliente de Supabase Storage con credenciales S3
-    if (!supabaseStorageUrl || !supabaseServiceKey) {
-      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY for Storage.');
-    }
-    
-    const supabaseStorageClient = createClient(supabaseStorageUrl, supabaseServiceKey, {
+    // Usar las mismas credenciales (leídas después de dotenv)
+    const supabaseStorageClient = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -567,7 +563,6 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
       hasFileName: !!fileName,
       fileName,
       imageBase64Length: imageBase64?.length || 0,
-      imageBase64Prefix: imageBase64?.substring(0, 50) || 'none'
     });
     
     if (!imageBase64 || !fileName) {
@@ -590,7 +585,43 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
     
     console.log('📤 [Upload] Intentando subir a:', filePath);
     
+    // Verificar que el bucket existe (requerido)
+    console.log('📤 [Upload] Verificando buckets en Supabase Storage...');
+    const { data: buckets, error: listError } = await supabaseStorage.storage.listBuckets();
+    if (listError) {
+      console.error('❌ [Upload] Error listando buckets:', listError);
+      return res.status(500).json({ error: `Error al verificar buckets: ${listError.message}` });
+    }
+    
+    const bucketExists = buckets?.some(bucket => bucket.name === 'productos');
+    console.log('📤 [Upload] Buckets disponibles:', buckets?.map(b => b.name));
+    console.log('📤 [Upload] Bucket "productos" existe:', bucketExists);
+    
+    if (!bucketExists) {
+      console.log('⚠️ [Upload] Bucket "productos" no existe, creándolo...');
+      const { data: newBucket, error: createError } = await supabaseStorage.storage.createBucket('productos', {
+        public: true,
+        fileSizeLimit: 5242880, // 5MB
+      });
+      
+      if (createError) {
+        console.error('❌ [Upload] Error creando bucket:', createError);
+        return res.status(500).json({ 
+          error: `Error al crear bucket 'productos': ${createError.message}. 
+          
+Por favor, crea el bucket manualmente en el panel de Supabase:
+1. Ve a https://supabase.com/dashboard/project/tohpxpoxcsciiojcltal/storage/buckets
+2. Click en "New bucket"
+3. Nombre: productos
+4. Marca "Public bucket"
+5. Click "Create bucket"` 
+        });
+      }
+      console.log('✅ [Upload] Bucket "productos" creado exitosamente:', newBucket);
+    }
+    
     // Subir a Supabase Storage
+    console.log('📤 [Upload] Subiendo archivo...');
     const { data, error } = await supabaseStorage.storage
       .from('productos')
       .upload(filePath, buffer, {
@@ -599,9 +630,10 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
       });
     
     if (error) {
-      console.error('❌ [Upload] Error de Supabase:', {
+      console.error('❌ [Upload] Error de Supabase al subir:', {
         message: error.message,
         statusCode: error.statusCode,
+        name: error.name,
         details: error
       });
       throw new Error(`Error de Supabase Storage: ${error.message}`);
@@ -610,10 +642,11 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
     console.log('✅ [Upload] Archivo subido exitosamente:', data);
     
     // Obtener URL pública
-    const { data: publicUrl } = supabaseStorage.storage
+    const publicUrlData = supabaseStorage.storage
       .from('productos')
       .getPublicUrl(filePath);
     
+    const publicUrl = publicUrlData.data.publicUrl;
     console.log('✅ [Upload] URL pública generada:', publicUrl);
     
     res.status(200).json({ url: publicUrl });
@@ -632,6 +665,7 @@ app.get('/api/config', async (_req: Request, res: Response, next: NextFunction) 
     const { data, error } = await supabase
       .from('site_config')
       .select('*')
+     
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
