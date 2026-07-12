@@ -286,6 +286,8 @@ const AdminDashboard = () => {
           errorMessage = '🔐 Sesión expirada. Por favor, inicia sesión nuevamente.';
         } else if (caughtError.message.includes('database')) {
           errorMessage = '💾 Error de base de datos: El servidor está sobrecargado. Intenta de nuevo en 30 segundos.';
+        } else if (caughtError.message.toLowerCase().includes('bucket not found')) {
+          errorMessage = "🪣 Error: El bucket 'productos' no se encontró en Supabase Storage. Por favor, créalo manualmente desde tu panel de Supabase y asegúrate de que sea público.";
         }
       }
       
