@@ -296,6 +296,7 @@ const ProductPayloadSchema = z.object({
   category: z.enum(['licor', 'torito']),
   stock: z.number().int().min(0, { message: 'El stock no puede ser negativo.' }),
   active: z.boolean().optional().default(true),
+  gallery: z.array(z.string().url()).optional(),
 });
 
 // By adding .strip(), we ensure that any unknown properties (like a stray `updated_at`
@@ -591,13 +592,14 @@ app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: R
 // Endpoint para subir imágenes a Supabase Storage
 app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { imageBase64, fileName } = req.body;
+    const { imageBase64, fileName, contentType } = req.body;
     
     console.log('📤 [Upload] Recibida solicitud de subida:', {
       hasImageBase64: !!imageBase64,
       hasFileName: !!fileName,
       fileName,
       imageBase64Length: imageBase64?.length || 0,
+      contentType,
     });
     
     if (!imageBase64 || !fileName) {
@@ -614,8 +616,10 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
     });
     
     // Generar nombre único para el archivo
+    const fileExtension = path.extname(fileName) || '.media';
+    const baseName = path.basename(fileName, fileExtension);
     const timestamp = Date.now();
-    const safeFileName = `${timestamp}-${fileName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+    const safeFileName = `${timestamp}-${baseName.replace(/[^a-zA-Z0-9_-]/g, '-')}${fileExtension}`;
     const filePath = `productos/${safeFileName}`;
     
     console.log('📤 [Upload] Intentando subir a:', filePath);
@@ -660,7 +664,7 @@ Por favor, crea el bucket manualmente en el panel de Supabase:
     const { data, error } = await supabase.storage
       .from('productos')
       .upload(filePath, buffer, {
-        contentType: 'image/jpeg',
+        contentType: contentType || 'application/octet-stream',
         upsert: false,
       });
     

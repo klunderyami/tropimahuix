@@ -12,8 +12,8 @@ import {
   getSiteConfig,
   updateSiteConfig,
   addGalleryPhoto,
+  uploadMedia,
 } from '../supabase.js';
-import { uploadImageToStorage } from '../supabase.js';
 import type { NewProduct, Order, OrderStatus, Product, SiteConfig } from '../types.js';
 
 type AdminTab = 'products' | 'gallery' | 'orders';
@@ -27,6 +27,7 @@ const blankProduct: NewProduct = {
   category: 'licor',
   stock: 0,
   active: true,
+  gallery: [],
 };
 
 const statusLabels: Record<OrderStatus | 'all', string> = {
@@ -59,6 +60,11 @@ const AdminDashboard = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // State para la galería de producto
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryPreviews, setGalleryPreviews] = useState<{ url: string; type: string }[]>([]);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
 
   // Función para comprimir imagen (reutilizamos la lógica de firebase.ts)
   const compressImageLocally = async (file: File): Promise<File> => {
@@ -208,11 +214,54 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleGalleryFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const newFiles: File[] = [];
+    const newPreviews: { url: string; type: string }[] = [];
+
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        try {
+          const compressedFile = await compressImageLocally(file);
+          newFiles.push(compressedFile);
+          newPreviews.push({ url: URL.createObjectURL(compressedFile), type: compressedFile.type });
+        } catch (err) {
+          toast.error(`Error al procesar la imagen ${file.name}`);
+        }
+      } else if (file.type.startsWith('video/')) {
+        const MAX_VIDEO_SIZE_MB = 50;
+        if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+          toast.error(`El video "${file.name}" es demasiado grande (máx. ${MAX_VIDEO_SIZE_MB}MB).`);
+          continue;
+        }
+        newFiles.push(file);
+        newPreviews.push({ url: URL.createObjectURL(file), type: file.type });
+      } else {
+        toast.error(`Archivo no soportado: ${file.name}`);
+      }
+    }
+
+    setGalleryFiles((current) => [...current, ...newFiles]);
+    setGalleryPreviews((current) => [...current, ...newPreviews]);
+  };
+
   const resetForm = () => {
     setEditingProductId(null);
     setFormState(blankProduct);
     setSelectedFile(null);
     setImagePreview(null);
+    // Limpiar previews de galería para evitar memory leaks
+    galleryPreviews.forEach((p) => URL.revokeObjectURL(p.url));
+    setGalleryFiles([]);
+    setGalleryPreviews([]);
+  };
+
+  const removeNewGalleryItem = (indexToRemove: number) => {
+    URL.revokeObjectURL(galleryPreviews[indexToRemove].url);
+    setGalleryFiles((files) => files.filter((_, i) => i !== indexToRemove));
+    setGalleryPreviews((previews) => previews.filter((_, i) => i !== indexToRemove));
   };
 
   const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -229,7 +278,7 @@ const AdminDashboard = () => {
           // Convertir archivo a base64
           const imageBase64 = await fileToBase64(selectedFile);
           const accessToken = await getAccessToken();
-          imageUrl = await uploadImageToStorage(imageBase64, productName, accessToken);
+          imageUrl = await uploadMedia(imageBase64, productName, accessToken, selectedFile.type);
         } catch (imageErr) {
           setIsUploadingImage(false);
           const imageErrorMsg = imageErr instanceof Error ? imageErr.message : 'Error al subir imagen';
@@ -237,12 +286,27 @@ const AdminDashboard = () => {
         }
         setIsUploadingImage(false);
       }
-      
+
+      // 3. Subir archivos de la galería si los hay
+      const newGalleryUrls: string[] = [];
+      if (galleryFiles.length > 0) {
+        toast.loading('Subiendo archivos de galería...', { id: 'gallery-upload' });
+        for (const file of galleryFiles) {
+          const base64 = await fileToBase64(file);
+          const accessToken = await getAccessToken();
+          const url = await uploadMedia(base64, file.name, accessToken, file.type);
+          newGalleryUrls.push(url);
+        }
+        toast.success('Galería subida.', { id: 'gallery-upload' });
+      }
+
       const accessToken = await getAccessToken();
+      const finalGallery = [...(formState.gallery || []), ...newGalleryUrls];
 
       const productPayload = {
         ...formState,
         image: imageUrl,
+        gallery: finalGallery,
         price: Number(formState.price),
         stock: Number(formState.stock),
         category: formState.category.toLowerCase() as 'licor' | 'torito', // Forzar a minúsculas
@@ -323,7 +387,11 @@ const AdminDashboard = () => {
       category: product.category,
       stock: product.stock,
       active: product.active !== false,
+      gallery: product.gallery || [],
     });
+    galleryPreviews.forEach((p) => URL.revokeObjectURL(p.url));
+    setGalleryFiles([]);
+    setGalleryPreviews([]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -497,6 +565,52 @@ const AdminDashboard = () => {
                     />
                     <input type="hidden" name="image" value={formState.image} />
                   </div>
+
+                  {/* Galería de Producto */}
+                  <div>
+                    <label className="text-sm font-semibold text-stone-700">Galería de Producto (imágenes y videos)</label>
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {/* Previews de la galería existente */}
+                      {formState.gallery?.map((url, index) => (
+                        <div key={`existing-${index}`} className="relative group">
+                          {url.match(/\.(mp4|webm)$/i) ? (
+                            <video src={url} controls className="h-24 w-full rounded-lg object-cover" />
+                          ) : (
+                            <img src={url} alt={`Galería ${index + 1}`} className="h-24 w-full rounded-lg object-cover" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setFormState(current => ({...current, gallery: current.gallery?.filter((_, i) => i !== index)}))}
+                            className="absolute -right-1 -top-1 h-6 w-6 rounded-full border border-rose-200 bg-white text-rose-500 opacity-0 transition group-hover:opacity-100"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                      {/* Previews de nuevos archivos */}
+                      {galleryPreviews.map((preview, index) => (
+                        <div key={`new-${index}`} className="relative group">
+                          {preview.type.startsWith('video/') ? (
+                            <video src={preview.url} controls className="h-24 w-full rounded-lg object-cover" />
+                          ) : (
+                            <img src={preview.url} alt={`Nuevo ${index + 1}`} className="h-24 w-full rounded-lg object-cover" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeNewGalleryItem(index)}
+                            className="absolute -right-1 -top-1 h-6 w-6 rounded-full border border-rose-200 bg-white text-rose-500 opacity-0 transition group-hover:opacity-100"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => galleryFileInputRef.current?.click()} className="mt-3 w-full rounded-xl border border-dashed border-stone-300 py-2 text-center text-xs font-semibold text-stone-600 hover:border-brand-orange hover:text-brand-orange">
+                      + Agregar Medios
+                    </button>
+                    <input ref={galleryFileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleGalleryFileSelect} className="hidden" />
+                  </div>
+
                   <input
                     id="product-name"
                     name="product-name"

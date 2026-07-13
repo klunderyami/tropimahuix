@@ -408,10 +408,11 @@ export async function updateOrderStatus(
  * @param accessToken - Token de acceso del admin
  * @returns URL pública de la imagen subida
  */
-export async function uploadImageToStorage(
-  imageBase64: string,
+export async function uploadMedia(
+  mediaBase64: string,
   fileName: string,
   accessToken: string,
+  contentType: string,
 ): Promise<string> {
   const response = await fetch('/api/upload/image', {
     method: 'POST',
@@ -419,12 +420,14 @@ export async function uploadImageToStorage(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ imageBase64, fileName }),
+    body: JSON.stringify({ imageBase64: mediaBase64, fileName, contentType }),
   });
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || 'Error uploading image to storage');
+    throw new Error(
+      data.error || `Error al subir archivo: ${response.statusText}`,
+    );
   }
 
   const data = await response.json();
@@ -486,6 +489,7 @@ function mapProduct(data: Record<string, unknown>): Product {
     category: data.category as 'licor' | 'torito',
     stock: Number(data.stock) ?? 0,
     active: data.active !== false,
+    gallery: Array.isArray(data.gallery) ? data.gallery : [],
   };
 }
 
