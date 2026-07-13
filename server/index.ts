@@ -298,7 +298,9 @@ const ProductPayloadSchema = z.object({
   active: z.boolean().optional().default(true),
 });
 
-const ProductUpdatePayloadSchema = ProductPayloadSchema.partial();
+// By adding .strip(), we ensure that any unknown properties (like a stray `updated_at`
+// sent from the client) are removed before being passed to the database.
+const ProductUpdatePayloadSchema = ProductPayloadSchema.partial().strip();
 
 const CheckoutItemSchema = z.object({
   id: z.string().uuid('ID de producto inválido.'),
@@ -553,7 +555,7 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
 
     const { error } = await supabase
       .from('products')
-      .update({ ...productUpdateData, updated_at: new Date().toISOString() })
+      .update(productUpdateData)
       .eq('id', productId);
 
     if (error) throw new Error(error.message);
@@ -571,9 +573,11 @@ app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: R
     if (!productId) {
       return res.status(400).json({ error: 'Missing product id.' });
     }
+    // This payload explicitly does not include `updated_at`.
+    const updatePayload = { active: false };
     const { error } = await supabase
       .from('products')
-      .update({ active: false, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', productId);
 
     if (error) throw new Error(error.message);
@@ -713,7 +717,7 @@ app.patch('/api/config', requireAdmin, async (req: Request, res: Response, next:
     const configData = req.body;
     const { error } = await supabase
       .from('site_config')
-      .upsert({ ...configData, updated_at: new Date().toISOString() })
+      .upsert(configData)
       .select()
       .single();
 
@@ -800,7 +804,7 @@ app.patch('/api/orders/:orderId/status', requireAdmin, async (req: Request, res:
 
     const { error } = await supabase
       .from('orders')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({ status })
       .eq('id', orderId);
 
     if (error) throw new Error(error.message);

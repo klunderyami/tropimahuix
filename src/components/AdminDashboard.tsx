@@ -741,7 +741,7 @@ const AdminDashboard = () => {
                   <img
                     src={photoUrl}
                     alt={photoLabel || 'Vista previa'}
-                    className="h-64 w-full object-cover"
+                    className="h-64 w-full object-contain"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Error+de+imagen';
                     }}
