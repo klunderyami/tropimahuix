@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase.js';
 import {
@@ -52,8 +53,6 @@ const AdminDashboard = () => {
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'all'>('paid');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   // Subida de imagen de producto
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -219,8 +218,6 @@ const AdminDashboard = () => {
   const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSavingProduct(true);
-    setError(null);
-    setNotice(null);
 
     try {
       // 1. Subir imagen a Supabase Storage si hay un archivo seleccionado
@@ -266,7 +263,7 @@ const AdminDashboard = () => {
         );
       }
 
-      setNotice(editingProductId ? '✅ Producto actualizado correctamente.' : '✅ Producto creado correctamente.');
+      toast.success(editingProductId ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.');
       resetForm();
     } catch (caughtError) {
       // Mostrar error detallado
@@ -291,7 +288,7 @@ const AdminDashboard = () => {
         }
       }
       
-      setError(errorMessage);
+      toast.error(errorMessage);
       
       // Alerta visual si es un error crítico
       if (errorMessage.includes('Timeout') || errorMessage.includes('base de datos')) {
@@ -331,53 +328,42 @@ const AdminDashboard = () => {
   };
 
   const handleArchiveProduct = async (productId: string) => {
-    setError(null);
-    setNotice(null);
-
     try {
       const accessToken = await getAccessToken();
       await archiveProduct(productId, accessToken);
-      setNotice('Producto archivado.');
+      toast.success('Producto archivado.');
     } catch (caughtError) {
       console.error('❌ [AdminDashboard] Error al archivar producto:', caughtError);
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo archivar el producto.');
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo archivar el producto.');
     }
   };
 
   const handleOrderStatus = async (orderId: string, status: OrderStatus) => {
-    setError(null);
-    setNotice(null);
-
     try {
       const accessToken = await getAccessToken();
       await updateOrderStatus(orderId, status, accessToken);
-      // Refresh orders
-      const nextOrders = await getOrders(accessToken);
-      setOrders(nextOrders);
       // Update local state instead of re-fetching all orders
       setOrders((prevOrders) =>
         prevOrders.map((order) => (order.id === orderId ? { ...order, status } : order)),
       );
-      setNotice('Orden actualizada.');
+      toast.success('Orden actualizada.');
     } catch (caughtError) {
       console.error('❌ [AdminDashboard] Error al actualizar orden:', caughtError);
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar la orden.');
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar la orden.');
     }
   };
 
   const handleConfigSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSavingConfig(true);
-    setError(null);
-    setNotice(null);
 
     try {
       const accessToken = await getAccessToken();
       await updateSiteConfig(siteConfig, accessToken);
-      setNotice('Ajustes del sitio actualizados.');
+      toast.success('Ajustes del sitio actualizados.');
     } catch (caughtError) {
       console.error('❌ [AdminDashboard] Error al guardar configuración:', caughtError);
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudieron guardar los ajustes.');
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudieron guardar los ajustes.');
     } finally {
       setIsSavingConfig(false);
     }
@@ -386,18 +372,16 @@ const AdminDashboard = () => {
   const handlePhotoSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSavingPhoto(true);
-    setError(null);
-    setNotice(null);
 
     try {
       const accessToken = await getAccessToken();
       await addGalleryPhoto(photoUrl, photoLabel || 'Galería', accessToken);
-      setNotice('Foto agregada a la galería.');
+      toast.success('Foto agregada a la galería.');
       setPhotoUrl('');
       setPhotoLabel('');
     } catch (caughtError) {
       console.error('❌ [AdminDashboard] Error al guardar foto:', caughtError);
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar la foto.');
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar la foto.');
     } finally {
       setIsSavingPhoto(false);
     }
@@ -416,6 +400,7 @@ const AdminDashboard = () => {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-10 font-sans text-stone-900 sm:px-6 lg:px-8">
+      <Toaster position="bottom-center" toastOptions={{ duration: 5000, className: 'font-semibold' }} />
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-brand-gold/20 bg-brand-brown px-6 py-7 text-white shadow-2xl sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -447,17 +432,6 @@ const AdminDashboard = () => {
             </div>
           ))}
         </section>
-
-        {/* Notificaciones */}
-        {(notice || error) && (
-          <div
-            className={`mb-8 rounded-3xl border px-5 py-4 text-sm font-bold ${
-              error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error ?? notice}
-          </div>
-        )}
 
         {/* Pestañas */}
         <div className="mb-8 flex flex-wrap gap-2 rounded-2xl border border-stone-200 bg-white/70 p-2 shadow-sm">
@@ -499,9 +473,9 @@ const AdminDashboard = () => {
                       }`}
                     >
                       {imagePreview ? (
-                        <img src={imagePreview} alt="Vista previa" className="mb-3 max-h-40 rounded-2xl object-cover shadow-sm" />
+                        <img src={imagePreview} alt="Vista previa" className="mb-3 max-h-40 rounded-2xl object-contain shadow-sm" />
                       ) : formState.image && !selectedFile ? (
-                        <img src={formState.image} alt="Imagen actual" className="mb-3 max-h-40 rounded-2xl object-cover shadow-sm" />
+                        <img src={formState.image} alt="Imagen actual" className="mb-3 max-h-40 rounded-2xl object-contain shadow-sm" />
                       ) : (
                         <svg className="mb-3 h-10 w-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -578,6 +552,8 @@ const AdminDashboard = () => {
                       className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                     />
                     <select
+                      id="product-category"
+                      name="product-category"
                       value={formState.category}
                       onChange={(event) =>
                         setFormState((current) => ({
@@ -632,12 +608,16 @@ const AdminDashboard = () => {
                 </div>
                 <form onSubmit={handleConfigSubmit} className="grid gap-4">
                   <input
+                    id="config-hero-title"
+                    name="config-hero-title"
                     value={siteConfig.heroTitle || ''}
                     onChange={(event) => setSiteConfig((current) => ({ ...current, heroTitle: event.target.value }))}
                     placeholder="Titular del Hero"
                     className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                   />
                   <input
+                    id="config-contact-phone"
+                    name="config-contact-phone"
                     value={siteConfig.contactPhone || ''}
                     onChange={(event) => setSiteConfig((current) => ({ ...current, contactPhone: event.target.value }))}
                     placeholder="Teléfono de Contacto"
@@ -673,7 +653,7 @@ const AdminDashboard = () => {
                 <div className="grid gap-4">
                   {products.map((product) => (
                     <article key={product.id} className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm lg:grid-cols-[96px_1fr_auto]">
-                      <img src={product.image} alt={product.name} className="h-24 w-24 rounded-2xl object-cover" />
+                      <img src={product.image} alt={product.name} className="h-24 w-24 rounded-2xl object-contain" />
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-black text-brand-brown">{product.name}</h3>
@@ -724,6 +704,8 @@ const AdminDashboard = () => {
               </div>
               <form onSubmit={handlePhotoSubmit} className="grid gap-4">
                 <input
+                  id="gallery-photo-url"
+                  name="gallery-photo-url"
                   type="url"
                   value={photoUrl}
                   onChange={(e) => setPhotoUrl(e.target.value)}
@@ -732,6 +714,8 @@ const AdminDashboard = () => {
                   className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                 />
                 <input
+                  id="gallery-photo-label"
+                  name="gallery-photo-label"
                   value={photoLabel}
                   onChange={(e) => setPhotoLabel(e.target.value)}
                   placeholder="Descripción o etiqueta (opcional)"

@@ -9,17 +9,19 @@ Plataforma de e-commerce full-stack para la venta de licores y toritos artesanal
 - Carrito de compras en tiempo real
 - Catálogo filtrable por categoría
 - Sistema de autenticación con Firebase
+- Pasarela de pagos segura con PayPal
 - Panel de administración protegido
 
 ✅ **Backend Express + Node.js**
 - API REST con TypeScript
-- Integración con Firebase Admin SDK
-- Pasarela de pagos PayPal
-- Gestión de órdenes y stock
+- Integración con Firebase Admin SDK para autenticación
+- Conexión segura a Supabase con `service_role` para operaciones de base de datos
+- Gestión de órdenes, stock y subida de archivos
 - Notificaciones por webhook
 
 ✅ **Infraestructura**
-- Firestore para base de datos
+- **Supabase (Postgres)** para base de datos
+- **Supabase Storage** para almacenamiento de imágenes de productos
 - Hosting en Render
 - CI/CD automático en GitHub
 
@@ -29,7 +31,8 @@ Plataforma de e-commerce full-stack para la venta de licores y toritos artesanal
 
 - **Node.js 24+** (según render.yaml)
 - **npm** o **yarn**
-- Cuenta de **Firebase** con Firestore habilitado
+- Cuenta de **Firebase** para Autenticación
+- Cuenta de **Supabase**
 - Cuenta de **PayPal Developer**
 - Cuenta de **Render**
 
@@ -55,6 +58,9 @@ npm install
 # ID de usuario de Firebase que tendrá acceso al panel de administración. Puedes usar VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID.
 VITE_FIREBASE_ADMIN_UID=tu_admin_uid_aqui
 VITE_API_BASE_URL=/
+VITE_SUPABASE_URL=https://xxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
+
 VITE_PAYPAL_CLIENT_ID=tu_paypal_client_id_aqui
 
 VITE_FIREBASE_API_KEY=tu_api_key_aqui
@@ -77,10 +83,10 @@ PAYPAL_CURRENCY=MXN
 PAYPAL_CLIENT_ID=tu_paypal_client_id_aqui
 PAYPAL_CLIENT_SECRET=tu_paypal_client_secret_aqui
 
-# Opción 1: Usar FIREBASE_CONFIG_BASE64 (recomendado para Render)
-FIREBASE_CONFIG_BASE64=eyJwcm9qZWN0SWQiOiAidHVfcHJveWVjdG9pZCIsIC4uLn0=
+SUPABASE_URL=https://xxxxxxxx.supabase.co
+SUPABASE_SERVICE_KEY=tu_supabase_service_role_key
 
-# Opción 2: O usar variables individuales (para desarrollo local)
+# Credenciales de Firebase Admin (para verificar tokens de usuario)
 FIREBASE_ADMIN_PROJECT_ID=tu_proyecto_id_aqui
 FIREBASE_ADMIN_CLIENT_EMAIL=tu_cuenta_servicio@tu_proyecto.iam.gserviceaccount.com
 FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nTU_PRIVATE_KEY_AQUI\n-----END PRIVATE KEY-----\n"
@@ -97,9 +103,6 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nTU_PRIVATE_KEY_AQUI\n--
    - Ir a "Project Settings" → "Service Accounts"
    - Haz clic en "Generate New Private Key"
    - Copia el JSON completo o convierte a Base64:
-     ```bash
-     cat service-account-key.json | base64
-     ```
 
 ### 5. Configurar PayPal
 
@@ -107,6 +110,14 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nTU_PRIVATE_KEY_AQUI\n--
 2. Crea una aplicación en Sandbox
 3. Obtén Client ID y Secret
 4. Agrega las credenciales a `.env` y `server/.env`
+
+### 6. Configurar Supabase
+
+1. Ve a Supabase y crea un proyecto.
+2. En "Project Settings" → "API":
+   - Copia la URL del proyecto y la `anon` `public` key para el archivo `.env` del frontend.
+   - Copia la `service_role` `secret` key para el archivo `server/.env` del backend.
+3. En "Storage", crea un nuevo bucket llamado `productos` y márcalo como público.
 
 ---
 
@@ -161,6 +172,9 @@ npm start
 # ID de usuario de Firebase que tendrá acceso al panel de administración. Puedes usar VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID.
 VITE_FIREBASE_ADMIN_UID=tu_admin_uid_aqui
 VITE_API_BASE_URL=/
+VITE_SUPABASE_URL=https://xxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
+
 VITE_PAYPAL_CLIENT_ID=tu_paypal_sandbox_id
 VITE_FIREBASE_API_KEY=tu_api_key
 VITE_FIREBASE_AUTH_DOMAIN=tu_proyecto.firebaseapp.com
@@ -184,7 +198,9 @@ PAYPAL_CURRENCY=MXN
 PAYPAL_CLIENT_ID=tu_paypal_sandbox_id
 PAYPAL_CLIENT_SECRET=tu_paypal_secret
 
-FIREBASE_CONFIG_BASE64=eyJwcm9qZWN0SWQiOiAi... (tu config en Base64)
+SUPABASE_URL=https://xxxxxxxx.supabase.co
+SUPABASE_SERVICE_KEY=tu_supabase_service_role_key
+FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nTU_PRIVATE_KEY_AQUI\n-----END PRIVATE KEY-----\n"
 ```
 
 ### 4. Propiedades recomendadas en Render
@@ -237,8 +253,8 @@ FIREBASE_CONFIG_BASE64=eyJwcm9qZWN0SWQiOiAi... (tu config en Base64)
 
 ### "Error de Firebase"
 - Verifica que todas las `VITE_FIREBASE_*` variables están configuradas
-- Revisa que Firestore está habilitado en tu proyecto
-- Comprueba que el archivo de credenciales está disponible
+- Revisa que la **Autenticación de Firebase** esté habilitada en tu proyecto
+- Comprueba que las credenciales del SDK de Admin (en el backend) sean correctas
 
 ### "PayPal no funciona"
 - Verifica que estás en modo Sandbox (`PAYPAL_MODE=sandbox`)
@@ -282,14 +298,18 @@ tropimahuix/
 
 | Variable | Frontend/Backend | Requerida | Descripción |
 |----------|-----------------|----------|-------------|
-| `VITE_FIREBASE_ADMIN_UID` o `VITE_ADMIN_UID` | Frontend | ✅ | UID de Firebase del administrador |
-| `VITE_API_BASE_URL` | Frontend | ✅ | URL base de la API (/ en producción) |
-| `FIREBASE_*` | Frontend | ✅ | Credenciales de Firebase Client |
-| `PAYPAL_CLIENT_ID` | Frontend | ✅ | ID de cliente PayPal |
+| `VITE_FIREBASE_ADMIN_UID` | Frontend | ✅ | UID de Firebase del usuario administrador. |
+| `VITE_SUPABASE_URL` | Frontend | ✅ | URL pública de tu proyecto Supabase. |
+| `VITE_SUPABASE_ANON_KEY` | Frontend | ✅ | Clave anónima (`anon`) pública de Supabase. |
+| `VITE_PAYPAL_CLIENT_ID` | Frontend | ✅ | ID de cliente de la aplicación de PayPal. |
+| `VITE_FIREBASE_*` | Frontend | ✅ | Resto de credenciales del cliente de Firebase. |
 | `NODE_ENV` | Backend | ✅ | `production` en Render |
-| `NODE_VERSION` | Backend | ✅ | `24` (según render.yaml) |
-| `FIREBASE_ADMIN_*` | Backend | ✅ | Credenciales de Firebase Admin |
-| `PAYPAL_CLIENT_SECRET` | Backend | ✅ | Secret de PayPal (nunca en frontend) |
+| `ADMIN_UID` | Backend | ✅ | UID de Firebase del usuario administrador. |
+| `SUPABASE_URL` | Backend | ✅ | URL pública de tu proyecto Supabase. |
+| `SUPABASE_SERVICE_KEY` | Backend | ✅ | Clave de `service_role` de Supabase (secreta). |
+| `FIREBASE_ADMIN_*` | Backend | ✅ | Credenciales de Firebase Admin para verificar tokens. |
+| `PAYPAL_CLIENT_ID` | Backend | ✅ | ID de cliente de la aplicación de PayPal. |
+| `PAYPAL_CLIENT_SECRET` | Backend | ✅ | Secret de la aplicación de PayPal (secreta). |
 
 ---
 

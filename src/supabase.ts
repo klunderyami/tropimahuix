@@ -290,9 +290,24 @@ export async function archiveProduct(
   id: string,
   accessToken: string,
 ): Promise<void> {
-  // Re-utiliza la función `updateProduct` que ya se comunica con el API seguro.
-  // Archivar es simplemente una actualización que cambia el estado a inactivo.
-  await updateProduct(id, { active: false }, accessToken);
+  const response = await fetch(`/api/products/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const errorMessage = data.error || `Error archiving product: ${response.statusText}`;
+    
+    if (errorMessage.includes('Failed to fetch')) {
+      throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
+    }
+    
+    console.error('❌ [archiveProduct] Error:', errorMessage);
+    throw new Error(errorMessage);
+  }
 }
 
 // ─── Configuración del Sitio ─────────────────────────────────────────────────
@@ -333,39 +348,6 @@ export async function updateSiteConfig(
 }
 
 // ─── Órdenes ─────────────────────────────────────────────────────────────────
-
-/**
- * Crea una nueva orden.
- */
-export async function createOrder(order: {
-  userId: string | 'guest';
-  items: { id: string; name: string; price: number; quantity: number }[];
-  total: number;
-  shippingAddress: {
-    name: string;
-    email: string;
-    phone: string;
-    street: string;
-    city: string;
-  };
-  paypalOrderId: string;
-}): Promise<string> {
-  const { data, error } = await supabase
-    .from('orders')
-    .insert({
-      user_id: order.userId,
-      items: order.items,
-      total: order.total,
-      status: 'pending',
-      shipping_address: order.shippingAddress,
-      paypal_order_id: order.paypalOrderId,
-    })
-    .select('id')
-    .single();
-
-  if (error) throw new Error(`Error creating order: ${error.message}`);
-  return data!.id;
-}
 
 /**
  * Obtiene órdenes (admin: todas, usuario: propias).

@@ -6,6 +6,8 @@ declare interface ImportMetaEnv {
   readonly VITE_FIREBASE_RECAPTCHA_SITE_KEY?: string;
   readonly VITE_PAYPAL_CLIENT_ID: string;
   readonly VITE_API_BASE_URL?: string;
+  readonly VITE_SUPABASE_URL: string;
+  readonly VITE_SUPABASE_ANON_KEY: string;
   readonly VITE_FIREBASE_API_KEY: string;
   readonly VITE_FIREBASE_AUTH_DOMAIN: string;
   readonly VITE_FIREBASE_PROJECT_ID: string;

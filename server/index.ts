@@ -9,6 +9,8 @@ import { cert } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
+import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 import type { ProductPayload } from './productBatchUpload.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,11 +36,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 // --- INICIO: SECCIÓN DE INICIALIZACIÓN DE SERVICIOS ---
 
 let supabase: SupabaseClient;
-let supabaseStorage: SupabaseClient;
 let auth: Auth;
 let serviceInitializationError: Error | null = null;
 
-function initializeServices(): { supabase: SupabaseClient; supabaseStorage: SupabaseClient; auth: Auth } | { error: Error } {
+function initializeServices(): { supabase: SupabaseClient; auth: Auth } | { error: Error } {
   // 1. Inicializar Firebase Admin solo para Autenticación
   // Esto es necesario para verificar los tokens de ID de Firebase del frontend.
   try {
@@ -89,20 +90,9 @@ function initializeServices(): { supabase: SupabaseClient; supabaseStorage: Supa
     });
     console.log('🚀 [Supabase Admin] Initialized successfully.');
     
-    // Inicializar cliente de Supabase Storage con credenciales S3
-    // Usar las mismas credenciales (leídas después de dotenv)
-    const supabaseStorageClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-    console.log('🚀 [Supabase Storage] Initialized successfully.');
-    
-    return { supabase: supabaseClient, supabaseStorage: supabaseStorageClient, auth };
+    return { supabase: supabaseClient, auth };
   } catch (error) {
     const initError = error instanceof Error ? error : new Error('Supabase Admin client failed to initialize.');
-    console.error('❌ [Supabase Admin]', initError);
     return { error: initError };
   }
 }
@@ -113,7 +103,6 @@ if ('error' in result) {
   serviceInitializationError = result.error;
 } else {
   supabase = result.supabase;
-  supabaseStorage = result.supabaseStorage;
   auth = result.auth;
 }
 
@@ -122,17 +111,11 @@ if ('error' in result) {
 const app = express();
 app.disable('x-powered-by');
 const PORT = Number(process.env.PORT || 9005);
-const ADMIN_UID =
-  process.env.ADMIN_UID ||
-  process.env.FIREBASE_ADMIN_UID ||
-  process.env.VITE_FIREBASE_ADMIN_UID ||
-  process.env.VITE_ADMIN_UID;
+const ADMIN_UID = process.env.ADMIN_UID || process.env.FIREBASE_ADMIN_UID;
 if (!ADMIN_UID) {
-  console.warn(
-    '⚠️ No se ha configurado ningún UID de administrador. Define ADMIN_UID, FIREBASE_ADMIN_UID, VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID en tu entorno.',
-  );
+  console.warn('⚠️ No se ha configurado ningún UID de administrador. Define ADMIN_UID o FIREBASE_ADMIN_UID en tu entorno.');
 }
-const PAYPAL_MODE = process.env.PAYPAL_MODE === 'live' || process.env.VITE_PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
+const PAYPAL_MODE = process.env.PAYPAL_MODE?.toLowerCase() === 'live' ? 'live' : 'sandbox';
 const PAYPAL_API_BASE = PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 const PAYPAL_CURRENCY = process.env.PAYPAL_CURRENCY || 'MXN';
 const FRONTEND_DIST_DIR = path.resolve(process.cwd(), 'dist');
@@ -287,33 +270,53 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use(express.json({ limit: '1mb' }));
 
+// Rate Limiter para proteger contra ataques de fuerza bruta y DoS
+const apiLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutos
+	max: 100, // Limita cada IP a 100 peticiones por `windowMs`
+	standardHeaders: true, // Devuelve la información del rate limit en las cabeceras `RateLimit-*`
+	legacyHeaders: false, // Deshabilita las cabeceras `X-RateLimit-*`
+  message: { error: 'Demasiadas peticiones desde esta IP, por favor intenta de nuevo en 15 minutos.' },
+});
+
+// Aplicar el rate limiter a todas las rutas de la API
+app.use('/api/', apiLimiter);
+
 if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.use(express.static(FRONTEND_DIST_DIR));
 }
 
-// Validadores de Estructura de Datos
-function isCheckoutItem(value: unknown): value is CheckoutItemInput {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const item = value as Record<string, unknown>;
-  return typeof item.id === 'string' && typeof item.quantity === 'number';
-}
+// --- Zod Schemas for Validation ---
+const ProductPayloadSchema = z.object({
+  name: z.string().trim().min(1, { message: 'El nombre es requerido.' }),
+  description: z.string().trim().min(1, { message: 'La descripción es requerida.' }),
+  price: z.number().positive({ message: 'El precio debe ser un número positivo.' }),
+  volume: z.string().trim().min(1, { message: 'El volumen es requerido.' }),
+  image: z.string().url({ message: 'La URL de la imagen no es válida.' }),
+  category: z.enum(['licor', 'torito']),
+  stock: z.number().int().min(0, { message: 'El stock no puede ser negativo.' }),
+  active: z.boolean().optional().default(true),
+});
 
-function parseCheckoutItems(value: unknown): CheckoutItemInput[] | null {
-  if (!Array.isArray(value)) return null;
-  return value.filter(isCheckoutItem);
-}
+const ProductUpdatePayloadSchema = ProductPayloadSchema.partial();
 
-function isShippingAddress(value: unknown): value is ShippingAddress {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const addr = value as Record<string, unknown>;
-  return (
-    typeof addr.name === 'string' &&
-    typeof addr.email === 'string' &&
-    typeof addr.phone === 'string' &&
-    typeof addr.street === 'string' &&
-    typeof addr.city === 'string'
-  );
-}
+const CheckoutItemSchema = z.object({
+  id: z.string().uuid('ID de producto inválido.'),
+  quantity: z.number().int().positive('La cantidad debe ser un entero positivo.'),
+});
+
+const ShippingAddressSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es requerido.'),
+  email: z.string().email('El email no es válido.'),
+  phone: z.string().trim().min(1, 'El teléfono es requerido.'),
+  street: z.string().trim().min(1, 'La calle y número son requeridos.'),
+  city: z.string().trim().min(1, 'La ciudad es requerida.'),
+});
+
+const CreateOrderSchema = z.object({
+  items: z.array(CheckoutItemSchema).min(1, 'El carrito no puede estar vacío.'),
+  shippingAddress: ShippingAddressSchema,
+});
 
 function normalizeShippingAddress(address: ShippingAddress): ShippingAddress {
   return {
@@ -323,21 +326,6 @@ function normalizeShippingAddress(address: ShippingAddress): ShippingAddress {
     street: normalizeString(address.street),
     city: normalizeString(address.city),
   };
-}
-
-function isProductUpdatePayload(payload: unknown): payload is Partial<ProductPayload> {
-  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return false;
-  const p = payload as Record<string, unknown>;
-  const isValid =
-    (p.name === undefined || typeof p.name === 'string') &&
-    (p.description === undefined || typeof p.description === 'string') &&
-    (p.price === undefined || typeof p.price === 'number') &&
-    (p.volume === undefined || typeof p.volume === 'string') &&
-    (p.image === undefined || typeof p.image === 'string') &&
-    (p.category === undefined || (p.category === 'licor' || p.category === 'torito')) &&
-    (p.stock === undefined || typeof p.stock === 'number') &&
-    (p.active === undefined || typeof p.active === 'boolean');
-  return isValid;
 }
 
 function getRouteParam(value: string | string[] | undefined): string | null {
@@ -416,21 +404,76 @@ async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
   }
 }
 
-// Pasarela de Pagos (PayPal)
-async function capturePayPalOrder(paypalOrderId: string): Promise<PayPalCaptureResponse> {
-  const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${paypalOrderId}/capture`, {
+interface PayPalToken {
+  access_token: string;
+  expires_at: number;
+}
+
+let paypalToken: PayPalToken | null = null;
+
+async function getPayPalAccessToken(): Promise<string> {
+  if (paypalToken && Date.now() < paypalToken.expires_at) {
+    return paypalToken.access_token;
+  }
+
+  console.log('🔐 [PayPal] Fetching new access token...');
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('Missing PayPal client ID or secret.');
+  }
+
+  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const url = `${PAYPAL_API_BASE}/v1/oauth2/token`;
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.PAYPAL_CLIENT_SECRET}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${auth}`,
     },
+    body: 'grant_type=client_credentials',
   });
 
   if (!response.ok) {
-    throw new Error(`PayPal capture failed: ${response.statusText}`);
+    const errorBody = await response.text();
+    console.error('❌ [PayPal] Failed to get access token:', errorBody);
+    throw new Error(`PayPal token fetch failed: ${response.status}`);
   }
 
-  return response.json();
+  const data = (await response.json()) as { access_token: string; expires_in: number };
+  const bufferSeconds = 300; // 5 minutes buffer
+  paypalToken = {
+    access_token: data.access_token,
+    expires_at: Date.now() + (data.expires_in - bufferSeconds) * 1000,
+  };
+
+  console.log('✅ [PayPal] New access token obtained.');
+  return paypalToken.access_token;
+}
+
+async function capturePayPalOrder(paypalOrderId: string): Promise<PayPalCaptureResponse> {
+  console.log('🔐 [PayPal] Iniciando captura de orden:', paypalOrderId);
+  const accessToken = await getPayPalAccessToken();
+  const url = `${PAYPAL_API_BASE}/v2/checkout/orders/${paypalOrderId}/capture`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    console.error('❌ [PayPal] Capture failed:', { status: response.status, body: responseText });
+    throw new Error(`PayPal capture failed: ${response.status} - ${responseText}`);
+  }
+
+  return JSON.parse(responseText) as PayPalCaptureResponse;
 }
 
 function getCapturedAmount(paypalCapture: PayPalCaptureResponse): { currency_code?: string; value?: string } | undefined {
@@ -456,30 +499,23 @@ app.get('/api/products', async (_req: Request, res: Response, next: NextFunction
       .or('active.eq.true,active.is.null')
       .order('name', { ascending: true });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     res.status(200).json({ products: data ?? [] });
   } catch (error) {
     console.error('Error fetching products:', error);
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
 // Endpoint para crear un nuevo producto
 app.post('/api/products', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const productData = req.body;
-    // Validar la estructura del payload del producto
-    if (!isProductPayload(productData)) {
-      return res.status(400).json({ error: 'Invalid product data provided.' });
+    const validationResult = ProductPayloadSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ error: 'Datos de producto inválidos.', details: validationResult.error.flatten() });
     }
-
-    // Asegurarse de que la categoría se guarde en minúsculas
-    const category = productData.category?.toLowerCase();
-    if (category !== 'licor' && category !== 'torito') {
-      return res.status(400).json({ error: 'Invalid category. Must be "licor" or "torito".' });
-    }
-    productData.category = category;
+    const productData = validationResult.data;
 
     const { data, error } = await supabase
       .from('products')
@@ -487,13 +523,13 @@ app.post('/api/products', requireAdmin, async (req: Request, res: Response, next
       .select('id')
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     if (!data) throw new Error('Failed to create product, no data returned.');
 
     res.status(201).json({ id: data.id, message: 'Product created successfully.' });
   } catch (error) {
     console.error('Error creating product:', error);
-    next(error); // Pasar el error al manejador global de errores
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
@@ -505,19 +541,14 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
       return res.status(400).json({ error: 'Missing product id.' });
     }
 
-    const productUpdateData = req.body;
-    // Validar la estructura del payload de actualización del producto
-    if (!isProductUpdatePayload(productUpdateData)) {
-      return res.status(400).json({ error: 'Invalid product update data provided.' });
+    const validationResult = ProductUpdatePayloadSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ error: 'Datos de actualización inválidos.', details: validationResult.error.flatten() });
     }
+    const productUpdateData = validationResult.data;
 
-    // Asegurarse de que la categoría se guarde en minúsculas si se proporciona
-    if (productUpdateData.category) {
-      const category = productUpdateData.category.toLowerCase();
-      if (category !== 'licor' && category !== 'torito') {
-        return res.status(400).json({ error: 'Invalid category. Must be "licor" or "torito".' });
-      }
-      productUpdateData.category = category;
+    if (Object.keys(productUpdateData).length === 0) {
+      return res.status(400).json({ error: 'No update data provided.' });
     }
 
     const { error } = await supabase
@@ -525,12 +556,12 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
       .update({ ...productUpdateData, updated_at: new Date().toISOString() })
       .eq('id', productId);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     res.status(200).json({ status: 'updated', message: 'Product updated successfully.' });
   } catch (error) {
     console.error('Error updating product:', error);
-    next(error); // Pasar el error al manejador global de errores
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
@@ -545,11 +576,11 @@ app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: R
       .update({ active: false, updated_at: new Date().toISOString() })
       .eq('id', productId);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     res.status(200).json({ status: 'archived' });
   } catch (error) {
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
@@ -587,7 +618,7 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
     
     // Verificar que el bucket existe (requerido)
     console.log('📤 [Upload] Verificando buckets en Supabase Storage...');
-    const { data: buckets, error: listError } = await supabaseStorage.storage.listBuckets();
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     if (listError) {
       console.error('❌ [Upload] Error listando buckets:', listError);
       return res.status(500).json({ error: `Error al verificar buckets: ${listError.message}` });
@@ -599,7 +630,7 @@ app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, 
     
     if (!bucketExists) {
       console.log('⚠️ [Upload] Bucket "productos" no existe, creándolo...');
-      const { data: newBucket, error: createError } = await supabaseStorage.storage.createBucket('productos', {
+      const { data: newBucket, error: createError } = await supabase.storage.createBucket('productos', {
         public: true,
         fileSizeLimit: 5242880, // 5MB
       });
@@ -622,7 +653,7 @@ Por favor, crea el bucket manualmente en el panel de Supabase:
     
     // Subir a Supabase Storage
     console.log('📤 [Upload] Subiendo archivo...');
-    const { data, error } = await supabaseStorage.storage
+    const { data, error } = await supabase.storage
       .from('productos')
       .upload(filePath, buffer, {
         contentType: 'image/jpeg',
@@ -642,7 +673,7 @@ Por favor, crea el bucket manualmente en el panel de Supabase:
     console.log('✅ [Upload] Archivo subido exitosamente:', data);
     
     // Obtener URL pública
-    const publicUrlData = supabaseStorage.storage
+    const publicUrlData = supabase.storage
       .from('productos')
       .getPublicUrl(filePath);
     
@@ -686,12 +717,12 @@ app.patch('/api/config', requireAdmin, async (req: Request, res: Response, next:
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     res.status(200).json({ message: 'Config updated successfully.' });
   } catch (error) {
     console.error('Error updating config:', error);
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
@@ -702,12 +733,12 @@ app.get('/api/gallery', async (_req: Request, res: Response, next: NextFunction)
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     res.status(200).json({ photos: data ?? [] });
   } catch (error) {
     console.error('Error fetching gallery:', error);
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
@@ -725,13 +756,13 @@ app.post('/api/gallery', requireAdmin, async (req: Request, res: Response, next:
       .select('id')
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     if (!data) throw new Error('Failed to add photo.');
 
     res.status(201).json({ id: data.id, message: 'Photo added successfully.' });
   } catch (error) {
     console.error('Error adding photo:', error);
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
@@ -746,12 +777,12 @@ app.get('/api/orders', requireAdmin, async (req: Request, res: Response, next: N
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     res.status(200).json({ orders: data ?? [] });
   } catch (error) {
     console.error('Error fetching orders:', error);
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
@@ -772,36 +803,47 @@ app.patch('/api/orders/:orderId/status', requireAdmin, async (req: Request, res:
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', orderId);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     res.status(200).json({ message: 'Order status updated successfully.' });
   } catch (error) {
     console.error('Error updating order status:', error);
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
 app.post('/api/orders/create', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const body = req.body as { items?: unknown; shippingAddress?: unknown };
-    const items = parseCheckoutItems(body.items);
-    if (!items) {
-      return res.status(400).json({ error: 'Invalid cart items.' });
+    console.log('📝 [Checkout] Iniciando creación de orden...');
+    
+    const validationResult = CreateOrderSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      console.error('❌ [Checkout] Invalid body:', validationResult.error.flatten());
+      return res.status(400).json({ error: 'Datos de la orden inválidos.', details: validationResult.error.flatten() });
     }
-    if (!isShippingAddress(body.shippingAddress)) {
-      return res.status(400).json({ error: 'Invalid shipping address.' });
-    }
+    
+    const { items, shippingAddress: rawShippingAddress } = validationResult.data;
 
     const userId = await getOptionalUserId(req);
-    const shippingAddress = normalizeShippingAddress(body.shippingAddress);
+    console.log('📝 [Checkout] User ID:', userId);
+
+    const shippingAddress = normalizeShippingAddress(rawShippingAddress);
+    console.log('📝 [Checkout] Dirección normalizada:', shippingAddress);
 
     const productIds = items.map(item => item.id);
+    console.log('📝 [Checkout] Consultando productos:', productIds);
+
     const { data: products, error: productError } = await supabase
       .from('products')
       .select('id, name, price, stock, active')
       .in('id', productIds);
 
-    if (productError) throw productError;
+    if (productError) {
+      console.error('❌ [Checkout] Error fetching products:', productError);
+      throw new Error(productError.message);
+    }
+
+    console.log('📝 [Checkout] Productos encontrados:', products?.length || 0);
 
     const productMap = new Map(products.map(p => [p.id, p]));
     let total = 0;
@@ -809,91 +851,170 @@ app.post('/api/orders/create', async (req: Request, res: Response, next: NextFun
 
     for (const item of items) {
       const product = productMap.get(item.id);
-      if (!product) throw new Error(`Product ${item.id} was not found.`);
-      if (!product.active) throw new Error(`Product ${product.name} is not available.`);
-      if (product.stock < item.quantity) throw new Error(`Insufficient stock for ${product.name}.`);
+      if (!product) {
+        console.error(`❌ [Checkout] Product ${item.id} not found`);
+        throw new Error(`Product ${item.id} was not found.`);
+      }
+      if (!product.active) {
+        console.error(`❌ [Checkout] Product ${product.name} is not active`);
+        throw new Error(`Product ${product.name} is not available.`);
+      }
+      if (product.stock < item.quantity) {
+        console.error(`❌ [Checkout] Insufficient stock for ${product.name}: ${product.stock} < ${item.quantity}`);
+        throw new Error(`Insufficient stock for ${product.name}.`);
+      }
       
       orderItems.push({ id: product.id, name: product.name, price: product.price, quantity: item.quantity });
       total += product.price * item.quantity;
     }
 
-    // TODO: This process should be a single atomic transaction via an RPC call.
-    const { data: newOrder, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        user_id: userId,
-        items: orderItems,
-        total,
-        status: 'pending',
-        shipping_address: shippingAddress,
-        paypal_order_id: '',
-      })
+    console.log('📝 [Checkout] Total calculado:', total);
+    console.log('📝 [Checkout] Items de la orden:', orderItems);
+
+    // Llamada a la función RPC de Supabase para una transacción atómica.
+    // Esto asegura que la creación de la orden y la actualización del stock ocurran juntas.
+    // O todo tiene éxito, o todo falla, evitando inconsistencias en los datos.
+    console.log('📝 [Checkout] Ejecutando RPC `create_order_and_decrement_stock`...');
+    const { data: newOrder, error: rpcError } = await supabase.rpc('create_order_and_decrement_stock', {
+      p_user_id: userId,
+      p_items: orderItems, // El RPC solo usará 'id' y 'quantity' de este array
+      p_total: total,
+      p_shipping_address: shippingAddress,
+    })
       .select('id')
       .single();
 
-    if (orderError) throw orderError;
-    if (!newOrder) throw new Error('Failed to create order.');
-
-    for (const item of items) {
-        const { error: stockError } = await supabase.rpc('decrement_stock', { p_id: item.id, p_quantity: item.quantity });
-        if (stockError) console.error(`Stock decrement failed for product ${item.id}: ${stockError.message}`);
+    if (rpcError) {
+      console.error('❌ [Checkout] Error en RPC `create_order_and_decrement_stock`:', {
+        message: rpcError.message,
+        details: rpcError.details,
+        hint: rpcError.hint,
+        code: rpcError.code,
+      });
+      // El error de la función de base de datos puede ser más específico, como "insufficient_stock"
+      throw new Error(rpcError.message || 'Error al procesar la orden en la base de datos.');
     }
 
+    if (!newOrder || !newOrder.id) {
+      console.error('❌ [Checkout] RPC ejecutado pero no retornó un ID de orden.');
+      throw new Error('Failed to create order.');
+    }
+
+    console.log('✅ [Checkout] Orden creada exitosamente:', newOrder.id);
+
+    console.log('✅ [Checkout] Orden lista para pago:', { orderId: newOrder.id, total, currency: PAYPAL_CURRENCY, items: orderItems });
     res.status(201).json({ orderId: newOrder.id, total, currency: PAYPAL_CURRENCY, items: orderItems });
   } catch (error) {
+    console.error('❌ [Checkout] Error completo en creación de orden:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    });
     next(error);
   }
 });
 
 app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFunction) => {
   const body = req.body as { orderId?: unknown; paypalOrderId?: unknown };
+  
+  console.log('💳 [Capture] Iniciando captura de pago PayPal...');
+  
   if (typeof body.orderId !== 'string' || typeof body.paypalOrderId !== 'string') {
+    console.error('❌ [Capture] Invalid request body:', body);
     return res.status(400).json({ error: 'orderId and paypalOrderId are required.' });
   }
 
   const { orderId, paypalOrderId } = body;
+  console.log('💳 [Capture] Datos recibidos:', { orderId, paypalOrderId });
 
   try {
+    console.log('💳 [Capture] Buscando orden en Supabase:', orderId);
     const { data: order, error: fetchError } = await supabase
         .from('orders')
         .select('*')
         .eq('id', orderId)
         .single();
 
-    if (fetchError || !order) {
+    if (fetchError) {
+        console.error('❌ [Capture] Error fetching order:', fetchError);
+        throw new Error(fetchError.message);
+    }
+    if (!order) {
         return res.status(404).json({ error: 'Order not found.' });
     }
 
+    console.log('💳 [Capture] Orden encontrada:', { 
+      id: order.id, 
+      status: order.status, 
+      total: order.total,
+      currency: PAYPAL_CURRENCY 
+    });
+
     if (order.status === 'paid') {
+        console.log('⚠️ [Capture] Order already paid');
         return res.status(200).json({ status: 'paid', orderId, paypalOrderId });
     }
     if (order.status !== 'pending') {
+        console.error('❌ [Capture] Order cannot be captured, status:', order.status);
         return res.status(400).json({ error: 'Order cannot be captured.' });
     }
-    
+
+    console.log('💳 [Capture] Capturando pago en PayPal:', paypalOrderId);
     const paypalCapture = await capturePayPalOrder(paypalOrderId);
     const capturedAmount = getCapturedAmount(paypalCapture);
 
-    if (!capturedAmount || capturedAmount.currency_code !== PAYPAL_CURRENCY || toMoney(Number(capturedAmount.value)) !== toMoney(order.total)) {
+    console.log('💳 [Capture] Monto capturado:', capturedAmount);
+    console.log('💳 [Capture] Comparando:', {
+      captured: capturedAmount,
+      expectedCurrency: PAYPAL_CURRENCY,
+      expectedTotal: order.total,
+      capturedValue: capturedAmount?.value,
+      capturedCurrency: capturedAmount?.currency_code
+    });
+
+    const amountMatch = toMoney(Number(capturedAmount?.value)) === toMoney(order.total);
+    const currencyMatch = capturedAmount?.currency_code === PAYPAL_CURRENCY;
+
+    if (!capturedAmount || !currencyMatch || !amountMatch) {
+        console.error('❌ [Capture] Amount mismatch or invalid capture:', {
+          capturedAmount,
+          expectedCurrency: PAYPAL_CURRENCY,
+          expectedTotal: order.total,
+          currencyMatch,
+          amountMatch
+        });
         await supabase.rpc('fail_order', { p_order_id: orderId });
         return res.status(400).json({ error: 'PayPal capture failed or amount mismatch.' });
     }
 
+    console.log('✅ [Capture] Monto validado, actualizando orden a paid');
     const { error: updateError } = await supabase
         .from('orders')
         .update({ status: 'paid', paypal_order_id: paypalOrderId, paid_at: new Date().toISOString() })
         .eq('id', orderId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('❌ [Capture] Error updating order status:', updateError);
+      throw new Error(updateError.message);
+    }
     
+    console.log('✅ [Capture] Orden actualizada a paid, enviando notificación');
     await sendOrderNotificationWebhook(orderId, { ...order, status: 'paid', paypal_order_id: paypalOrderId });
 
+    console.log('✅ [Capture] Pago completado exitosamente');
     res.status(200).json({ status: 'paid', orderId, paypalOrderId, paypalCaptureId: paypalCapture.id });
   } catch (error) {
+    console.error('❌ [Capture] Error completo en captura:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    });
+    
     try {
+      console.log('⚠️ [Capture] Marcando orden como fallida:', orderId);
       await supabase.rpc('fail_order', { p_order_id: orderId });
     } catch (rpcError) {
-      console.error('Error calling fail_order RPC:', rpcError);
+      console.error('❌ [Capture] Error calling fail_order RPC:', rpcError);
     }
     next(error);
   }
@@ -908,7 +1029,12 @@ if (fs.existsSync(FRONTEND_INDEX_HTML)) {
 
 // Error Handler global - CRÍTICO: Siempre debe enviar una respuesta HTTP válida
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Error global del servidor:', error);
+  // Log completo para depuración
+  console.error('❌ Error global del servidor:', {
+    message: error instanceof Error ? error.message : 'Error desconocido',
+    stack: error instanceof Error ? error.stack : 'No stack available',
+    errorObject: JSON.stringify(error, null, 2)
+  });
   
   // Asegurar que SIEMPRE se envíe una respuesta JSON válida para que el frontend no se quede colgado
   const statusCode = error instanceof Error && 'statusCode' in error 

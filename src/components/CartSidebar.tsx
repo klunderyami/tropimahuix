@@ -87,7 +87,7 @@ export const CartSidebar = ({
                     <img
                       src={item.product.image}
                       alt={item.product.name}
-                      className="h-20 w-20 rounded-2xl object-cover"
+                      className="h-20 w-20 rounded-2xl object-contain"
                     />
                     <div className="flex-1">
                       <h3 className="font-semibold text-stone-900">{item.product.name}</h3>

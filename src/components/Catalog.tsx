@@ -56,6 +56,7 @@ export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: Cat
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const unsubscribe = subscribeToProducts(
@@ -73,13 +74,23 @@ export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: Cat
     return unsubscribe;
   }, []);
 
-  const filteredProducts = useMemo(
-    () =>
+  const filteredProducts = useMemo(() => {
+    const lowercasedQuery = searchQuery.trim().toLowerCase();
+
+    const categoryFiltered =
       selectedCategory === 'all'
         ? products
-        : products.filter((product) => product.category === selectedCategory),
-    [products, selectedCategory],
-  );
+        : products.filter((product) => product.category === selectedCategory);
+
+    if (lowercasedQuery === '') {
+      return categoryFiltered;
+    }
+
+    return categoryFiltered.filter(
+      (product) =>
+        product.name.toLowerCase().includes(lowercasedQuery) || product.description.toLowerCase().includes(lowercasedQuery),
+    );
+  }, [products, selectedCategory, searchQuery]);
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -115,6 +126,27 @@ export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: Cat
             Selecciona tu familia artesanal y descubre botellas premium hechas a mano con sabor único.
           </p>
           <div className="h-1.5 w-28 bg-brand-orange mx-auto rounded-full shadow-sm"></div>
+        </div>
+
+        <div className="mb-12 max-w-3xl mx-auto">
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-stone-400">
+                <path
+                  fillRule="evenodd"
+                  d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por nombre o descripción..."
+              className="block w-full rounded-xl border-2 border-stone-200 bg-white py-4 pl-11 pr-4 text-stone-800 shadow-sm placeholder:text-stone-400 focus:border-brand-orange focus:ring-brand-orange sm:text-sm"
+            />
+          </div>
         </div>
 
         <div className="glass-card mx-auto mb-12 flex w-full max-w-3xl flex-col gap-2 rounded-2xl bg-white/75 p-2 shadow-xl sm:grid sm:grid-cols-3">
@@ -156,8 +188,12 @@ export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: Cat
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="glass-card rounded-2xl border border-stone-200 bg-white/80 p-12 text-center shadow-xl">
-            <p className="text-xl font-semibold text-stone-700">No hay productos en esta categoría todavía.</p>
-            <p className="mt-3 text-sm text-stone-500">Agrega nuevos artículos desde el panel de administración.</p>
+            <p className="text-xl font-semibold text-stone-700">No se encontraron productos.</p>
+            {searchQuery ? (
+              <p className="mt-3 text-sm text-stone-500">Intenta con otra búsqueda o ajusta los filtros.</p>
+            ) : (
+              <p className="mt-3 text-sm text-stone-500">Pronto agregaremos nuevos artículos a esta categoría.</p>
+            )}
           </div>
         ) : (
           <motion.div
@@ -181,11 +217,11 @@ export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: Cat
                     isOutOfStock ? 'opacity-75' : 'hover:shadow-2xl hover:-translate-y-1'
                   }`}
                 >
-                  <div className="h-80 overflow-hidden relative group-hover:cursor-pointer">
+                  <div className="h-80 overflow-hidden relative group-hover:cursor-pointer bg-stone-50">
                     <img
                       src={product.image}
                       alt={product.name}
-                      className={`w-full h-full object-cover transition-transform duration-700 ease-out ${
+                      className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
                         isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
                       }`}
                     />
