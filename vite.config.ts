@@ -31,8 +31,8 @@ export default defineConfig(({ mode }) => {
             // Separar dependencias de node_modules en chunks más pequeños
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-firebase': ['firebase'],
-            'vendor-utils': ['zod', 'express-rate-limit'],
+            // Nota: 'firebase' excluido de manualChunks debido a su configuración ESM compleja
+            'vendor-utils': ['zod'],
           },
         },
       },
