@@ -24,6 +24,21 @@ export default defineConfig(({ mode }) => {
         '@': '/src',
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Separar dependencias de node_modules en chunks más pequeños
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-supabase': ['@supabase/supabase-js'],
+            'vendor-firebase': ['firebase'],
+            'vendor-utils': ['zod', 'express-rate-limit'],
+          },
+        },
+      },
+      // Aumentar límite de advertencia si es necesario (opcional)
+      chunkSizeWarningLimit: 1000,
+    },
     server: {
       port: 5173,
       strictPort: true,
