@@ -1,6 +1,10 @@
 import { motion } from 'framer-motion';
 
-export const Hero = () => {
+interface HeroProps {
+  welcomeMessage?: string;
+}
+
+export const Hero = ({ welcomeMessage }: HeroProps) => {
   // Variantes de animación para la entrada elegante y secuencial del contenido
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -44,7 +48,7 @@ export const Hero = () => {
             variants={itemVariants}
             className="inline-block text-brand-gold font-semibold tracking-[0.2em] text-xs sm:text-sm uppercase mb-6 border-b border-brand-gold/30 pb-3"
           >
-            Tradición y Sabor de Nuestra Tierra
+            {welcomeMessage || 'Tradición y Sabor de Nuestra Tierra'}
           </motion.span>
 
           {/* 3. Título Principal de Impacto utilizando font-display corporativa */}

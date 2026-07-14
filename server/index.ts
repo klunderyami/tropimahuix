@@ -8,10 +8,8 @@ import admin from 'firebase-admin';
 import { cert } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { batchUploadProducts, isProductPayload } from './productBatchUpload.js';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
-import type { ProductPayload } from './productBatchUpload.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -568,29 +566,82 @@ app.patch('/api/products/:productId', requireAdmin, async (req: Request, res: Re
   }
 });
 
+function getPathFromUrl(fileUrl: string): string | null {
+  if (!fileUrl) return null;
+  try {
+    const url = new URL(fileUrl);
+    // Example pathname: /storage/v1/object/public/productos/12345-file.jpg
+    // We need to extract the path after the bucket name.
+    const pathSegments = url.pathname.split('/');
+    const bucketNameIndex = pathSegments.indexOf('productos');
+    if (bucketNameIndex === -1 || bucketNameIndex + 1 >= pathSegments.length) {
+      return null;
+    }
+    return pathSegments.slice(bucketNameIndex + 1).join('/');
+  } catch (e) {
+    console.error(`[Delete Helper] Invalid URL provided: ${fileUrl}`);
+    return null;
+  }
+}
+
 app.delete('/api/products/:productId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const productId = getRouteParam(req.params.productId);
     if (!productId) {
       return res.status(400).json({ error: 'Missing product id.' });
     }
-    // This payload explicitly does not include `updated_at`.
-    const updatePayload = { active: false };
+
+    // 1. Get the product to find associated files
+    const { data: product, error: fetchError } = await supabase
+      .from('products')
+      .select('image, gallery')
+      .eq('id', productId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = row not found
+      throw new Error(`Error fetching product for deletion: ${fetchError.message}`);
+    }
+
+    // 2. Delete the record from the database
     const { error } = await supabase
       .from('products')
-      .update(updatePayload)
+      .delete()
       .eq('id', productId);
 
     if (error) throw new Error(error.message);
 
-    res.status(200).json({ status: 'archived' });
+    // 3. If DB deletion was successful and we found a product, delete files from storage
+    if (product) {
+      const filesToDelete: string[] = [];
+      
+      const mainImage = getPathFromUrl(product.image);
+      if (mainImage) filesToDelete.push(mainImage);
+
+      if (Array.isArray(product.gallery)) {
+        product.gallery.forEach((fileUrl: string) => {
+          const galleryFile = getPathFromUrl(fileUrl as string);
+          if (galleryFile) filesToDelete.push(galleryFile);
+        });
+      }
+
+      if (filesToDelete.length > 0) {
+        console.log(`[Delete Product] Deleting ${filesToDelete.length} files from storage for product ${productId}`, filesToDelete);
+        const { error: storageError } = await supabase.storage.from('productos').remove(filesToDelete);
+        if (storageError) {
+          // Log the error but don't fail the request, as the DB record is already gone.
+          console.error(`[Delete Product] Failed to delete files from storage, but DB record was removed. Files: ${filesToDelete.join(', ')}`, storageError);
+        }
+      }
+    }
+
+    res.status(200).json({ status: 'deleted', message: 'Product deleted successfully.' });
   } catch (error) {
     next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
 // Endpoint para subir imágenes a Supabase Storage
-app.post('/api/upload/image', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+app.post('/api/upload/media', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { imageBase64, fileName, contentType } = req.body;
     
@@ -737,7 +788,7 @@ app.patch('/api/config', requireAdmin, async (req: Request, res: Response, next:
 app.get('/api/gallery', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const { data, error } = await supabase
-      .from('gallery')
+      .from('gallery_photos')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -759,7 +810,7 @@ app.post('/api/gallery', requireAdmin, async (req: Request, res: Response, next:
     }
 
     const { data, error } = await supabase
-      .from('gallery')
+      .from('gallery_photos')
       .insert({ url, label: label || 'Gallery' })
       .select('id')
       .single();
@@ -770,6 +821,55 @@ app.post('/api/gallery', requireAdmin, async (req: Request, res: Response, next:
     res.status(201).json({ id: data.id, message: 'Photo added successfully.' });
   } catch (error) {
     console.error('Error adding photo:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.delete('/api/gallery/:photoId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const photoId = getRouteParam(req.params.photoId);
+    if (!photoId) {
+      return res.status(400).json({ error: 'Missing photo id.' });
+    }
+
+    // 1. Get the photo URL from the database before deleting the record
+    const { data: photo, error: fetchError } = await supabase
+      .from('gallery_photos')
+      .select('url')
+      .eq('id', photoId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = row not found
+        throw new Error(fetchError.message);
+    }
+
+    // 2. Delete the record from the database
+    const { error: deleteError } = await supabase
+      .from('gallery_photos')
+      .delete()
+      .eq('id', photoId);
+
+    if (deleteError) throw new Error(deleteError.message);
+
+    // 3. If DB deletion was successful and we found a photo, delete from storage
+    if (photo?.url) {
+      try {
+        const url = new URL(photo.url);
+        const pathToRemove = getPathFromUrl(photo.url);
+        if (pathToRemove) {
+          console.log(`[Delete Gallery] Deleting from storage: productos/${pathToRemove}`);
+          // The path from getPathFromUrl is already relative to the bucket
+          await supabase.storage.from('productos').remove([pathToRemove]);
+        }
+      } catch (storageError) {
+        // Log the error but don't fail the request, as the DB record is already gone.
+        console.error(`[Delete Gallery] Failed to delete file from storage, but DB record was removed: ${photo.url}`, storageError);
+      }
+    }
+
+    res.status(200).json({ status: 'deleted', message: 'Photo deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting photo:', error);
     next(error instanceof Error ? error : new Error(String(error)));
   }
 });

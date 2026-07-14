@@ -6,15 +6,17 @@ import {
   subscribeToProducts,
   createProduct,
   updateProduct,
-  archiveProduct,
+  deleteProduct,
   getOrders,
   updateOrderStatus,
   getSiteConfig,
   updateSiteConfig,
   addGalleryPhoto,
   uploadMedia,
+  getGalleryPhotos,
+  deleteGalleryPhoto,
 } from '../supabase.js';
-import type { NewProduct, Order, OrderStatus, Product, SiteConfig } from '../types.js';
+import type { GalleryPhoto, NewProduct, Order, OrderStatus, Product, SiteConfig } from '../types.js';
 
 type AdminTab = 'products' | 'gallery' | 'orders';
 
@@ -48,12 +50,20 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([]);
   const [formState, setFormState] = useState<NewProduct>(blankProduct);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [siteConfig, setSiteConfig] = useState<Partial<SiteConfig>>({});
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'all'>('paid');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+
+  // State para el logo del sitio
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   // Subida de imagen de producto
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -126,9 +136,11 @@ const AdminDashboard = () => {
   };
 
   // Foto Gallery state
-  const [photoUrl, setPhotoUrl] = useState('');
-  const [photoLabel, setPhotoLabel] = useState('');
+  const [galleryFile, setGalleryFile] = useState<File | null>(null);
+  const [galleryPreview, setGalleryPreview] = useState<string | null>(null);
+  const [galleryLabel, setGalleryLabel] = useState('');
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const galleryPhotoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // --- Product Listener (Supabase realtime) ---
@@ -159,6 +171,17 @@ const AdminDashboard = () => {
       }
     };
     fetchConfig();
+
+    // --- Gallery Photos Fetcher ---
+    const fetchGalleryPhotos = async () => {
+      try {
+        const photos = await getGalleryPhotos();
+        setGalleryPhotos(photos);
+      } catch (err) {
+        console.error('Error fetching gallery photos:', err);
+      }
+    };
+    fetchGalleryPhotos();
 
     return () => {
       unsubscribeProducts();
@@ -245,6 +268,47 @@ const AdminDashboard = () => {
 
     setGalleryFiles((current) => [...current, ...newFiles]);
     setGalleryPreviews((current) => [...current, ...newPreviews]);
+  };
+
+  const handleGalleryPhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (file) {
+      try {
+        const compressedFile = await compressImageLocally(file);
+        setGalleryFile(compressedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setGalleryPreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (err) {
+        toast.error('Error al procesar la imagen.');
+        setGalleryFile(file);
+        setGalleryPreview(URL.createObjectURL(file));
+      }
+    } else {
+      setGalleryFile(null);
+      setGalleryPreview(null);
+    }
+  };
+
+  const handleLogoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (file) {
+      try {
+        const compressedFile = await compressImageLocally(file);
+        setLogoFile(compressedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setLogoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (err) {
+        toast.error('Error al procesar el logo.');
+        setLogoFile(file);
+        setLogoPreview(URL.createObjectURL(file));
+      }
+    }
   };
 
   const resetForm = () => {
@@ -395,15 +459,29 @@ const AdminDashboard = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleArchiveProduct = async (productId: string) => {
+  const handleDeleteProductClick = (productId: string) => {
+    setProductToDelete(productId);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteProductConfirm = async () => {
+    if (!productToDelete) return;
     try {
       const accessToken = await getAccessToken();
-      await archiveProduct(productId, accessToken);
-      toast.success('Producto archivado.');
+      await deleteProduct(productToDelete, accessToken);
+      toast.success('Producto eliminado permanentemente.');
     } catch (caughtError) {
-      console.error('❌ [AdminDashboard] Error al archivar producto:', caughtError);
-      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo archivar el producto.');
+      console.error('❌ [AdminDashboard] Error al eliminar producto:', caughtError);
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo eliminar el producto.');
+    } finally {
+      setShowDeleteModal(false);
+      setProductToDelete(null);
     }
+  };
+
+  const handleDeleteProductCancel = () => {
+    setShowDeleteModal(false);
+    setProductToDelete(null);
   };
 
   const handleOrderStatus = async (orderId: string, status: OrderStatus) => {
@@ -425,9 +503,21 @@ const AdminDashboard = () => {
     event.preventDefault();
     setIsSavingConfig(true);
 
+    let configToSave = { ...siteConfig };
+
     try {
       const accessToken = await getAccessToken();
-      await updateSiteConfig(siteConfig, accessToken);
+
+      // Subir logo si hay uno nuevo seleccionado
+      if (logoFile) {
+        toast.loading('Subiendo nuevo logo...', { id: 'logo-upload' });
+        const imageBase64 = await fileToBase64(logoFile);
+        const logoUrl = await uploadMedia(imageBase64, logoFile.name, accessToken, logoFile.type);
+        configToSave.logoUrl = logoUrl;
+        toast.success('Logo subido.', { id: 'logo-upload' });
+      }
+
+      await updateSiteConfig(configToSave, accessToken);
       toast.success('Ajustes del sitio actualizados.');
     } catch (caughtError) {
       console.error('❌ [AdminDashboard] Error al guardar configuración:', caughtError);
@@ -439,19 +529,49 @@ const AdminDashboard = () => {
 
   const handlePhotoSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!galleryFile) {
+      toast.error('Por favor, selecciona una imagen para subir.');
+      return;
+    }
     setIsSavingPhoto(true);
 
     try {
       const accessToken = await getAccessToken();
-      await addGalleryPhoto(photoUrl, photoLabel || 'Galería', accessToken);
+      const imageBase64 = await fileToBase64(galleryFile);
+      const imageUrl = await uploadMedia(imageBase64, galleryFile.name, accessToken, galleryFile.type);
+
+      const newPhotoId = await addGalleryPhoto(imageUrl, galleryLabel || 'Galería', accessToken);
+
+      setGalleryPhotos(current => [{ id: newPhotoId, url: imageUrl, label: galleryLabel || 'Galería', createdAt: new Date().toISOString() }, ...current]);
       toast.success('Foto agregada a la galería.');
-      setPhotoUrl('');
-      setPhotoLabel('');
+
+      // Reset form
+      setGalleryFile(null);
+      setGalleryPreview(null);
+      setGalleryLabel('');
+      if (galleryPhotoInputRef.current) galleryPhotoInputRef.current.value = '';
+
     } catch (caughtError) {
       console.error('❌ [AdminDashboard] Error al guardar foto:', caughtError);
       toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar la foto.');
     } finally {
       setIsSavingPhoto(false);
+    }
+  };
+
+  const handleDeleteGalleryPhoto = async (photoId: string) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar esta foto de la galería?')) {
+      return;
+    }
+    try {
+      const accessToken = await getAccessToken();
+      await deleteGalleryPhoto(photoId, accessToken);
+      // Update state locally to remove the photo instantly from the UI
+      setGalleryPhotos(currentPhotos => currentPhotos.filter(p => p.id !== photoId));
+      toast.success('Foto eliminada de la galería.');
+    } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al eliminar foto de la galería:', caughtError);
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo eliminar la foto.');
     }
   };
 
@@ -461,7 +581,7 @@ const AdminDashboard = () => {
   };
 
   const tabs: { id: AdminTab; label: string; icon: string }[] = [
-    { id: 'products', label: 'Productos', icon: '📦' },
+    { id: 'products', label: 'Productos y Ajustes', icon: '📦' },
     { id: 'gallery', label: 'Galería', icon: '🖼️' },
     { id: 'orders', label: 'Pedidos', icon: '📋' },
   ];
@@ -721,6 +841,33 @@ const AdminDashboard = () => {
                   <h2 className="mt-2 text-4xl font-display text-brand-brown">Contenido Global</h2>
                 </div>
                 <form onSubmit={handleConfigSubmit} className="grid gap-4">
+                  {/* Logo Uploader */}
+                  <div>
+                    <label className="text-sm font-semibold text-stone-700">Logo del Sitio</label>
+                    <div
+                      onClick={() => logoFileInputRef.current?.click()}
+                      className="mt-2 flex cursor-pointer items-center gap-4 rounded-3xl border-2 border-dashed border-stone-300 bg-white p-4 transition hover:border-brand-orange"
+                    >
+                      {(logoPreview || siteConfig.logoUrl) && (
+                        <img
+                          src={logoPreview || siteConfig.logoUrl}
+                          alt="Logo"
+                          className="h-16 w-16 rounded-full object-contain"
+                        />
+                      )}
+                      <div className="text-sm">
+                        <p className="font-semibold text-stone-600">
+                          {logoPreview || siteConfig.logoUrl ? 'Cambiar logo' : 'Seleccionar logo'}
+                        </p>
+                        <p className="text-xs text-stone-400">Recomendado: SVG, PNG transparente</p>
+                      </div>
+                    </div>
+                    <input
+                      ref={logoFileInputRef}
+                      type="file" accept="image/*"
+                      onChange={handleLogoSelect} className="hidden"
+                    />
+                  </div>
                   <input
                     id="config-hero-title"
                     name="config-hero-title"
@@ -784,18 +931,16 @@ const AdminDashboard = () => {
                       <div className="flex items-center gap-2 lg:flex-col lg:items-stretch">
                         <button
                           onClick={() => handleEditProduct(product)}
-                          className="rounded-full bg-brand-brown px-4 py-2 text-xs font-bold text-white hover:bg-brand-brown/90"
+                          className="flex-1 rounded-full bg-brand-brown px-4 py-2 text-xs font-bold text-white hover:bg-brand-brown/90 lg:flex-none"
                         >
                           Editar
                         </button>
-                        {product.active !== false && (
-                          <button
-                            onClick={() => handleArchiveProduct(product.id)}
-                            className="rounded-full border border-rose-200 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"
-                          >
-                            Archivar
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteProductClick(product.id)}
+                          className="flex-1 rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 lg:flex-none"
+                        >
+                          Eliminar
+                        </button>
                       </div>
                     </article>
                   ))}
@@ -811,27 +956,44 @@ const AdminDashboard = () => {
             <div className="glass-card h-fit border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
               <div className="mb-6">
                 <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Galería</p>
-                <h2 className="mt-2 text-4xl font-display text-brand-brown">Agregar foto</h2>
+                <h2 className="mt-2 text-4xl font-display text-brand-brown">Subir Foto</h2>
                 <p className="mt-2 text-sm text-stone-500">
-                  Añade imágenes promocionales o fotos de productos.
+                  Las fotos subidas aquí aparecerán en el carrusel de la página principal.
                 </p>
               </div>
               <form onSubmit={handlePhotoSubmit} className="grid gap-4">
-                <input
-                  id="gallery-photo-url"
-                  name="gallery-photo-url"
-                  type="url"
-                  value={photoUrl}
-                  onChange={(e) => setPhotoUrl(e.target.value)}
-                  placeholder="URL de la imagen"
-                  required
-                  className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                />
+                <div>
+                  <div
+                    onClick={() => galleryPhotoInputRef.current?.click()}
+                    className={`flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed px-4 py-6 transition ${
+                      galleryPreview ? 'border-emerald-300 bg-emerald-50/50' : 'border-stone-300 bg-white hover:border-brand-orange hover:bg-brand-orange/5'
+                    }`}
+                  >
+                    {galleryPreview ? (
+                      <img src={galleryPreview} alt="Vista previa" className="mb-3 max-h-40 rounded-2xl object-contain shadow-sm" />
+                    ) : (
+                      <svg className="mb-3 h-10 w-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                    <p className="text-sm font-semibold text-stone-500">
+                      {galleryPreview ? 'Toca para cambiar la imagen' : 'Haz clic para seleccionar una imagen'}
+                    </p>
+                    <p className="mt-1 text-xs text-stone-400">PNG, JPG o WebP</p>
+                  </div>
+                  <input
+                    ref={galleryPhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleGalleryPhotoSelect}
+                    className="hidden"
+                  />
+                </div>
                 <input
                   id="gallery-photo-label"
                   name="gallery-photo-label"
-                  value={photoLabel}
-                  onChange={(e) => setPhotoLabel(e.target.value)}
+                  value={galleryLabel}
+                  onChange={(e) => setGalleryLabel(e.target.value)}
                   placeholder="Descripción o etiqueta (opcional)"
                   className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                 />
@@ -840,37 +1002,30 @@ const AdminDashboard = () => {
                   disabled={isSavingPhoto}
                   className="rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:bg-stone-300"
                 >
-                  {isSavingPhoto ? 'Guardando...' : 'Agregar a galería'}
+                  {isSavingPhoto ? 'Subiendo...' : 'Agregar a galería'}
                 </button>
               </form>
             </div>
 
             <div className="glass-card border border-stone-200 bg-white/90 p-6 shadow-xl">
               <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Fotos</p>
-                <h2 className="mt-2 text-4xl font-display text-brand-brown">Previsualización</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Contenido Actual</p>
+                <h2 className="mt-2 text-4xl font-display text-brand-brown">Fotos de la Galería</h2>
               </div>
-              {photoUrl ? (
-                <div className="overflow-hidden rounded-3xl border border-stone-200">
-                  <img
-                    src={photoUrl}
-                    alt={photoLabel || 'Vista previa'}
-                    className="h-64 w-full object-contain"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Error+de+imagen';
-                    }}
-                  />
-                  {photoLabel && (
-                    <div className="bg-stone-50 px-4 py-2 text-sm font-semibold text-stone-600">
-                      {photoLabel}
+              {galleryPhotos.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  {galleryPhotos.map((photo) => (
+                    <div key={photo.id} className="group relative">
+                      <img src={photo.url} alt={photo.label} className="aspect-square w-full rounded-2xl object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 opacity-0 transition group-hover:opacity-100">
+                        <button onClick={() => handleDeleteGalleryPhoto(photo.id)} className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">Eliminar</button>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               ) : (
-                <div className="flex h-48 items-center justify-center rounded-3xl border-2 border-dashed border-stone-300">
-                  <p className="text-sm font-semibold text-stone-400">
-                    Ingresa la URL de una imagen para previsualizarla
-                  </p>
+                <div className="flex h-48 items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 bg-stone-50/50">
+                  <p className="text-center text-sm font-semibold text-stone-400">No hay fotos en la galería.<br/>Sube una para empezar.</p>
                 </div>
               )}
             </div>
@@ -1010,6 +1165,42 @@ const AdminDashboard = () => {
         )}
       </div>
     </main>
+
+    {/* Modal de Confirmación de Eliminación */}
+    {showDeleteModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="glass-card mx-4 max-w-md rounded-3xl border border-stone-200 bg-white p-8 shadow-2xl">
+          <div className="mb-6 flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
+              <svg className="h-6 w-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-2xl font-display text-brand-brown">Confirmar Eliminación</h3>
+              <p className="mt-1 text-sm text-stone-600">Esta acción no se puede deshacer</p>
+            </div>
+          </div>
+          <p className="mb-8 text-stone-700">
+            ¿Estás seguro de que deseas eliminar este producto permanentemente? Se perderán todos los datos asociados incluyendo imágenes.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={handleDeleteProductCancel}
+              className="flex-1 rounded-full border border-stone-300 px-6 py-3 text-sm font-bold text-stone-700 transition hover:bg-stone-100"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDeleteProductConfirm}
+              className="flex-1 rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-rose-700"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   );
 };
 

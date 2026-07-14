@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useAdminAccess, ADMIN_EMAIL } from '../hooks/useAdminAccess.js';
-import { login, loginWithEmail, auth, onAuthStateChanged } from '../firebase.js';
+import { useAuth } from '../hooks/useAuth.js';
+import { login, loginWithEmail, auth } from '../firebase.js';
 
 interface AdminRouteProps {
   children: ReactNode;
 }
 
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@example.com';
+
 const AdminRoute = ({ children }: AdminRouteProps) => {
-  const { isAdmin, loading, debugInfo } = useAdminAccess();
+  const { user, isAdmin, loading } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
-  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
 
   // Estado para el formulario de email/contraseña
   const [email, setEmail] = useState('');
@@ -18,13 +19,11 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   const [isEmailLogin, setIsEmailLogin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentEmail(user?.email || null);
-    });
-    return unsubscribe;
-  }, []);
-
+  const debugInfo = {
+    isAdmin,
+    loading,
+    user: user ? { uid: user.uid, email: user.email, emailVerified: user.emailVerified } : null,
+  };
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
@@ -67,18 +66,18 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
             </p>
 
             {/* Debug info cuando estás autenticado pero sin permisos */}
-            {currentEmail && (
+            {user && (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-xs">
                 <p className="font-bold text-amber-800">🔍 Sesión actual:</p>
                 <p className="mt-1 text-amber-700">
-                  Correo: <span className="font-mono bg-amber-100 px-1 rounded select-all">{currentEmail}</span>
+                  Correo: <span className="font-mono bg-amber-100 px-1 rounded select-all">{user.email}</span>
                 </p>
                 <p className="mt-1 text-amber-700">
                   Correo esperado: <span className="font-mono bg-amber-100 px-1 rounded">{ADMIN_EMAIL}</span>
                 </p>
-                {currentEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase() && !debugInfo.emailVerified && (
+                {user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && !user.emailVerified && (
                   <p className="mt-2 font-bold text-red-600">
-                    ⚠️ El correo es correcto pero NO está verificado. Revisa tu bandeja de entrada y verifica tu correo antes de continuar.
+                    ⚠️ El correo es correcto pero NO está verificado. Revisa tu bandeja de entrada y verifica tu cuenta antes de continuar.
                   </p>
                 )}
                 <details className="mt-2 text-amber-700 cursor-pointer">

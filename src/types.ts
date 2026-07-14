@@ -5,6 +5,7 @@ export interface Product {
   price: number;
   volume: string;
   image: string;
+  gallery?: string[];
   category: 'licor' | 'torito';
   stock: number;
   active?: boolean;
@@ -53,9 +54,10 @@ export interface HeroSlide {
 }
 
 export interface SiteConfig {
-  heroSlides?: HeroSlide[];
   heroTitle?: string;
   heroSubtitle?: string;
+  logoUrl?: string;
+  welcomeMessage?: string;
   introTitle?: string;
   introText?: string;
   videoTitle?: string;

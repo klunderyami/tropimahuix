@@ -18,19 +18,28 @@ if (!supabaseUrl || !supabaseAnonKey) {
  * - Detección de sesión en URL
  * - Realtime con reconexion automática
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-  realtime: {
-    // Configuración de Realtime para evitar idle_shutdown
-    params: {
-      eventsPerSecond: 10, // Permitir hasta 10 eventos por segundo
+// Singleton pattern for Supabase client to prevent HMR issues in development
+const createSupabaseClient = () => {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
     },
-  },
-});
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+  });
+};
+
+// Usamos una variable global para que el cliente persista entre recargas de HMR en desarrollo.
+const globalForSupabase = globalThis as unknown as { supabase: ReturnType<typeof createSupabaseClient> };
+
+export const supabase = globalForSupabase.supabase ?? createSupabaseClient();
+
+if (import.meta.env.DEV) globalForSupabase.supabase = supabase;
 
 // ─── Productos ───────────────────────────────────────────────────────────────
 
@@ -184,56 +193,68 @@ function withTimeout<T>(
 }
 
 /**
+ * Helper para realizar peticiones fetch autenticadas a la API del backend,
+ * con timeout, cancelación y manejo de errores unificado.
+ */
+async function authedFetch<T>(
+  url: string,
+  options: RequestInit,
+  accessToken: string,
+): Promise<T> {
+  const abortController = new AbortController();
+
+  try {
+    const response = await withTimeout(
+      fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          ...options.headers,
+        },
+        signal: abortController.signal,
+      }),
+      8000, // Timeout de 8 segundos
+      abortController,
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || `Error desde la API: ${response.statusText}`);
+    }
+
+    return data as T;
+  } catch (err) {
+    abortController.abort();
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(`❌ [authedFetch] Error en ${options.method} ${url}:`, errorMessage);
+
+    if (errorMessage.includes('Timeout')) {
+      throw new Error(errorMessage);
+    } else if (errorMessage.includes('Failed to fetch')) {
+      throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
+    }
+    throw err instanceof Error ? err : new Error(errorMessage);
+  }
+}
+
+/**
  * Crea un nuevo producto (solo admin).
  */
 export async function createProduct(
   product: Omit<Product, 'id'>,
   accessToken: string,
 ): Promise<string> {
-  const abortController = new AbortController();
-  
-  try {
-    const response = await withTimeout(
-      fetch('/api/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(product),
-        signal: abortController.signal,
-      }),
-      8000,
-      abortController
-    );
+  const data = await authedFetch<{ id: string }>('/api/products', {
+    method: 'POST',
+    body: JSON.stringify(product),
+  }, accessToken);
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || `Error creating product from API: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    if (!data.id) {
-      throw new Error('Product created but no ID returned from API');
-    }
-    
-    return data.id;
-  } catch (err) {
-    // Cancelar la petición si aún está en progreso
-    abortController.abort();
-    
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error('❌ [createProduct] Error:', errorMessage);
-    
-    // Re-lanzar con mensaje mejorado
-    if (errorMessage.includes('Timeout')) {
-      throw new Error(errorMessage); // Preservar mensaje de timeout
-    } else if (errorMessage.includes('Failed to fetch')) {
-      throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
-    } else {
-      throw err instanceof Error ? err : new Error(String(err));
-    }
+  if (!data.id) {
+    throw new Error('El producto fue creado pero la API no retornó un ID.');
   }
+  return data.id;
 }
 
 /**
@@ -244,70 +265,22 @@ export async function updateProduct(
   product: Partial<Omit<Product, 'id'>>,
   accessToken: string,
 ): Promise<void> {
-  const abortController = new AbortController();
-  
-  try {
-    const response = await withTimeout(
-      fetch(`/api/products/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(product),
-        signal: abortController.signal,
-      }),
-      8000,
-      abortController
-    );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || `Error updating product from API: ${response.statusText}`);
-    }
-  } catch (err) {
-    // Cancelar la petición si aún está en progreso
-    abortController.abort();
-    
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error('❌ [updateProduct] Error:', errorMessage);
-    
-    // Re-lanzar con mensaje mejorado
-    if (errorMessage.includes('Timeout')) {
-      throw new Error(errorMessage); // Preservar mensaje de timeout
-    } else if (errorMessage.includes('Failed to fetch')) {
-      throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
-    } else {
-      throw err instanceof Error ? err : new Error(String(err));
-    }
-  }
+  await authedFetch(`/api/products/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(product),
+  }, accessToken);
 }
 
 /**
- * Archiva un producto (soft delete) (solo admin).
+ * Elimina un producto permanentemente (solo admin).
  */
-export async function archiveProduct(
+export async function deleteProduct(
   id: string,
   accessToken: string,
 ): Promise<void> {
-  const response = await fetch(`/api/products/${id}`, {
+  await authedFetch(`/api/products/${id}`, {
     method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    const errorMessage = data.error || `Error archiving product: ${response.statusText}`;
-    
-    if (errorMessage.includes('Failed to fetch')) {
-      throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
-    }
-    
-    console.error('❌ [archiveProduct] Error:', errorMessage);
-    throw new Error(errorMessage);
-  }
+  }, accessToken);
 }
 
 // ─── Configuración del Sitio ─────────────────────────────────────────────────
@@ -414,7 +387,7 @@ export async function uploadMedia(
   accessToken: string,
   contentType: string,
 ): Promise<string> {
-  const response = await fetch('/api/upload/image', {
+  const response = await fetch('/api/upload/media', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -462,6 +435,18 @@ export async function addGalleryPhoto(
   }
 
   return data.id;
+}
+
+/**
+ * Elimina una foto de la galería (solo admin).
+ */
+export async function deleteGalleryPhoto(
+  photoId: string,
+  accessToken: string,
+): Promise<void> {
+  await authedFetch(`/api/gallery/${photoId}`, {
+    method: 'DELETE',
+  }, accessToken);
 }
 
 /**
@@ -514,8 +499,11 @@ function mapOrder(data: Record<string, unknown>): Order {
 
 function mapSiteConfig(data: Record<string, unknown>): SiteConfig {
   return {
-    heroSlides: [],
-    introTitle: (data.hero_title as string) ?? '',
+    heroTitle: (data.hero_title as string) ?? '',
+    logoUrl: (data.logo_url as string) ?? '',
+    welcomeMessage: (data.welcome_message as string) ?? '',
+    heroSubtitle: (data.hero_subtitle as string) ?? '',
+    introTitle: (data.intro_title as string) ?? '',
     introText: (data.intro_text as string) ?? '',
     videoTitle: (data.video_title as string) ?? '',
     videoSubtitle: (data.video_subtitle as string) ?? '',

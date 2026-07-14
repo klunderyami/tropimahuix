@@ -28,20 +28,24 @@ CREATE POLICY "products_select_public" ON public.products
   USING (active = true OR active IS NULL);
 
 -- Lectura total: el service_role (backend Express) puede leer todo
+DROP POLICY IF EXISTS "products_select_service" ON public.products;
 CREATE POLICY "products_select_service" ON public.products
   FOR SELECT
   USING (auth.role() = 'service_role');
 
 -- Inserción/Actualización/Eliminación: solo service_role (backend Express con clave service_role)
+DROP POLICY IF EXISTS "products_insert_service" ON public.products;
 CREATE POLICY "products_insert_service" ON public.products
   FOR INSERT
   WITH CHECK (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "products_update_service" ON public.products;
 CREATE POLICY "products_update_service" ON public.products
   FOR UPDATE
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "products_delete_service" ON public.products;
 CREATE POLICY "products_delete_service" ON public.products
   FOR DELETE
   USING (auth.role() = 'service_role');
@@ -54,10 +58,12 @@ CREATE POLICY "site_config_select_public" ON public.site_config
   USING (true);
 
 -- Escritura solo service_role
+DROP POLICY IF EXISTS "site_config_insert_service" ON public.site_config;
 CREATE POLICY "site_config_insert_service" ON public.site_config
   FOR INSERT
   WITH CHECK (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "site_config_update_service" ON public.site_config;
 CREATE POLICY "site_config_update_service" ON public.site_config
   FOR UPDATE
   USING (auth.role() = 'service_role')
@@ -65,16 +71,19 @@ CREATE POLICY "site_config_update_service" ON public.site_config
 
 -- === ORDERS ===
 -- Lectura: service_role puede ver todas; usuarios anon no ven nada
+DROP POLICY IF EXISTS "orders_select_service" ON public.orders;
 CREATE POLICY "orders_select_service" ON public.orders
   FOR SELECT
   USING (auth.role() = 'service_role');
 
 -- Inserción: service_role (backend Express) puede crear órdenes
+DROP POLICY IF EXISTS "orders_insert_service" ON public.orders;
 CREATE POLICY "orders_insert_service" ON public.orders
   FOR INSERT
   WITH CHECK (auth.role() = 'service_role');
 
 -- Actualización solo service_role
+DROP POLICY IF EXISTS "orders_update_service" ON public.orders;
 CREATE POLICY "orders_update_service" ON public.orders
   FOR UPDATE
   USING (auth.role() = 'service_role')
@@ -88,10 +97,12 @@ CREATE POLICY "gallery_photos_select_public" ON public.gallery_photos
   USING (true);
 
 -- Escritura solo service_role
+DROP POLICY IF EXISTS "gallery_photos_insert_service" ON public.gallery_photos;
 CREATE POLICY "gallery_photos_insert_service" ON public.gallery_photos
   FOR INSERT
   WITH CHECK (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "gallery_photos_delete_service" ON public.gallery_photos;
 CREATE POLICY "gallery_photos_delete_service" ON public.gallery_photos
   FOR DELETE
   USING (auth.role() = 'service_role');

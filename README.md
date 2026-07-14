@@ -57,6 +57,7 @@ npm install
 ```dotenv
 # ID de usuario de Firebase que tendrá acceso al panel de administración. Puedes usar VITE_FIREBASE_ADMIN_UID o VITE_ADMIN_UID.
 VITE_FIREBASE_ADMIN_UID=tu_admin_uid_aqui
+VITE_ADMIN_EMAIL=tu_correo_admin@example.com
 VITE_API_BASE_URL=/
 VITE_SUPABASE_URL=https://xxxxxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
