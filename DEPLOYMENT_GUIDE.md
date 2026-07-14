@@ -38,6 +38,7 @@ En el panel de Render, agrega estas variables:
 
 ```
 VITE_ADMIN_UID=[tu_uid_de_firebase]
+VITE_ADMIN_EMAIL=tu_correo_admin@example.com
 VITE_API_BASE_URL=/
 VITE_PAYPAL_CLIENT_ID=[tu_paypal_sandbox_id]
 VITE_FIREBASE_API_KEY=[tu_firebase_api_key]
@@ -62,6 +63,23 @@ PAYPAL_CURRENCY=MXN
 PAYPAL_CLIENT_ID=[tu_paypal_sandbox_id]
 PAYPAL_CLIENT_SECRET=[tu_paypal_secret]
 ```
+
+### 3.3 Tabla de Referencia de Variables
+
+| Variable | Frontend/Backend | Requerida | Descripción |
+|----------|-----------------|----------|-------------|
+| VITE_ADMIN_EMAIL | Frontend | ✅ | Correo electrónico del usuario administrador. |
+| VITE_ADMIN_UID | Frontend | ✅ | UID de Firebase del usuario administrador. |
+| VITE_API_BASE_URL | Frontend | ✅ | URL base de la API backend. |
+| VITE_PAYPAL_CLIENT_ID | Frontend | ✅ | Client ID de PayPal para checkout. |
+| VITE_FIREBASE_API_KEY | Frontend | ✅ | API Key de Firebase. |
+| VITE_FIREBASE_AUTH_DOMAIN | Frontend | ✅ | Dominio de autenticación Firebase. |
+| VITE_FIREBASE_PROJECT_ID | Frontend | ✅ | ID del proyecto Firebase. |
+| VITE_FIREBASE_STORAGE_BUCKET | Frontend | ✅ | Bucket de almacenamiento Firebase. |
+| VITE_FIREBASE_MESSAGING_SENDER_ID | Frontend | ✅ | Sender ID para Firebase Messaging. |
+| VITE_FIREBASE_APP_ID | Frontend | ✅ | ID de la aplicación Firebase. |
+| ADMIN_UID | Backend | ✅ | UID del administrador (sin prefijo VITE_). |
+| FIREBASE_ADMIN_UID | Backend | ✅ | UID alternativo del administrador. |
 
 ## Paso 4: Obtener Credenciales
 
