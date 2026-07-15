@@ -333,15 +333,15 @@ const AdminDashboard = () => {
     setIsSavingProduct(true);
 
     try {
+      const accessToken = await getAccessToken();
+
       // 1. Subir imagen a Supabase Storage si hay un archivo seleccionado
       let imageUrl = formState.image;
       if (selectedFile) {
         setIsUploadingImage(true);
         const productName = formState.name.trim() || 'producto';
         try {
-          // Convertir archivo a base64
           const imageBase64 = await fileToBase64(selectedFile);
-          const accessToken = await getAccessToken();
           imageUrl = await uploadMedia(imageBase64, productName, accessToken, selectedFile.type);
         } catch (imageErr) {
           setIsUploadingImage(false);
@@ -357,14 +357,11 @@ const AdminDashboard = () => {
         toast.loading('Subiendo archivos de galería...', { id: 'gallery-upload' });
         for (const file of galleryFiles) {
           const base64 = await fileToBase64(file);
-          const accessToken = await getAccessToken();
           const url = await uploadMedia(base64, file.name, accessToken, file.type);
           newGalleryUrls.push(url);
         }
         toast.success('Galería subida.', { id: 'gallery-upload' });
       }
-
-      const accessToken = await getAccessToken();
       const finalGallery = [...(formState.gallery || []), ...newGalleryUrls];
 
       const productPayload = {
@@ -877,6 +874,14 @@ const AdminDashboard = () => {
                     className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
                   />
                   <input
+                    id="config-welcome-message"
+                    name="config-welcome-message"
+                    value={siteConfig.welcomeMessage || ''}
+                    onChange={(event) => setSiteConfig((current) => ({ ...current, welcomeMessage: event.target.value }))}
+                    placeholder="Frase de bienvenida (subtítulo)"
+                    className="rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                  <input
                     id="config-contact-phone"
                     name="config-contact-phone"
                     value={siteConfig.contactPhone || ''}
@@ -1163,44 +1168,44 @@ const AdminDashboard = () => {
             )}
           </section>
         )}
+
+        {/* Modal de Confirmación de Eliminación */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="glass-card mx-4 max-w-md rounded-3xl border border-stone-200 bg-white p-8 shadow-2xl">
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
+                  <svg className="h-6 w-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-display text-brand-brown">Confirmar Eliminación</h3>
+                  <p className="mt-1 text-sm text-stone-600">Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+              <p className="mb-8 text-stone-700">
+                ¿Estás seguro de que deseas eliminar este producto permanentemente? Se perderán todos los datos asociados incluyendo imágenes.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDeleteProductCancel}
+                  className="flex-1 rounded-full border border-stone-300 px-6 py-3 text-sm font-bold text-stone-700 transition hover:bg-stone-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteProductConfirm}
+                  className="flex-1 rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-rose-700"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
-
-    {/* Modal de Confirmación de Eliminación */}
-    {showDeleteModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div className="glass-card mx-4 max-w-md rounded-3xl border border-stone-200 bg-white p-8 shadow-2xl">
-          <div className="mb-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
-              <svg className="h-6 w-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-2xl font-display text-brand-brown">Confirmar Eliminación</h3>
-              <p className="mt-1 text-sm text-stone-600">Esta acción no se puede deshacer</p>
-            </div>
-          </div>
-          <p className="mb-8 text-stone-700">
-            ¿Estás seguro de que deseas eliminar este producto permanentemente? Se perderán todos los datos asociados incluyendo imágenes.
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={handleDeleteProductCancel}
-              className="flex-1 rounded-full border border-stone-300 px-6 py-3 text-sm font-bold text-stone-700 transition hover:bg-stone-100"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleDeleteProductConfirm}
-              className="flex-1 rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-rose-700"
-            >
-              Eliminar
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
   );
 };
 

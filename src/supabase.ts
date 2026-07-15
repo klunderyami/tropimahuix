@@ -305,19 +305,10 @@ export async function updateSiteConfig(
   config: Partial<SiteConfig>,
   accessToken: string,
 ): Promise<void> {
-  const response = await fetch('/api/config', {
+  await authedFetch('/api/config', {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
     body: JSON.stringify(config),
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || 'Error updating site config from API');
-  }
+  }, accessToken);
 }
 
 // ─── Órdenes ─────────────────────────────────────────────────────────────────
@@ -334,18 +325,10 @@ export async function getOrders(
     url.searchParams.set('status', statusFilter);
   }
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  const { orders } = await authedFetch<{ orders: Record<string, unknown>[] }>(url.toString(), {
+    method: 'GET',
+  }, accessToken);
 
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || 'Error fetching orders from API');
-  }
-
-  const { orders } = await response.json();
   return (orders ?? []).map(mapOrder);
 }
 
@@ -357,19 +340,10 @@ export async function updateOrderStatus(
   status: 'pending' | 'paid' | 'failed' | 'delivered',
   accessToken: string,
 ): Promise<void> {
-  const response = await fetch(`/api/orders/${orderId}/status`, {
+  await authedFetch(`/api/orders/${orderId}/status`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
     body: JSON.stringify({ status }),
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || 'Error updating order status from API');
-  }
+  }, accessToken);
 }
 
 // ─── Galería de Fotos ────────────────────────────────────────────────────────
@@ -419,20 +393,10 @@ export async function addGalleryPhoto(
   label: string,
   accessToken: string,
 ): Promise<string> {
-  const response = await fetch('/api/gallery', {
+  const data = await authedFetch<{ id: string }>('/api/gallery', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
     body: JSON.stringify({ url, label }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Error adding photo from API');
-  }
+  }, accessToken);
 
   return data.id;
 }

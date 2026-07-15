@@ -1,11 +1,10 @@
 import { motion } from 'framer-motion';
+import { useSiteConfig } from '../contexts/SiteConfigContext.js';
 
-interface HeroProps {
-  welcomeMessage?: string;
-}
-
-export const Hero = ({ welcomeMessage }: HeroProps) => {
-  // Variantes de animación para la entrada elegante y secuencial del contenido
+export const Hero = () => {
+  const { config, loading } = useSiteConfig();
+  const welcomeMessage = config?.welcomeMessage || 'Tradición y Sabor de Nuestra Tierra';
+  const heroTitle = config?.heroTitle || 'Licores y Toritos';
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -26,6 +25,14 @@ export const Hero = ({ welcomeMessage }: HeroProps) => {
     },
   } as const;
 
+  // --- Optimizaciones de Código ---
+  // 1. ID de anclaje como constante para evitar "magic strings" y facilitar mantenimiento.
+  const CATALOG_ID = 'catalog';
+
+  // 2. Clases base para los botones (CTA) para reducir duplicación (principio DRY).
+  const baseButtonClasses =
+    'w-full sm:w-auto px-10 py-4 rounded-full transition-all duration-300 hover:-translate-y-1 text-center tracking-wide active:scale-[0.98] cursor-pointer';
+
   return (
     <section className="relative bg-gradient-to-b from-brand-brown via-stone-900 to-paper text-amber-50 py-32 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[85vh] flex items-center">
       
@@ -44,48 +51,48 @@ export const Hero = ({ welcomeMessage }: HeroProps) => {
           className="flex flex-col items-center"
         >
           {/* 2. Eslogan de presentación */}
-          <motion.span 
+          <motion.h2 
             variants={itemVariants}
-            className="inline-block text-brand-gold font-semibold tracking-[0.2em] text-xs sm:text-sm uppercase mb-6 border-b border-brand-gold/30 pb-3"
+            className="inline-block text-brand-gold font-semibold tracking-[0.2em] text-sm sm:text-base uppercase mb-6 border-b border-brand-gold/30 pb-3"
           >
-            {welcomeMessage || 'Tradición y Sabor de Nuestra Tierra'}
-          </motion.span>
+            {loading ? '...' : welcomeMessage}
+          </motion.h2>
 
           {/* 3. Título Principal de Impacto utilizando font-display corporativa */}
           <motion.h1 
             variants={itemVariants}
             className="text-5xl sm:text-6xl md:text-8xl font-black text-white tracking-tight mb-8 leading-[1.1]"
           >
-            Licores y Toritos{' '}
-            <span className="font-display text-brand-orange block mt-3 md:inline md:mt-0 font-normal normal-case drop-shadow-md">
-              100% Artesanales
+            {loading ? 'Cargando...' : heroTitle}
+            <span className="font-display text-brand-orange block mt-3 text-4xl sm:text-5xl md:text-7xl font-normal normal-case drop-shadow-md">
+              Veracruzanos y 100% Artesanales
             </span>
           </motion.h1>
 
           {/* 4. Descripción pulida del negocio */}
           <motion.p 
             variants={itemVariants}
-            className="text-base sm:text-lg md:text-xl text-stone-300 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
+            className="text-base sm:text-lg md:text-xl text-stone-300 max-w-3xl mx-auto mb-12 leading-relaxed"
           >
-            En <span className="text-brand-gold font-semibold drop-shadow-sm">Tropicaña</span> preservamos las recetas tradicionales utilizando ingredientes naturales y un proceso de destilación meticuloso. Descubre el balance perfecto entre suavidad, carácter y frescura en cada botella.
+            En <span className="text-brand-gold font-semibold drop-shadow-sm">Tropicaña</span>, preservamos recetas de herencia utilizando ingredientes naturales de la región de Veracruz. Descubre el balance perfecto entre suavidad, carácter y frescura en cada botella de edición limitada.
           </motion.p>
 
           {/* 5. Botones de Acción (Call To Action) Interactivos */}
           <motion.div 
             variants={itemVariants}
-            className="flex flex-col sm:flex-row justify-center items-center gap-5 w-full sm:w-auto"
+            className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full sm:w-auto"
           >
             <a
-              href="#catalog"
-              className="w-full sm:w-auto bg-brand-orange hover:bg-brand-orange/90 text-white font-bold px-10 py-4 rounded-xl shadow-xl hover:shadow-brand-orange/20 transition-all duration-300 hover:-translate-y-1 text-center tracking-wide active:scale-[0.98] cursor-pointer"
+              href={`#${CATALOG_ID}`}
+              className={`${baseButtonClasses} bg-brand-orange hover:bg-brand-orange/90 text-white font-bold shadow-xl hover:shadow-brand-orange/30`}
             >
-              Explorar Catálogo
+              Descubrir Lotes Limitados
             </a>
             <a
-              href="#catalog"
-              className="w-full sm:w-auto border border-stone-400/40 hover:border-brand-gold text-stone-200 hover:text-brand-gold font-medium px-10 py-4 rounded-xl transition-all duration-300 hover:-translate-y-1 text-center bg-stone-900/40 backdrop-blur-md shadow-lg active:scale-[0.98] cursor-pointer"
+              href={`#${CATALOG_ID}`}
+              className={`${baseButtonClasses} border border-stone-400/40 hover:border-brand-gold text-stone-200 hover:text-brand-gold font-medium bg-stone-900/40 backdrop-blur-md shadow-lg`}
             >
-              Ver productos artesanales
+              Ver la Colección Completa
             </a>
           </motion.div>
         </motion.div>
