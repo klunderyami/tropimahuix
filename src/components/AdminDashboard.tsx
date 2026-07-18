@@ -690,10 +690,10 @@ const AdminDashboard = () => {
                       {/* Previews de la galería existente */}
                       {formState.gallery?.map((url, index) => (
                         <div key={`existing-${index}`} className="relative group">
-                          {url.match(/\.(mp4|webm)$/i) ? (
-                            <video src={url} controls className="h-24 w-full rounded-lg object-cover" />
+                          {url.match(/\.(mp4|webm|mov)$/i) ? (
+                            <video src={url} controls className="h-24 w-full rounded-lg object-contain bg-black" />
                           ) : (
-                            <img src={url} alt={`Galería ${index + 1}`} className="h-24 w-full rounded-lg object-cover" />
+                            <img src={url} alt={`Galería ${index + 1}`} className="h-24 w-full rounded-lg object-contain bg-stone-100" />
                           )}
                           <button
                             type="button"
@@ -708,9 +708,9 @@ const AdminDashboard = () => {
                       {galleryPreviews.map((preview, index) => (
                         <div key={`new-${index}`} className="relative group">
                           {preview.type.startsWith('video/') ? (
-                            <video src={preview.url} controls className="h-24 w-full rounded-lg object-cover" />
+                            <video src={preview.url} controls className="h-24 w-full rounded-lg object-contain bg-black" />
                           ) : (
-                            <img src={preview.url} alt={`Nuevo ${index + 1}`} className="h-24 w-full rounded-lg object-cover" />
+                            <img src={preview.url} alt={`Nuevo ${index + 1}`} className="h-24 w-full rounded-lg object-contain bg-stone-100" />
                           )}
                           <button
                             type="button"
@@ -1021,7 +1021,7 @@ const AdminDashboard = () => {
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   {galleryPhotos.map((photo) => (
                     <div key={photo.id} className="group relative">
-                      <img src={photo.url} alt={photo.label} className="aspect-square w-full rounded-2xl object-cover" />
+                      <img src={photo.url} alt={photo.label} className="aspect-square w-full rounded-2xl object-contain bg-stone-100" />
                       <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 opacity-0 transition group-hover:opacity-100">
                         <button onClick={() => handleDeleteGalleryPhoto(photo.id)} className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">Eliminar</button>
                       </div>

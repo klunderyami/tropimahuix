@@ -658,8 +658,12 @@ app.post('/api/upload/media', requireAdmin, async (req: Request, res: Response, 
     }
     
     // Convertir base64 a buffer
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
+    const base64Marker = ';base64,';
+    const base64Index = imageBase64.indexOf(base64Marker);
+    if (base64Index === -1) {
+      return res.status(400).json({ error: 'Formato de data URL inválido. No se encontró ";base64,".' });
+    }
+    const buffer = Buffer.from(imageBase64.substring(base64Index + base64Marker.length), 'base64');
     
     console.log('📤 [Upload] Buffer creado:', {
       bufferSize: buffer.length,

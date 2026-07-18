@@ -1,26 +1,11 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import type { CartItem } from '../types.js';
+import { useCart } from '../contexts/CartContext.js';
 
-interface CartSidebarProps {
-  cart: CartItem[];
-  isOpen: boolean;
-  setIsOpen: (isOpen: boolean) => void;
-  updateQuantity: (productId: string, newQuantity: number) => void;
-  removeFromCart: (productId: string) => void;
-  clearCart: () => void;
-}
-
-export const CartSidebar = ({
-  cart,
-  isOpen,
-  setIsOpen,
-  updateQuantity,
-  removeFromCart,
-  clearCart,
-}: CartSidebarProps) => {
+export const CartSidebar = () => {
   const navigate = useNavigate();
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const { cartItems, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart, clearCart } = useCart();
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   const sidebarVariants = {
     hidden: { opacity: 0, x: 400 },
@@ -38,7 +23,7 @@ export const CartSidebar = ({
     exit: { opacity: 0 },
   } as const;
 
-  if (!isOpen) {
+  if (!isCartOpen) {
     return null;
   }
 
@@ -49,7 +34,7 @@ export const CartSidebar = ({
         initial="hidden"
         animate="visible"
         exit="exit"
-        onClick={() => setIsOpen(false)}
+        onClick={() => setIsCartOpen(false)}
         className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
       />
 
@@ -64,10 +49,10 @@ export const CartSidebar = ({
           <div className="flex items-center justify-between border-b border-stone-200 p-6">
             <div>
               <h2 className="text-2xl font-display text-brand-brown">Tu Carrito</h2>
-              <p className="text-sm text-stone-500">{cart.length} artículos seleccionados</p>
+              <p className="text-sm text-stone-500">{cartItems.length} artículos seleccionados</p>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => setIsCartOpen(false)}
               className="text-stone-500 hover:text-stone-700 text-2xl leading-none"
               aria-label="Cerrar carrito"
             >
@@ -76,12 +61,12 @@ export const CartSidebar = ({
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {cart.length === 0 ? (
+            {cartItems.length === 0 ? (
               <div className="rounded-4xl border border-stone-200 bg-stone-50 p-8 text-center">
                 <p className="text-stone-600">Aún no has agregado productos al carrito.</p>
               </div>
             ) : (
-              cart.map((item) => (
+              cartItems.map((item) => (
                 <div key={item.product.id} className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm">
                   <div className="flex gap-4">
                     <img
@@ -133,10 +118,10 @@ export const CartSidebar = ({
             </div>
             <button
               onClick={() => {
-                setIsOpen(false);
+                setIsCartOpen(false);
                 navigate('/checkout');
               }}
-              disabled={cart.length === 0}
+              disabled={cartItems.length === 0}
               className="w-full rounded-3xl bg-brand-orange px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-orange/90 disabled:cursor-not-allowed disabled:bg-stone-300"
             >
               Proceder al Pago

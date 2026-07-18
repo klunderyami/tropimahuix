@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { CartItem, Product } from '../types.js';
+import type { CartItem, Product } from '../types';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -9,18 +9,16 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
-  isCartOpen: boolean;
-  setIsCartOpen: (isOpen: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const useCart = () => {
-  const ctx = useContext(CartContext);
-  if (!ctx) {
+  const context = useContext(CartContext);
+  if (!context) {
     throw new Error('useCart debe ser utilizado dentro de un CartProvider');
   }
-  return ctx;
+  return context;
 };
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
@@ -33,8 +31,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return [];
     }
   });
-
-  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -56,7 +52,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
       return [...prevItems, { product, quantity }];
     });
-    setIsCartOpen(true);
   };
 
   const removeFromCart = (productId: string) => {
@@ -82,7 +77,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
-  const value = { cartItems, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice, isCartOpen, setIsCartOpen };
+  const value = { cartItems, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

@@ -30,7 +30,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 export const CheckoutForm = () => {
   const navigate = useNavigate();
-  const { cart, clearCart } = useCart();
+  const { cartItems, clearCart, totalPrice } = useCart();
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(initialAddress);
   const [preparedOrder, setPreparedOrder] = useState<PreparedOrder | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -56,11 +56,6 @@ export const CheckoutForm = () => {
     return () => unsubscribe();
   }, []);
 
-  const cartTotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
-    [cart],
-  );
-
   const handleAddressChange = (field: keyof ShippingAddress, value: string) => {
     setShippingAddress((current) => ({ ...current, [field]: value }));
     setPreparedOrder(null);
@@ -76,7 +71,7 @@ export const CheckoutForm = () => {
       return;
     }
 
-    if (cart.length === 0) {
+    if (cartItems.length === 0) {
       setError('Tu carrito está vacío.');
       return;
     }
@@ -91,7 +86,7 @@ export const CheckoutForm = () => {
           ...(await getAuthHeaders()),
         },
         body: JSON.stringify({
-          items: cart.map((item) => ({
+          items: cartItems.map((item) => ({
             id: item.product.id,
             quantity: item.quantity,
           })),
@@ -189,7 +184,7 @@ export const CheckoutForm = () => {
     }
   };
 
-  if (cart.length === 0 && !preparedOrder) {
+  if (cartItems.length === 0 && !preparedOrder) {
     return (
       <section className="min-h-screen bg-paper px-4 py-20">
         <div className="glass-card mx-auto max-w-2xl border border-stone-200 bg-white/85 p-10 text-center shadow-xl">
@@ -460,7 +455,7 @@ export const CheckoutForm = () => {
             </div>
           )}
           <div className="mt-6 space-y-4">
-            {cart.map((item) => (
+            {cartItems.map((item) => (
               <div key={item.product.id} className="flex gap-4 rounded-3xl border border-stone-200 bg-white p-4">
                 <img src={item.product.image} alt={item.product.name} className="h-20 w-20 rounded-2xl object-cover" />
                 <div className="flex-1">
@@ -475,7 +470,7 @@ export const CheckoutForm = () => {
           </div>
           <div className="mt-6 flex items-center justify-between border-t border-stone-200 pt-6 text-xl font-black">
             <span>Total</span>
-            <span className="text-brand-orange">${cartTotal.toFixed(2)} MXN</span>
+            <span className="text-brand-orange">${totalPrice.toFixed(2)} MXN</span>
           </div>
         </aside>
       </div>

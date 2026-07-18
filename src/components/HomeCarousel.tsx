@@ -45,7 +45,7 @@ const HomeCarousel = () => {
             <img
               src={photo.url}
               alt={photo.label || 'Foto de la galería'}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           </div>

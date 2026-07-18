@@ -8,6 +8,7 @@ import {
   isSignInWithEmailLink as fbIsSignInWithEmailLink,
   signInWithEmailLink as fbSignInWithEmailLink,
   signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
   UserCredential,
   ActionCodeSettings,
@@ -75,3 +76,5 @@ export const signInWithEmailLink = (authInstance: Auth, email: string, link: str
 
 // Re-export onAuthStateChanged for convenience
 export { onAuthStateChanged };
+
+export const logout = (): Promise<void> => signOut(auth);

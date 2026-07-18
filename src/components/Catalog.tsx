@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { subscribeToProducts } from '../supabase.js';
+import { useCart } from '../contexts/CartContext.js';
 import type { Product } from '../types.js';
 
 type CatalogCategory = 'all' | Product['category'];
@@ -8,7 +9,6 @@ type CatalogCategory = 'all' | Product['category'];
 interface CatalogProps {
   selectedCategory: CatalogCategory;
   onChangeCategory: (category: CatalogCategory) => void;
-  onAddToCart: (product: Product) => void;
 }
 
 const categoryTabs: {
@@ -52,7 +52,8 @@ const categoryPriceClasses: Record<Product['category'], string> = {
   torito: 'text-brand-lime',
 };
 
-export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: CatalogProps) => {
+export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) => {
+  const { addToCart } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -257,7 +258,7 @@ export const Catalog = ({ selectedCategory, onChangeCategory, onAddToCart }: Cat
                       </p>
                       <button
                         type="button"
-                        onClick={() => onAddToCart(product)}
+                        onClick={() => addToCart(product, 1)}
                         disabled={isOutOfStock}
                         className={`w-full rounded-xl py-4 font-bold tracking-wide shadow-md transition-all duration-300 ${
                           isOutOfStock

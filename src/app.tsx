@@ -1,70 +1,182 @@
-import { lazy, Suspense } from 'react';
+import { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar.js';
 import AdminRoute from './components/AdminRoute.js';
-import { SiteConfigProvider } from './contexts/SiteConfigContext.js';
+import { useCart } from './contexts/CartContext.js';
+import { CartProvider } from './contexts/CartContext.js';
 import { useRealtimeKeepAlive } from './hooks/useRealtimeKeepAlive.js';
+import { Navbar } from './components/Navbar.js';
+import { Hero } from './components/Hero.js';
+import { Catalog } from './components/Catalog.js';
+import { CartSidebar } from './components/CartSidebar.js';
+import { CheckoutForm } from './components/CheckoutForm.js';
+import { OrderConfirmation } from './components/OrderConfirmation.js';
+import { MagicLinkHandler } from './components/MagicLinkHandler.js';
+import { LoginAdmin } from './components/LoginAdmin.js';
+import { VerifyAdminLink } from './components/VerifyAdminLink.js';
 
-const HomePage = lazy(() => import('./components/HomePage.js'));
+// Lazy load AdminDashboard to reduce main bundle size
 const AdminDashboard = lazy(() => import('./components/AdminDashboard.js'));
-const ProductMediaGallery = lazy(() => import('./pages/ProductMediaGallery.js'));
-const VerifyAdminLink = lazy(() => import('./components/VerifyAdminLink.js').then(m => ({ default: m.VerifyAdminLink })));
-const MagicLinkHandler = lazy(() => import('./components/MagicLinkHandler.js').then(m => ({ default: m.MagicLinkHandler })));
-const CheckoutPage = lazy(() => import('./components/CheckoutForm.js').then(m => ({ default: m.CheckoutForm })));
-const OrderConfirmationPage = lazy(() => import('./components/OrderConfirmation.js').then(m => ({ default: m.OrderConfirmation })));
 
-const SuspenseFallback = () => (
-  <div className="flex h-[calc(100vh-80px)] w-full items-center justify-center bg-paper">
-    <div className="flex items-center gap-4">
-      <svg className="animate-spin h-8 w-8 text-brand-orange" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-      <span className="text-xl font-semibold text-stone-700">Cargando...</span>
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-paper">
+    <div className="text-center">
+      <div className="mb-4 text-4xl">🌴</div>
+      <p className="text-stone-600 font-medium">Cargando panel de administración...</p>
     </div>
   </div>
 );
 
-// Un componente simple para envolver y proveer el contexto de autenticación
-const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // En una app real, aquí iría la lógica del AuthContext.Provider
-  return <>{children}</>;
-};
+const SOCIAL_LINKS = {
+  facebook: 'https://www.facebook.com/profile.php?id=100092299282591&mibextid=D4KYlr',
+  instagram: 'https://www.instagram.com/tropicanamahuix?igsh=YWk5dDJ6Y2s0Y3ds',
+} as const;
 
-// Componente wrapper que provee todos los contextos necesarios
-const AppProviders = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <AuthProvider>
-      <SiteConfigProvider>
-        {children}
-      </SiteConfigProvider>
-    </AuthProvider>
-  );
-};
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 
 function App() {
-  // Este hook mantiene viva la conexión con Supabase.
+  const [serverStatus, setServerStatus] = useState<string>('Verificando conexión...');
+  const { cartItems, addToCart, updateQuantity, removeFromCart, clearCart, totalItems, isCartOpen, setIsCartOpen } = useCart();
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
+
+  // Mantener viva la suscripción a Realtime de Supabase para evitar idle_shutdown
   useRealtimeKeepAlive();
 
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/health`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Servidor no responde');
+        return res.json();
+      })
+      .then((data) => setServerStatus(data.message ?? 'Verificando conexión...'))
+      .catch(() => setServerStatus('⚠️ Backend no disponible'));
+  }, []);
+
   return (
-    <AppProviders>
-      <Navbar />
-      <Suspense fallback={<SuspenseFallback />}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/order-confirmation/:orderId" element={<OrderConfirmationPage />} />
-          <Route path="/galeria" element={<ProductMediaGallery />} />
-          <Route path="/magic-link-handler" element={<MagicLinkHandler />} />
-          <Route
-            path="/admin/*"
-            element={<AdminRoute><AdminDashboard /></AdminRoute>}
-          />
-          <Route path="/admin/verify-link" element={<VerifyAdminLink />} />
-          {/* Aquí puedes agregar otras rutas como detalles de producto, carrito, etc. */}
-        </Routes>
-      </Suspense>
-    </AppProviders>
+    <CartProvider>
+      <Routes>
+      <Route
+        path="/"
+        element={
+          <div id="home" className="min-h-screen bg-paper font-sans text-stone-900 scroll-smooth selection:bg-brand-orange/20 selection:text-brand-brown">
+            <Navbar
+              cartItemCount={totalItems}
+              isCartOpen={isCartOpen}
+              setIsCartOpen={setIsCartOpen}
+            />
+
+            <main>
+              <Hero />
+
+              <Catalog
+                selectedCategory={selectedCategory}
+                onChangeCategory={setSelectedCategory}
+                onAddToCart={(product) => addToCart(product, 1)}
+              />
+
+              {/* AdminPanel moved to protected /admin route */}
+
+              <CartSidebar
+                cart={cartItems}
+                isOpen={isCartOpen}
+                setIsOpen={setIsCartOpen}
+                updateQuantity={updateQuantity}
+                removeFromCart={removeFromCart}
+                clearCart={clearCart}
+              />
+            </main>
+
+            <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-16 border-t border-stone-200 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="inline-flex items-center gap-3 bg-white px-5 py-2.5 rounded-full shadow-sm border border-stone-200">
+                  <span className="flex h-3 w-3 relative">
+                    <span
+                      className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        (serverStatus ?? '').includes('⚠️') ? 'bg-rose-400' : 'bg-emerald-400'
+                      }`}
+                    ></span>
+                    <span
+                      className={`relative inline-flex rounded-full h-3 w-3 ${
+                        (serverStatus ?? '').includes('⚠️') ? 'bg-rose-500' : 'bg-emerald-500'
+                      }`}
+                    ></span>
+                  </span>
+                  <p className="text-sm font-medium text-stone-600">
+                    <span className="font-bold text-stone-400 uppercase tracking-wider text-xs mr-2">Core API:</span>
+                    {serverStatus}
+                  </p>
+                </div>
+                <p className="text-xs text-stone-400 font-light">
+                  &copy; {new Date().getFullYear()} Tropicaña — Licores y Toritos 100% Artesanales. Todos los derechos reservados.
+                </p>
+                <div className="flex items-center justify-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  <a
+                    href={SOCIAL_LINKS.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-brand-orange transition-colors"
+                  >
+                    Facebook
+                  </a>
+                  <span className="h-1 w-1 rounded-full bg-brand-orange" aria-hidden="true"></span>
+                  <a
+                    href={SOCIAL_LINKS.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-brand-orange transition-colors"
+                  >
+                    Instagram
+                  </a>
+                </div>
+              </div>
+            </footer>
+          </div>
+        }
+      />
+
+      <Route
+        path="/checkout"
+        element={
+          <div className="min-h-screen bg-paper font-sans text-stone-900">
+            <Navbar cartItemCount={totalItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
+            <CheckoutForm />
+            <CartSidebar
+              cart={cartItems}
+              isOpen={isCartOpen}
+              setIsOpen={setIsCartOpen}
+              updateQuantity={updateQuantity}
+              removeFromCart={removeFromCart}
+              clearCart={clearCart}
+            />
+          </div>
+        }
+      />
+
+      <Route
+        path="/order-confirmation/:orderId"
+        element={
+          <div className="min-h-screen bg-paper font-sans text-stone-900">
+            <Navbar cartItemCount={totalItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
+            <OrderConfirmation />
+          </div>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <Suspense fallback={<LoadingFallback />}>
+              <AdminDashboard />
+            </Suspense>
+          </AdminRoute>
+        }
+      />
+      <Route path="/auth/magic-link" element={<MagicLinkHandler />} />
+      <Route path="/admin/login" element={<LoginAdmin />} />
+      <Route path="/admin/verify-link" element={<VerifyAdminLink />} />
+    </Routes>
+    </CartProvider>
   );
 }
 
