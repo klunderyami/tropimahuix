@@ -42,11 +42,19 @@ const HomeCarousel = () => {
             key={photo.id}
             className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
           >
-            <img
-              src={photo.url}
-              alt={photo.label || 'Foto de la galería'}
-              className="h-full w-full object-contain"
-            />
+            {photo.url.match(/\.(mp4|webm|mov)$/i) ? (
+              <video
+                src={photo.url}
+                className="h-full w-full object-contain"
+                autoPlay loop muted playsInline
+              />
+            ) : (
+              <img
+                src={photo.url}
+                alt={photo.label || 'Foto de la galería'}
+                className="h-full w-full object-contain"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           </div>
         ))}

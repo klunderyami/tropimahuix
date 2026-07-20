@@ -7,18 +7,15 @@ import HomeCarousel from './HomeCarousel.js';
 import type { Product } from '../types.js';
 
 const HomePage = () => {
-  const { addToCart } = useCart();
-  const { config } = useSiteConfig();
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
 
   return (
     <div>
-      <Hero welcomeMessage={config?.welcomeMessage} />
+      <Hero />
       <HomeCarousel />
       <Catalog
         selectedCategory={selectedCategory}
         onChangeCategory={setSelectedCategory}
-        onAddToCart={addToCart}
       />
     </div>
   );

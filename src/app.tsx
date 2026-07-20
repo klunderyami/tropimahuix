@@ -1,7 +1,6 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import AdminRoute from './components/AdminRoute.js';
-import { useCart } from './contexts/CartContext.js';
 import { CartProvider } from './contexts/CartContext.js';
 import { useRealtimeKeepAlive } from './hooks/useRealtimeKeepAlive.js';
 import { Navbar } from './components/Navbar.js';
@@ -34,9 +33,8 @@ const SOCIAL_LINKS = {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 
-function App() {
+function AppContent() {
   const [serverStatus, setServerStatus] = useState<string>('Verificando conexión...');
-  const { cartItems, addToCart, updateQuantity, removeFromCart, clearCart, totalItems, isCartOpen, setIsCartOpen } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
 
   // Mantener viva la suscripción a Realtime de Supabase para evitar idle_shutdown
@@ -53,17 +51,12 @@ function App() {
   }, []);
 
   return (
-    <CartProvider>
-      <Routes>
+    <Routes>
       <Route
         path="/"
         element={
           <div id="home" className="min-h-screen bg-paper font-sans text-stone-900 scroll-smooth selection:bg-brand-orange/20 selection:text-brand-brown">
-            <Navbar
-              cartItemCount={totalItems}
-              isCartOpen={isCartOpen}
-              setIsCartOpen={setIsCartOpen}
-            />
+            <Navbar />
 
             <main>
               <Hero />
@@ -71,19 +64,11 @@ function App() {
               <Catalog
                 selectedCategory={selectedCategory}
                 onChangeCategory={setSelectedCategory}
-                onAddToCart={(product) => addToCart(product, 1)}
               />
 
               {/* AdminPanel moved to protected /admin route */}
 
-              <CartSidebar
-                cart={cartItems}
-                isOpen={isCartOpen}
-                setIsOpen={setIsCartOpen}
-                updateQuantity={updateQuantity}
-                removeFromCart={removeFromCart}
-                clearCart={clearCart}
-              />
+              <CartSidebar />
             </main>
 
             <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-16 border-t border-stone-200 text-center">
@@ -138,16 +123,9 @@ function App() {
         path="/checkout"
         element={
           <div className="min-h-screen bg-paper font-sans text-stone-900">
-            <Navbar cartItemCount={totalItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
+            <Navbar />
             <CheckoutForm />
-            <CartSidebar
-              cart={cartItems}
-              isOpen={isCartOpen}
-              setIsOpen={setIsCartOpen}
-              updateQuantity={updateQuantity}
-              removeFromCart={removeFromCart}
-              clearCart={clearCart}
-            />
+            <CartSidebar />
           </div>
         }
       />
@@ -156,7 +134,7 @@ function App() {
         path="/order-confirmation/:orderId"
         element={
           <div className="min-h-screen bg-paper font-sans text-stone-900">
-            <Navbar cartItemCount={totalItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
+            <Navbar />
             <OrderConfirmation />
           </div>
         }
@@ -176,6 +154,13 @@ function App() {
       <Route path="/admin/login" element={<LoginAdmin />} />
       <Route path="/admin/verify-link" element={<VerifyAdminLink />} />
     </Routes>
+  );
+}
+
+function App() {
+  return (
+    <CartProvider>
+      <AppContent />
     </CartProvider>
   );
 }

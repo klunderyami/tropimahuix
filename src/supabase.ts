@@ -419,7 +419,8 @@ export async function deleteGalleryPhoto(
 export async function getGalleryPhotos(): Promise<GalleryPhoto[]> {
   const response = await fetch('/api/gallery');
   if (!response.ok) {
-    return [];
+    const errorData = await response.json().catch(() => ({ error: `Error al obtener la galería: ${response.statusText}` }));
+    throw new Error(errorData.error || `Error ${response.status}: No se pudo conectar con la galería.`);
   }
   const { photos } = await response.json();
   return (photos ?? []).map(mapGalleryPhoto);

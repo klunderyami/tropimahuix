@@ -272,23 +272,31 @@ const AdminDashboard = () => {
 
   const handleGalleryPhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
-    if (file) {
+    setGalleryFile(null);
+    setGalleryPreview(null);
+
+    if (!file) return;
+
+    if (file.type.startsWith('image/')) {
       try {
         const compressedFile = await compressImageLocally(file);
         setGalleryFile(compressedFile);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setGalleryPreview(reader.result as string);
-        };
-        reader.readAsDataURL(compressedFile);
+        setGalleryPreview(URL.createObjectURL(compressedFile));
       } catch (err) {
         toast.error('Error al procesar la imagen.');
         setGalleryFile(file);
         setGalleryPreview(URL.createObjectURL(file));
       }
+    } else if (file.type.startsWith('video/')) {
+      const MAX_VIDEO_SIZE_MB = 50;
+      if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+        toast.error(`El video es demasiado grande (máx. ${MAX_VIDEO_SIZE_MB}MB).`);
+        return;
+      }
+      setGalleryFile(file);
+      setGalleryPreview(URL.createObjectURL(file));
     } else {
-      setGalleryFile(null);
-      setGalleryPreview(null);
+      toast.error('Tipo de archivo no soportado. Sube una imagen o un video.');
     }
   };
 
@@ -527,7 +535,7 @@ const AdminDashboard = () => {
   const handlePhotoSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!galleryFile) {
-      toast.error('Por favor, selecciona una imagen para subir.');
+      toast.error('Por favor, selecciona un archivo para subir.');
       return;
     }
     setIsSavingPhoto(true);
@@ -535,7 +543,7 @@ const AdminDashboard = () => {
     try {
       const accessToken = await getAccessToken();
       const imageBase64 = await fileToBase64(galleryFile);
-      const imageUrl = await uploadMedia(imageBase64, galleryFile.name, accessToken, galleryFile.type);
+      const imageUrl = await uploadMedia(imageBase64, galleryFile.name, accessToken, galleryFile.type || 'application/octet-stream');
 
       const newPhotoId = await addGalleryPhoto(imageUrl, galleryLabel || 'Galería', accessToken);
 
@@ -974,7 +982,9 @@ const AdminDashboard = () => {
                       galleryPreview ? 'border-emerald-300 bg-emerald-50/50' : 'border-stone-300 bg-white hover:border-brand-orange hover:bg-brand-orange/5'
                     }`}
                   >
-                    {galleryPreview ? (
+                    {galleryPreview && galleryFile?.type.startsWith('video/') ? (
+                      <video src={galleryPreview} controls className="mb-3 max-h-40 rounded-2xl bg-black" />
+                    ) : galleryPreview && galleryFile?.type.startsWith('image/') ? (
                       <img src={galleryPreview} alt="Vista previa" className="mb-3 max-h-40 rounded-2xl object-contain shadow-sm" />
                     ) : (
                       <svg className="mb-3 h-10 w-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -982,14 +992,14 @@ const AdminDashboard = () => {
                       </svg>
                     )}
                     <p className="text-sm font-semibold text-stone-500">
-                      {galleryPreview ? 'Toca para cambiar la imagen' : 'Haz clic para seleccionar una imagen'}
+                      {galleryPreview ? 'Toca para cambiar el archivo' : 'Haz clic para seleccionar imagen o video'}
                     </p>
-                    <p className="mt-1 text-xs text-stone-400">PNG, JPG o WebP</p>
+                    <p className="mt-1 text-xs text-stone-400">Imágenes y videos (hasta 50MB)</p>
                   </div>
                   <input
                     ref={galleryPhotoInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     onChange={handleGalleryPhotoSelect}
                     className="hidden"
                   />
