@@ -704,7 +704,7 @@ app.post('/api/upload/media', requireAdmin, async (req: Request, res: Response, 
           error: `Error al crear bucket 'productos': ${createError.message}. 
           
 Por favor, crea el bucket manualmente en el panel de Supabase:
-1. Ve a https://supabase.com/dashboard/project/tohpxpoxcsciiojcltal/storage/buckets
+1. Ve a ${process.env.SUPABASE_URL?.replace('/rest/v1', '') || 'tu panel de Supabase'}/storage/buckets
 2. Click en "New bucket"
 3. Nombre: productos
 4. Marca "Public bucket"

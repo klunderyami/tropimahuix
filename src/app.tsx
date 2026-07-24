@@ -1,7 +1,8 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import AdminRoute from './components/AdminRoute.js';
-import { CartProvider } from './contexts/CartContext.js';
+import { CartProvider, useCart } from './contexts/CartContext.js';
+import { SiteConfigProvider } from './contexts/SiteConfigContext.js';
 import { useRealtimeKeepAlive } from './hooks/useRealtimeKeepAlive.js';
 import { Navbar } from './components/Navbar.js';
 import { Hero } from './components/Hero.js';
@@ -12,6 +13,14 @@ import { OrderConfirmation } from './components/OrderConfirmation.js';
 import { MagicLinkHandler } from './components/MagicLinkHandler.js';
 import { LoginAdmin } from './components/LoginAdmin.js';
 import { VerifyAdminLink } from './components/VerifyAdminLink.js';
+import { ProductDetailPage } from './pages/ProductDetailPage.js';
+import ContactPage from './pages/ContactPage.js';
+import { LicoresPage } from './pages/LicoresPage.js';
+import { ToritosPage } from './pages/ToritosPage.js';
+import { OrderHistoryPage } from './pages/OrderHistoryPage.js';
+import TermsPage from './pages/TermsPage.js';
+import PrivacyPage from './pages/PrivacyPage.js';
+import GalleryPage from './pages/GalleryPage.js';
 
 // Lazy load AdminDashboard to reduce main bundle size
 const AdminDashboard = lazy(() => import('./components/AdminDashboard.js'));
@@ -34,6 +43,7 @@ const SOCIAL_LINKS = {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 
 function AppContent() {
+  const { totalItems, isCartOpen, setIsCartOpen } = useCart();
   const [serverStatus, setServerStatus] = useState<string>('Verificando conexión...');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
 
@@ -56,7 +66,7 @@ function AppContent() {
         path="/"
         element={
           <div id="home" className="min-h-screen bg-paper font-sans text-stone-900 scroll-smooth selection:bg-brand-orange/20 selection:text-brand-brown">
-            <Navbar />
+            <Navbar cartItemCount={totalItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
 
             <main>
               <Hero />
@@ -123,7 +133,7 @@ function AppContent() {
         path="/checkout"
         element={
           <div className="min-h-screen bg-paper font-sans text-stone-900">
-            <Navbar />
+            <Navbar cartItemCount={totalItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
             <CheckoutForm />
             <CartSidebar />
           </div>
@@ -134,7 +144,7 @@ function AppContent() {
         path="/order-confirmation/:orderId"
         element={
           <div className="min-h-screen bg-paper font-sans text-stone-900">
-            <Navbar />
+            <Navbar cartItemCount={totalItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} />
             <OrderConfirmation />
           </div>
         }
@@ -153,15 +163,27 @@ function AppContent() {
       <Route path="/auth/magic-link" element={<MagicLinkHandler />} />
       <Route path="/admin/login" element={<LoginAdmin />} />
       <Route path="/admin/verify-link" element={<VerifyAdminLink />} />
+      
+      {/* Páginas de contenido */}
+      <Route path="/producto/:id" element={<ProductDetailPage />} />
+      <Route path="/contacto" element={<ContactPage />} />
+      <Route path="/licores" element={<LicoresPage />} />
+      <Route path="/toritos" element={<ToritosPage />} />
+      <Route path="/mis-pedidos" element={<OrderHistoryPage />} />
+      <Route path="/terminos" element={<TermsPage />} />
+      <Route path="/privacidad" element={<PrivacyPage />} />
+      <Route path="/galeria" element={<GalleryPage />} />
     </Routes>
   );
 }
 
 function App() {
   return (
-    <CartProvider>
-      <AppContent />
-    </CartProvider>
+    <SiteConfigProvider>
+      <CartProvider>
+        <AppContent />
+      </CartProvider>
+    </SiteConfigProvider>
   );
 }
 
