@@ -773,14 +773,60 @@ app.get('/api/config', async (_req: Request, res: Response, next: NextFunction) 
 
 app.patch('/api/config', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const configData = req.body;
+    // Lista de campos permitidos en site_config (solo los que existen en la tabla)
+    const allowedFields = [
+      'hero_title',
+      'hero_subtitle',
+      'logo_url',
+      'welcome_message',
+      'intro_title',
+      'intro_text',
+      'video_title',
+      'video_subtitle',
+      'video_image',
+      'licores_header_image',
+      'toritos_header_image',
+      'contact_phone',
+      'footer_text',
+      'visit_count',
+    ];
+
+    // Filtrar solo los campos permitidos y remover valores undefined/null
+    const configData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(req.body)) {
+      if (allowedFields.includes(key) && value !== undefined && value !== null && value !== '') {
+        configData[key] = value;
+      }
+    }
+
+    // Si no hay datos válidos para actualizar, retornar éxito sin hacer la consulta
+    if (Object.keys(configData).length === 0) {
+      return res.status(200).json({ message: 'No changes to save.' });
+    }
+
     const { error } = await supabase
       .from('site_config')
       .upsert(configData)
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Log detallado del error para debugging
+      console.error('❌ [Config Update] Error de Supabase:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        configData,
+      });
+      
+      // Mensaje de error más amigable
+      if (error.message.includes('column') && error.message.includes('does not exist')) {
+        throw new Error(`Error: La columna "${error.message.match(/column "([^"]+)"/)?.[1] || 'desconocida'}" no existe en la tabla. Por favor ejecuta la migración SQL.`);
+      }
+      
+      throw new Error(error.message);
+    }
 
     res.status(200).json({ message: 'Config updated successfully.' });
   } catch (error) {
