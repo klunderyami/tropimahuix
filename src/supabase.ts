@@ -426,6 +426,33 @@ export async function getGalleryPhotos(): Promise<GalleryPhoto[]> {
   return (photos ?? []).map(mapGalleryPhoto);
 }
 
+/**
+ * Obtiene estadísticas del sitio (solo admin).
+ */
+export async function getStats(accessToken: string): Promise<{
+  totalRevenue: number;
+  totalOrders: number;
+  completedOrders: number;
+  pendingOrders: number;
+  visitCount: number;
+  topProduct: { name: string; quantity: number };
+  activeProducts: number;
+  lowStockProducts: number;
+}> {
+  const response = await fetch('/api/stats', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: `Error al obtener estadísticas: ${response.statusText}` }));
+    throw new Error(errorData.error || `Error ${response.status}: No se pudieron cargar las estadísticas.`);
+  }
+
+  return response.json();
+}
+
 // ─── Funciones de mapeo ──────────────────────────────────────────────────────
 
 function mapProduct(data: Record<string, unknown>): Product {
@@ -481,10 +508,14 @@ function mapSiteConfig(data: Record<string, unknown>): SiteConfig {
 }
 
 function mapGalleryPhoto(data: Record<string, unknown>): GalleryPhoto {
+  const url = data.url as string;
+  const isVideo = /\.(mp4|webm|mov|ogg)$/i.test(url);
+  
   return {
     id: data.id as string,
-    url: data.url as string,
+    url: url,
     label: (data.label as string) ?? '',
     createdAt: (data.created_at as string) ?? new Date().toISOString(),
+    mediaType: isVideo ? 'video' : 'image',
   };
 }

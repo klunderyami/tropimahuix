@@ -1132,6 +1132,87 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
   }
 });
 
+// ─── Estadísticas ─────────────────────────────────────────────────────────────
+
+app.get('/api/stats', requireAdmin, async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    // 1. Obtener todos los pedidos
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('id, status, total, created_at');
+
+    if (ordersError) throw new Error(ordersError.message);
+
+    // 2. Obtener todos los productos
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, stock, active');
+
+    if (productsError) throw new Error(productsError.message);
+
+    // 3. Obtener configuración del sitio para contador de visitas
+    const { data: siteConfig, error: configError } = await supabase
+      .from('site_config')
+      .select('visit_count')
+      .single();
+
+    if (configError && configError.code !== 'PGRST116') {
+      console.error('Error fetching site config for stats:', configError);
+    }
+
+    // Calcular métricas
+    const totalOrders = orders?.length || 0;
+    const completedOrders = orders?.filter(o => o.status === 'paid' || o.status === 'delivered').length || 0;
+    const pendingOrders = orders?.filter(o => o.status === 'pending').length || 0;
+    const totalRevenue = orders?.reduce((sum, order) => sum + Number(order.total), 0) || 0;
+
+    // Producto más vendido (basado en items de órdenes completadas)
+    const completedOrdersData = orders?.filter(o => o.status === 'paid' || o.status === 'delivered') || [];
+    const productSalesMap = new Map<string, { name: string; quantity: number }>();
+    
+    for (const order of completedOrdersData) {
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('product_id, quantity, product_name')
+        .eq('order_id', order.id);
+
+      if (orderItems) {
+        for (const item of orderItems) {
+          const current = productSalesMap.get(item.product_id) || { name: item.product_name, quantity: 0 };
+          current.quantity += item.quantity;
+          productSalesMap.set(item.product_id, current);
+        }
+      }
+    }
+
+    // Encontrar el producto más vendido
+    let topProduct = { name: 'N/A', quantity: 0 };
+    for (const [productId, data] of productSalesMap.entries()) {
+      if (data.quantity > topProduct.quantity) {
+        topProduct = { name: data.name, quantity: data.quantity };
+      }
+    }
+
+    // Productos activos y stock bajo
+    const activeProducts = products?.filter(p => p.active !== false).length || 0;
+    const lowStockProducts = products?.filter(p => p.active !== false && p.stock <= 3).length || 0;
+
+    res.status(200).json({
+      totalRevenue,
+      totalOrders,
+      completedOrders,
+      pendingOrders,
+      visitCount: siteConfig?.visit_count || 0,
+      topProduct,
+      activeProducts,
+      lowStockProducts,
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
 // SPA Fallback
 if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.get(/^(?!\/api).*/, (_req: Request, res: Response) => {

@@ -74,6 +74,7 @@ export interface GalleryPhoto {
   url: string;
   label: string;
   createdAt: string;
+  mediaType?: 'image' | 'video';
 }
 
 export type Page = 'home' | 'licores' | 'toritos' | 'cart' | 'admin';

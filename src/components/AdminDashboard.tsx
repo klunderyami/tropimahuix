@@ -15,10 +15,11 @@ import {
   uploadMedia,
   getGalleryPhotos,
   deleteGalleryPhoto,
+  getStats,
 } from '../supabase.js';
 import type { GalleryPhoto, NewProduct, Order, OrderStatus, Product, SiteConfig } from '../types.js';
 
-type AdminTab = 'products' | 'gallery' | 'orders';
+type AdminTab = 'products' | 'gallery' | 'orders' | 'statistics';
 
 const blankProduct: NewProduct = {
   name: '',
@@ -589,6 +590,7 @@ const AdminDashboard = () => {
     { id: 'products', label: 'Productos y Ajustes', icon: '📦' },
     { id: 'gallery', label: 'Galería', icon: '🖼️' },
     { id: 'orders', label: 'Pedidos', icon: '📋' },
+    { id: 'statistics', label: 'Estadísticas', icon: '📊' },
   ];
 
   return (
@@ -1176,6 +1178,131 @@ const AdminDashboard = () => {
                 ))}
               </div>
             )}
+          </section>
+        )}
+
+        {/* TAB: Estadísticas y Métricas */}
+        {activeTab === 'statistics' && (
+          <section className="grid gap-6">
+            {/* Métricas Principales */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  label: 'Ganancias Totales',
+                  value: `$${metrics.revenue.toFixed(2)} MXN`,
+                  icon: '💰',
+                  color: 'bg-emerald-500',
+                },
+                {
+                  label: 'Pedidos Completados',
+                  value: metrics.paidOrders.toString(),
+                  icon: '✅',
+                  color: 'bg-blue-500',
+                },
+                {
+                  label: 'Pedidos Pendientes',
+                  value: orders.filter((o) => o.status === 'pending').length.toString(),
+                  icon: '⏳',
+                  color: 'bg-amber-500',
+                },
+                {
+                  label: 'Productos Activos',
+                  value: metrics.activeProducts.toString(),
+                  icon: '📦',
+                  color: 'bg-brand-orange',
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="glass-card border border-stone-200 bg-white/90 p-6 shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-full ${stat.color} text-white text-xl`}>
+                      {stat.icon}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400">{stat.label}</p>
+                      <p className="mt-1 text-2xl font-black text-brand-brown">{stat.value}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Producto Estrella */}
+            <div className="glass-card border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+              <div className="mb-4">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Producto Estrella</p>
+                <h3 className="mt-2 text-2xl font-display text-brand-brown">Más Vendido</h3>
+              </div>
+              {(() => {
+                const productSales = new Map<string, { name: string; total: number; image: string }>();
+                orders.forEach((order) => {
+                  if (order.status === 'paid' || order.status === 'delivered') {
+                    order.items.forEach((item) => {
+                      const current = productSales.get(item.id) || { name: item.name, total: 0, image: '' };
+                      current.total += item.quantity;
+                      productSales.set(item.id, current);
+                    });
+                  }
+                });
+                const sorted = Array.from(productSales.entries()).sort((a, b) => b[1].total - a[1].total);
+                const topProduct = sorted[0];
+                if (!topProduct) {
+                  return (
+                    <div className="rounded-3xl border-2 border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+                      <p className="text-sm font-semibold text-stone-400">Aún no hay ventas registradas.</p>
+                    </div>
+                  );
+                }
+                const [productId, productData] = topProduct;
+                const product = products.find((p) => p.id === productId);
+                return (
+                  <div className="flex items-center gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
+                    <img
+                      src={product?.image || '/placeholder.png'}
+                      alt={productData.name}
+                      className="h-24 w-24 rounded-2xl object-contain"
+                    />
+                    <div className="flex-1">
+                      <h4 className="text-xl font-black text-brand-brown">{productData.name}</h4>
+                      <p className="mt-1 text-sm text-stone-600">
+                        {productData.total} unidades vendidas
+                      </p>
+                      {product && (
+                        <span className="mt-2 inline-block rounded-full bg-brand-lime px-3 py-1 text-xs font-bold text-brand-brown">
+                          {product.category}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-black text-brand-orange">#{1}</p>
+                      <p className="text-xs font-semibold text-stone-400">Top Ventas</p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Resumen de Pedidos por Estado */}
+            <div className="glass-card border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+              <div className="mb-4">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Resumen de Pedidos</p>
+                <h3 className="mt-2 text-2xl font-display text-brand-brown">Estado de Órdenes</h3>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { status: 'pending', label: 'Pendientes', color: 'bg-amber-100 text-amber-800', count: orders.filter((o) => o.status === 'pending').length },
+                  { status: 'paid', label: 'Pagadas', color: 'bg-emerald-100 text-emerald-800', count: orders.filter((o) => o.status === 'paid').length },
+                  { status: 'delivered', label: 'Entregadas', color: 'bg-blue-100 text-blue-800', count: orders.filter((o) => o.status === 'delivered').length },
+                  { status: 'failed', label: 'Fallidas', color: 'bg-rose-100 text-rose-800', count: orders.filter((o) => o.status === 'failed').length },
+                ].map((stat) => (
+                  <div key={stat.status} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${stat.color}`}>
+                      {stat.label}
+                    </span>
+                    <p className="mt-3 text-3xl font-black text-brand-brown">{stat.count}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
         )}
 
