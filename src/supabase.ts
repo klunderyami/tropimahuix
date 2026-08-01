@@ -508,8 +508,14 @@ function mapSiteConfig(data: Record<string, unknown>): SiteConfig {
 }
 
 function mapGalleryPhoto(data: Record<string, unknown>): GalleryPhoto {
-  const url = data.url as string;
+  // Soportar múltiples nombres de columna para la URL
+  const url = (data.url as string) || (data.image_url as string) || (data.imageUrl as string) || (data.src as string) || '';
   const isVideo = /\.(mp4|webm|mov|ogg)$/i.test(url);
+  
+  // Log para debugging
+  if (!url) {
+    console.warn('[Gallery Mapping] Foto sin URL:', data);
+  }
   
   return {
     id: data.id as string,

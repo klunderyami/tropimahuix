@@ -844,7 +844,21 @@ app.get('/api/gallery', async (_req: Request, res: Response, next: NextFunction)
 
     if (error) throw new Error(error.message);
 
-    res.status(200).json({ photos: data ?? [] });
+    const photos = data ?? [];
+    
+    // Log detallado para debugging
+    console.log('[Gallery API] Photos fetched:', {
+      count: photos.length,
+      photos: photos.map(p => ({
+        id: p.id,
+        url: p.url,
+        label: p.label,
+        mediaType: p.media_type,
+        createdAt: p.created_at,
+      })),
+    });
+
+    res.status(200).json({ photos });
   } catch (error) {
     console.error('Error fetching gallery:', error);
     next(error instanceof Error ? error : new Error(String(error)));

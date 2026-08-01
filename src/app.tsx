@@ -7,6 +7,7 @@ import { useRealtimeKeepAlive } from './hooks/useRealtimeKeepAlive.js';
 import { Navbar } from './components/Navbar.js';
 import { Hero } from './components/Hero.js';
 import { Catalog } from './components/Catalog.js';
+import HomeCarousel from './components/HomeCarousel.js';
 import { CartSidebar } from './components/CartSidebar.js';
 import { CheckoutForm } from './components/CheckoutForm.js';
 import { OrderConfirmation } from './components/OrderConfirmation.js';
@@ -70,6 +71,8 @@ function AppContent() {
 
             <main>
               <Hero />
+
+              <HomeCarousel />
 
               <Catalog
                 selectedCategory={selectedCategory}

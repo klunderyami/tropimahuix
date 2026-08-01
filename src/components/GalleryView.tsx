@@ -12,6 +12,19 @@ const GalleryView = () => {
       try {
         setLoading(true);
         const galleryPhotos = await getGalleryPhotos();
+        
+        // Log detallado para debugging
+        console.log('[GalleryView] Photos loaded:', {
+          count: galleryPhotos.length,
+          photos: galleryPhotos.map(p => ({
+            id: p.id,
+            url: p.url,
+            label: p.label,
+            mediaType: p.mediaType,
+            hasValidUrl: !!p.url,
+          })),
+        });
+        
         setPhotos(galleryPhotos);
       } catch (error) {
         console.error('Error fetching gallery photos:', error);

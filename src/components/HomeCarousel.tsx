@@ -9,8 +9,23 @@ const HomeCarousel = () => {
 
   useEffect(() => {
     getGalleryPhotos()
-      .then(setPhotos)
-      .catch(console.error)
+      .then((photos) => {
+        // Log detallado para debugging
+        console.log('[HomeCarousel] Photos loaded:', {
+          count: photos.length,
+          photos: photos.map(p => ({
+            id: p.id,
+            url: p.url,
+            label: p.label,
+            mediaType: p.mediaType,
+            hasValidUrl: !!p.url,
+          })),
+        });
+        setPhotos(photos);
+      })
+      .catch((error) => {
+        console.error('[HomeCarousel] Error fetching photos:', error);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -43,19 +58,19 @@ const HomeCarousel = () => {
             className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
           >
             <div className="flex h-full w-full items-center justify-center">
-              {photo.url.match(/\.(mp4|webm|mov)$/i) ? (
-                <video
-                  src={photo.url}
-                  className="max-h-full max-w-full object-contain"
-                  autoPlay loop muted playsInline
-                />
-              ) : (
-                <img
-                  src={photo.url}
-                  alt={photo.label || 'Foto de la galería'}
-                  className="max-h-full max-w-full object-contain"
-                />
-              )}
+            {photo.url.match(/\.(mp4|webm|mov)$/i) ? (
+              <video
+                src={photo.url}
+                className="h-full w-full object-contain"
+                autoPlay loop muted playsInline
+              />
+            ) : (
+              <img
+                src={photo.url}
+                alt={photo.label || 'Foto de la galería'}
+                className="h-full w-full object-contain"
+              />
+            )}
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           </div>
