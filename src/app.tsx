@@ -4,6 +4,7 @@ import AdminRoute from './components/AdminRoute.js';
 import { CartProvider, useCart } from './contexts/CartContext.js';
 import { SiteConfigProvider } from './contexts/SiteConfigContext.js';
 import { useRealtimeKeepAlive } from './hooks/useRealtimeKeepAlive.js';
+import { useVisitTracker } from './hooks/useVisitTracker.js';
 import { Navbar } from './components/Navbar.js';
 import { Hero } from './components/Hero.js';
 import { Catalog } from './components/Catalog.js';
@@ -22,6 +23,8 @@ import { OrderHistoryPage } from './pages/OrderHistoryPage.js';
 import TermsPage from './pages/TermsPage.js';
 import PrivacyPage from './pages/PrivacyPage.js';
 import GalleryPage from './pages/GalleryPage.js';
+import DistributorsSection from './components/DistributorsSection.js';
+import FloatingChatWidget from './components/FloatingChatWidget.js';
 
 // Lazy load AdminDashboard to reduce main bundle size
 const AdminDashboard = lazy(() => import('./components/AdminDashboard.js'));
@@ -50,6 +53,9 @@ function AppContent() {
 
   // Mantener viva la suscripción a Realtime de Supabase para evitar idle_shutdown
   useRealtimeKeepAlive();
+  
+  // Rastrear visitas al sitio
+  useVisitTracker();
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/health`)
@@ -81,8 +87,12 @@ function AppContent() {
 
               {/* AdminPanel moved to protected /admin route */}
 
+              <DistributorsSection />
+
               <CartSidebar />
             </main>
+
+            <FloatingChatWidget />
 
             <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-16 border-t border-stone-200 text-center">
               <div className="flex flex-col items-center gap-4">

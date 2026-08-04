@@ -67,6 +67,7 @@ export interface SiteConfig {
   toritosHeaderImage?: string;
   contactPhone?: string;
   footerText?: string;
+  totalVisits?: number;
 }
 
 export interface GalleryPhoto {
@@ -78,3 +79,40 @@ export interface GalleryPhoto {
 }
 
 export type Page = 'home' | 'licores' | 'toritos' | 'cart' | 'admin';
+
+// ─── Distribuidores (B2B Leads) ──────────────────────────────────────────────
+
+export type DistributorLeadStatus = 'pending' | 'contacted' | 'qualified' | 'converted' | 'rejected';
+
+export interface DistributorLead {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  city_state: string;
+  business_name?: string;
+  message?: string;
+  status: DistributorLeadStatus;
+  created_at: string;
+  updated_at?: string;
+}
+
+export type NewDistributorLead = Omit<DistributorLead, 'id' | 'created_at' | 'updated_at' | 'status'>;
+
+// ─── Chat de Atención a Clientes ─────────────────────────────────────────────
+
+export type ChatMessageStatus = 'pending' | 'answered' | 'closed';
+
+export interface ChatMessage {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  message: string;
+  status: ChatMessageStatus;
+  created_at: string;
+  answered_at?: string;
+  answer?: string;
+}
+
+export type NewChatMessage = Omit<ChatMessage, 'id' | 'created_at' | 'answered_at' | 'status' | 'answer'>;

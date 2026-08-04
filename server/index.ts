@@ -1192,6 +1192,298 @@ app.post('/api/orders/capture', async (req: Request, res: Response, next: NextFu
   }
 });
 
+// ─── Rastreo de Visitas ──────────────────────────────────────────────────────
+
+app.post('/api/stats/visit', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Incrementar el contador de visitas de forma atómica usando SQL directo
+    const { data, error } = await supabase.rpc('increment_visit_count');
+    
+    if (error) {
+      console.error('Error incrementing visit count:', error);
+      // Si la función RPC no existe, usar método alternativo
+      const { data: configData, error: fetchError } = await supabase
+        .from('site_config')
+        .select('visit_count')
+        .single();
+      
+      if (fetchError && fetchError.code === 'PGRST116') {
+        // No existe el registro, crearlo
+        const { data: newConfig, error: insertError } = await supabase
+          .from('site_config')
+          .insert({ visit_count: 1 })
+          .select('visit_count')
+          .single();
+
+        if (insertError) {
+          console.error('Error creating site config:', insertError);
+          throw insertError;
+        }
+
+        return res.status(200).json({ visitCount: newConfig?.visit_count || 1 });
+      }
+      
+      throw error;
+    }
+    
+    res.status(200).json({ visitCount: data || 0 });
+  } catch (error) {
+    console.error('Error in /api/stats/visit:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.get('/api/stats/visit', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Obtener el contador actual sin incrementar
+    const { data, error } = await supabase
+      .from('site_config')
+      .select('visit_count')
+      .single();
+
+    if (error) {
+      console.error('Error fetching visit count:', error);
+      return res.status(200).json({ visitCount: 0 });
+    }
+
+    res.status(200).json({ visitCount: data?.visit_count || 0 });
+  } catch (error) {
+    console.error('Error in /api/stats/visit GET:', error);
+    res.status(200).json({ visitCount: 0 });
+  }
+});
+
+// ─── Distribuidores (B2B Leads) ──────────────────────────────────────────────
+
+// Schema de validación para leads de distribuidores
+const DistributorLeadSchema = z.object({
+  full_name: z.string().trim().min(1, 'El nombre es requerido.'),
+  phone: z.string().trim().min(1, 'El teléfono es requerido.'),
+  email: z.string().email('El email no es válido.'),
+  city_state: z.string().trim().min(1, 'La ciudad/estado es requerida.'),
+  business_name: z.string().trim().optional(),
+  message: z.string().trim().optional(),
+});
+
+app.post('/api/distributors', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const validationResult = DistributorLeadSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ error: 'Datos inválidos.', details: validationResult.error.flatten() });
+    }
+
+    const leadData = {
+      ...validationResult.data,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('distributors_leads')
+      .insert([leadData])
+      .select('id')
+      .single();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('Failed to create distributor lead.');
+
+    res.status(201).json({ id: data.id, message: 'Lead created successfully.' });
+  } catch (error) {
+    console.error('Error creating distributor lead:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.get('/api/distributors', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const status = req.query.status as string | undefined;
+    let query = supabase.from('distributors_leads').select('*').order('created_at', { ascending: false });
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({ leads: data ?? [] });
+  } catch (error) {
+    console.error('Error fetching distributor leads:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.patch('/api/distributors/:leadId/status', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const leadId = getRouteParam(req.params.leadId);
+    const { status } = req.body;
+
+    if (!leadId) {
+      return res.status(400).json({ error: 'Missing lead id.' });
+    }
+
+    const validStatuses = ['pending', 'contacted', 'qualified', 'converted', 'rejected'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status.' });
+    }
+
+    const { error } = await supabase
+      .from('distributors_leads')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', leadId);
+
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({ message: 'Lead status updated successfully.' });
+  } catch (error) {
+    console.error('Error updating distributor lead status:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.delete('/api/distributors/:leadId', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const leadId = getRouteParam(req.params.leadId);
+    if (!leadId) {
+      return res.status(400).json({ error: 'Missing lead id.' });
+    }
+
+    const { error } = await supabase
+      .from('distributors_leads')
+      .delete()
+      .eq('id', leadId);
+
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({ message: 'Lead deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting distributor lead:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+// ─── Chat de Atención a Clientes ─────────────────────────────────────────────
+
+// Schema de validación para mensajes de chat
+const ChatMessageSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es requerido.'),
+  email: z.string().email('El email no es válido.').optional().or(z.literal('')),
+  phone: z.string().trim().optional().or(z.literal('')),
+  message: z.string().trim().min(1, 'El mensaje es requerido.'),
+});
+
+app.post('/api/chat', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const validationResult = ChatMessageSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ error: 'Datos inválidos.', details: validationResult.error.flatten() });
+    }
+
+    const messageData = {
+      name: validationResult.data.name,
+      email: validationResult.data.email || null,
+      phone: validationResult.data.phone || null,
+      message: validationResult.data.message,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert([messageData])
+      .select('id')
+      .single();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('Failed to create chat message.');
+
+    res.status(201).json({ id: data.id, message: 'Chat message created successfully.' });
+  } catch (error) {
+    console.error('Error creating chat message:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.get('/api/chat', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const status = req.query.status as string | undefined;
+    let query = supabase.from('chat_messages').select('*').order('created_at', { ascending: false });
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({ messages: data ?? [] });
+  } catch (error) {
+    console.error('Error fetching chat messages:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.patch('/api/chat/:messageId/answer', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const messageId = getRouteParam(req.params.messageId);
+    const { answer } = req.body;
+
+    if (!messageId) {
+      return res.status(400).json({ error: 'Missing message id.' });
+    }
+
+    if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
+      return res.status(400).json({ error: 'Answer is required.' });
+    }
+
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({
+        answer: answer.trim(),
+        status: 'answered',
+        answered_at: new Date().toISOString(),
+      })
+      .eq('id', messageId);
+
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({ message: 'Chat message answered successfully.' });
+  } catch (error) {
+    console.error('Error answering chat message:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+app.patch('/api/chat/:messageId/status', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const messageId = getRouteParam(req.params.messageId);
+    const { status } = req.body;
+
+    if (!messageId) {
+      return res.status(400).json({ error: 'Missing message id.' });
+    }
+
+    const validStatuses = ['pending', 'answered', 'closed'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status.' });
+    }
+
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({ status })
+      .eq('id', messageId);
+
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({ message: 'Chat message status updated successfully.' });
+  } catch (error) {
+    console.error('Error updating chat message status:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
 // ─── Estadísticas ─────────────────────────────────────────────────────────────
 
 app.get('/api/stats', requireAdmin, async (_req: Request, res: Response, next: NextFunction) => {

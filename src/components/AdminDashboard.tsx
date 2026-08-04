@@ -16,10 +16,17 @@ import {
   getGalleryPhotos,
   deleteGalleryPhoto,
   getStats,
+  getVisitCount,
+  getDistributorLeads,
+  updateDistributorLeadStatus,
+  deleteDistributorLead,
+  getChatMessages,
+  updateChatMessageStatus,
+  answerChatMessage,
 } from '../supabase.js';
-import type { GalleryPhoto, NewProduct, Order, OrderStatus, Product, SiteConfig } from '../types.js';
+import type { GalleryPhoto, NewProduct, Order, OrderStatus, Product, SiteConfig, DistributorLead, DistributorLeadStatus, ChatMessage, ChatMessageStatus } from '../types.js';
 
-type AdminTab = 'products' | 'gallery' | 'orders' | 'statistics';
+type AdminTab = 'products' | 'gallery' | 'orders' | 'distributors' | 'chat' | 'statistics';
 
 const blankProduct: NewProduct = {
   name: '',
@@ -142,6 +149,19 @@ const AdminDashboard = () => {
   const [galleryLabel, setGalleryLabel] = useState('');
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const galleryPhotoInputRef = useRef<HTMLInputElement>(null);
+  
+  // Estado para el contador de visitas
+  const [visitCount, setVisitCount] = useState<number>(0);
+
+  // Estado para distribuidores
+  const [distributors, setDistributors] = useState<DistributorLead[]>([]);
+  const [distributorFilter, setDistributorFilter] = useState<string>('all');
+
+  // Estado para chat
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatFilter, setChatFilter] = useState<string>('all');
+  const [selectedMessage, setSelectedMessage] = useState<ChatMessage | null>(null);
+  const [answerText, setAnswerText] = useState('');
 
   useEffect(() => {
     // --- Product Listener (Supabase realtime) ---
@@ -184,6 +204,41 @@ const AdminDashboard = () => {
     };
     fetchGalleryPhotos();
 
+    // --- Visit Counter Fetcher ---
+    const fetchVisitCount = async () => {
+      try {
+        const count = await getVisitCount();
+        setVisitCount(count);
+      } catch (err) {
+        console.error('Error fetching visit count:', err);
+      }
+    };
+    fetchVisitCount();
+
+    // --- Distributors Fetcher ---
+    const fetchDistributors = async () => {
+      try {
+        const token = await getAccessToken();
+        const leads = await getDistributorLeads(token);
+        setDistributors(leads);
+      } catch (err) {
+        console.error('Error fetching distributors:', err);
+      }
+    };
+    fetchDistributors();
+
+    // --- Chat Messages Fetcher ---
+    const fetchChatMessages = async () => {
+      try {
+        const token = await getAccessToken();
+        const messages = await getChatMessages(token);
+        setChatMessages(messages);
+      } catch (err) {
+        console.error('Error fetching chat messages:', err);
+      }
+    };
+    fetchChatMessages();
+
     return () => {
       unsubscribeProducts();
     };
@@ -201,8 +256,9 @@ const AdminDashboard = () => {
       lowStock: products.filter((product) => product.active !== false && product.stock <= 3).length,
       paidOrders: paidOrders.length,
       revenue: paidOrders.reduce((sum, order) => sum + order.total, 0),
+      visitCount: visitCount,
     };
-  }, [orders, products]);
+  }, [orders, products, visitCount]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -581,6 +637,75 @@ const AdminDashboard = () => {
     }
   };
 
+  // ─── Handlers de Distribuidores ─────────────────────────────────────────────
+
+  const handleDistributorStatusChange = async (leadId: string, status: DistributorLeadStatus) => {
+    try {
+      const accessToken = await getAccessToken();
+      await updateDistributorLeadStatus(leadId, status, accessToken);
+      setDistributors(prev => prev.map(lead => lead.id === leadId ? { ...lead, status } : lead));
+      toast.success('Estado actualizado.');
+    } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al actualizar estado:', caughtError);
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar el estado.');
+    }
+  };
+
+  const handleDeleteDistributor = async (leadId: string) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este lead?')) {
+      return;
+    }
+    try {
+      const accessToken = await getAccessToken();
+      await deleteDistributorLead(leadId, accessToken);
+      setDistributors(prev => prev.filter(lead => lead.id !== leadId));
+      toast.success('Lead eliminado.');
+    } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al eliminar lead:', caughtError);
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo eliminar el lead.');
+    }
+  };
+
+  // ─── Handlers de Chat ───────────────────────────────────────────────────────
+
+  const handleAnswerSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedMessage || !answerText.trim()) {
+      toast.error('Por favor, escribe una respuesta.');
+      return;
+    }
+
+    try {
+      const accessToken = await getAccessToken();
+      await answerChatMessage(selectedMessage.id, answerText, accessToken);
+      
+      setChatMessages(prev => prev.map(msg => 
+        msg.id === selectedMessage.id 
+          ? { ...msg, answer: answerText, status: 'answered' as ChatMessageStatus, answered_at: new Date().toISOString() }
+          : msg
+      ));
+      
+      toast.success('Respuesta enviada.');
+      setSelectedMessage(null);
+      setAnswerText('');
+    } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al responder:', caughtError);
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo enviar la respuesta.');
+    }
+  };
+
+  const handleChatStatusChange = async (messageId: string, status: ChatMessageStatus) => {
+    try {
+      const accessToken = await getAccessToken();
+      await updateChatMessageStatus(messageId, status, accessToken);
+      setChatMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, status } : msg));
+      toast.success('Estado actualizado.');
+    } catch (caughtError) {
+      console.error('❌ [AdminDashboard] Error al actualizar estado:', caughtError);
+      toast.error(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar el estado.');
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut(auth);
     window.location.href = '/';
@@ -590,6 +715,8 @@ const AdminDashboard = () => {
     { id: 'products', label: 'Productos y Ajustes', icon: '📦' },
     { id: 'gallery', label: 'Galería', icon: '🖼️' },
     { id: 'orders', label: 'Pedidos', icon: '📋' },
+    { id: 'distributors', label: 'Distribuidores', icon: '🤝' },
+    { id: 'chat', label: 'Chat', icon: '💬' },
     { id: 'statistics', label: 'Estadísticas', icon: '📊' },
   ];
 
@@ -620,8 +747,9 @@ const AdminDashboard = () => {
             ['Stock bajo', metrics.lowStock.toString()],
             ['Pedidos pagados', metrics.paidOrders.toString()],
             ['Ingresos totales', `$${metrics.revenue.toFixed(2)}`],
-          ].map(([label, value]) => (
-            <div key={label} className="glass-card border border-stone-200 bg-white/85 p-5 shadow-lg">
+            ['Total de Visitas', metrics.visitCount.toString(), 'bg-gradient-to-br from-brand-orange/10 to-brand-gold/10 border-brand-orange/30'],
+          ].map(([label, value, extraClass]) => (
+            <div key={label} className={`glass-card border border-stone-200 bg-white/85 p-5 shadow-lg ${extraClass || ''}`}>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400">{label}</p>
               <p className="mt-2 text-3xl font-black text-brand-brown">{value}</p>
             </div>
@@ -1340,6 +1468,153 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB: Gestión de Distribuidores */}
+        {activeTab === 'distributors' && (
+          <section className="glass-card border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+            <div className="mb-6">
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">B2B Leads</p>
+              <h2 className="mt-2 text-4xl font-display text-brand-brown">
+                Leads de Distribuidores
+                <span className="ml-2 text-base font-normal text-stone-400">({distributors.length})</span>
+              </h2>
+            </div>
+
+            {distributors.length === 0 ? (
+              <div className="rounded-3xl border-2 border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+                <p className="text-sm font-semibold text-stone-400">No hay leads de distribuidores aún.</p>
+                <p className="mt-2 text-xs text-stone-400">Los leads aparecerán aquí cuando los usuarios llenen el formulario.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {distributors.map((lead) => (
+                  <article key={lead.id} className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-black text-brand-brown">{lead.full_name}</h3>
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                            lead.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                            lead.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
+                            lead.status === 'qualified' ? 'bg-purple-100 text-purple-800' :
+                            lead.status === 'converted' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-rose-100 text-rose-800'
+                          }`}>
+                            {lead.status === 'pending' ? 'Pendiente' :
+                             lead.status === 'contacted' ? 'Contactado' :
+                             lead.status === 'qualified' ? 'Calificado' :
+                             lead.status === 'converted' ? 'Convertido' : 'Rechazado'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-stone-600">
+                          📞 {lead.phone} · 📧 {lead.email}
+                        </p>
+                        <p className="mt-1 text-sm text-stone-600">
+                          📍 {lead.city_state}
+                        </p>
+                        {lead.business_name && (
+                          <p className="mt-1 text-sm text-stone-600">
+                            🏪 {lead.business_name}
+                          </p>
+                        )}
+                        {lead.message && (
+                          <p className="mt-2 text-sm text-stone-500 italic">"{lead.message}"</p>
+                        )}
+                        <p className="mt-2 text-xs text-stone-400">
+                          {new Date(lead.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 lg:flex-col">
+                        <select
+                          value={lead.status}
+                          onChange={(e) => handleDistributorStatusChange(lead.id, e.target.value as DistributorLeadStatus)}
+                          className="rounded-full border border-stone-300 px-3 py-2 text-xs font-bold text-stone-700"
+                        >
+                          <option value="pending">Pendiente</option>
+                          <option value="contacted">Contactado</option>
+                          <option value="qualified">Calificado</option>
+                          <option value="converted">Convertido</option>
+                          <option value="rejected">Rechazado</option>
+                        </select>
+                        <button
+                          onClick={() => handleDeleteDistributor(lead.id)}
+                          className="rounded-full border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB: Gestión de Chat */}
+        {activeTab === 'chat' && (
+          <section className="glass-card border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+            <div className="mb-6">
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Mensajes</p>
+              <h2 className="mt-2 text-4xl font-display text-brand-brown">
+                Mensajes de Chat
+                <span className="ml-2 text-base font-normal text-stone-400">({chatMessages.length})</span>
+              </h2>
+            </div>
+
+            {chatMessages.length === 0 ? (
+              <div className="rounded-3xl border-2 border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+                <p className="text-sm font-semibold text-stone-400">No hay mensajes aún.</p>
+                <p className="mt-2 text-xs text-stone-400">Los mensajes aparecerán aquí cuando los usuarios envíen consultas.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {chatMessages.map((msg) => (
+                  <article key={msg.id} className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-black text-brand-brown">{msg.name}</h3>
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                            msg.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                            msg.status === 'answered' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-stone-100 text-stone-600'
+                          }`}>
+                            {msg.status === 'pending' ? 'Pendiente' :
+                             msg.status === 'answered' ? 'Respondido' : 'Cerrado'}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-stone-400">
+                          {new Date(msg.created_at).toLocaleString()}
+                        </p>
+                        <div className="mt-3 rounded-2xl bg-stone-50 p-4">
+                          <p className="text-sm text-stone-700">{msg.message}</p>
+                        </div>
+                        {msg.answer && (
+                          <div className="mt-3 rounded-2xl bg-emerald-50 p-4 border border-emerald-200">
+                            <p className="text-xs font-bold text-emerald-800 mb-1">Respuesta:</p>
+                            <p className="text-sm text-stone-700">{msg.answer}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <select
+                          value={msg.status}
+                          onChange={(e) => handleChatStatusChange(msg.id, e.target.value as ChatMessageStatus)}
+                          className="rounded-full border border-stone-300 px-3 py-2 text-xs font-bold text-stone-700"
+                        >
+                          <option value="pending">Pendiente</option>
+                          <option value="answered">Respondido</option>
+                          <option value="closed">Cerrado</option>
+                        </select>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </div>
     </main>

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Product, Order, SiteConfig, GalleryPhoto } from './types.js';
+import type { Product, Order, SiteConfig, GalleryPhoto, DistributorLead, NewDistributorLead, DistributorLeadStatus, ChatMessage, NewChatMessage, ChatMessageStatus } from './types.js';
 
 // Variables de entorno para Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -427,6 +427,56 @@ export async function getGalleryPhotos(): Promise<GalleryPhoto[]> {
 }
 
 /**
+ * Registra una visita al sitio (público - no requiere autenticación).
+ */
+export async function trackVisit(): Promise<number> {
+  try {
+    const response = await fetch('/api/stats/visit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Error tracking visit:', response.status);
+      return 0;
+    }
+
+    const data = await response.json();
+    return data.visitCount || 0;
+  } catch (error) {
+    console.error('Error tracking visit:', error);
+    return 0;
+  }
+}
+
+/**
+ * Obtiene el contador de visitas actual (público).
+ */
+export async function getVisitCount(): Promise<number> {
+  try {
+    const response = await fetch('/api/stats/visit', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Error fetching visit count:', response.status);
+      return 0;
+    }
+
+    const data = await response.json();
+    return data.visitCount || 0;
+  } catch (error) {
+    console.error('Error fetching visit count:', error);
+    return 0;
+  }
+}
+
+/**
  * Obtiene estadísticas del sitio (solo admin).
  */
 export async function getStats(accessToken: string): Promise<{
@@ -523,5 +573,165 @@ function mapGalleryPhoto(data: Record<string, unknown>): GalleryPhoto {
     label: (data.label as string) ?? '',
     createdAt: (data.created_at as string) ?? new Date().toISOString(),
     mediaType: isVideo ? 'video' : 'image',
+  };
+}
+
+// ─── Distribuidores (B2B Leads) ──────────────────────────────────────────────
+
+/**
+ * Crea un nuevo lead de distribuidor (público - no requiere autenticación).
+ */
+export async function createDistributorLead(lead: NewDistributorLead): Promise<string> {
+  const response = await fetch('/api/distributors', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(lead),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ error: 'Error al crear lead' }));
+    throw new Error(data.error || `Error ${response.status}: No se pudo registrar el lead.`);
+  }
+
+  const data = await response.json();
+  return data.id;
+}
+
+/**
+ * Obtiene todos los leads de distribuidores (solo admin).
+ */
+export async function getDistributorLeads(accessToken: string, statusFilter?: string): Promise<DistributorLead[]> {
+  const url = new URL('/api/distributors', window.location.origin);
+  if (statusFilter) {
+    url.searchParams.set('status', statusFilter);
+  }
+
+  const { leads } = await authedFetch<{ leads: Record<string, unknown>[] }>(url.toString(), {
+    method: 'GET',
+  }, accessToken);
+
+  return (leads ?? []).map(mapDistributorLead);
+}
+
+/**
+ * Actualiza el estado de un lead de distribuidor (solo admin).
+ */
+export async function updateDistributorLeadStatus(
+  leadId: string,
+  status: DistributorLeadStatus,
+  accessToken: string,
+): Promise<void> {
+  await authedFetch(`/api/distributors/${leadId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  }, accessToken);
+}
+
+/**
+ * Elimina un lead de distribuidor (solo admin).
+ */
+export async function deleteDistributorLead(leadId: string, accessToken: string): Promise<void> {
+  await authedFetch(`/api/distributors/${leadId}`, {
+    method: 'DELETE',
+  }, accessToken);
+}
+
+// ─── Chat de Atención a Clientes ─────────────────────────────────────────────
+
+/**
+ * Crea un nuevo mensaje de chat (público - no requiere autenticación).
+ */
+export async function createChatMessage(message: NewChatMessage): Promise<string> {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(message),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ error: 'Error al enviar mensaje' }));
+    throw new Error(data.error || `Error ${response.status}: No se pudo enviar el mensaje.`);
+  }
+
+  const data = await response.json();
+  return data.id;
+}
+
+/**
+ * Obtiene todos los mensajes de chat (solo admin).
+ */
+export async function getChatMessages(accessToken: string, statusFilter?: string): Promise<ChatMessage[]> {
+  const url = new URL('/api/chat', window.location.origin);
+  if (statusFilter) {
+    url.searchParams.set('status', statusFilter);
+  }
+
+  const { messages } = await authedFetch<{ messages: Record<string, unknown>[] }>(url.toString(), {
+    method: 'GET',
+  }, accessToken);
+
+  return (messages ?? []).map(mapChatMessage);
+}
+
+/**
+ * Responde a un mensaje de chat (solo admin).
+ */
+export async function answerChatMessage(
+  messageId: string,
+  answer: string,
+  accessToken: string,
+): Promise<void> {
+  await authedFetch(`/api/chat/${messageId}/answer`, {
+    method: 'PATCH',
+    body: JSON.stringify({ answer }),
+  }, accessToken);
+}
+
+/**
+ * Actualiza el estado de un mensaje de chat (solo admin).
+ */
+export async function updateChatMessageStatus(
+  messageId: string,
+  status: ChatMessageStatus,
+  accessToken: string,
+): Promise<void> {
+  await authedFetch(`/api/chat/${messageId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  }, accessToken);
+}
+
+// ─── Funciones de mapeo adicionales ──────────────────────────────────────────
+
+function mapDistributorLead(data: Record<string, unknown>): DistributorLead {
+  return {
+    id: data.id as string,
+    full_name: (data.full_name as string) ?? '',
+    phone: (data.phone as string) ?? '',
+    email: (data.email as string) ?? '',
+    city_state: (data.city_state as string) ?? '',
+    business_name: (data.business_name as string) || undefined,
+    message: (data.message as string) || undefined,
+    status: (data.status as DistributorLeadStatus) ?? 'pending',
+    created_at: (data.created_at as string) ?? new Date().toISOString(),
+    updated_at: (data.updated_at as string) || undefined,
+  };
+}
+
+function mapChatMessage(data: Record<string, unknown>): ChatMessage {
+  return {
+    id: data.id as string,
+    name: (data.name as string) ?? '',
+    email: (data.email as string) || undefined,
+    phone: (data.phone as string) || undefined,
+    message: (data.message as string) ?? '',
+    status: (data.status as ChatMessageStatus) ?? 'pending',
+    created_at: (data.created_at as string) ?? new Date().toISOString(),
+    answered_at: (data.answered_at as string) || undefined,
+    answer: (data.answer as string) || undefined,
   };
 }
