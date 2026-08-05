@@ -28,9 +28,12 @@ export const Navbar: React.FC<NavbarProps> = ({ cartItemCount, isCartOpen, setIs
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6">
-          <Link to="/" className="text-sm font-medium text-stone-600 hover:text-brand-orange transition-colors">Inicio</Link>
-          <a href="#catalog" className="text-sm font-medium text-stone-600 hover:text-brand-orange transition-colors">Catálogo</a>
+        <div className="hidden md:flex items-center gap-8">
+          <Link to="/" className="text-sm font-semibold text-stone-700 hover:text-brand-orange transition-colors">Inicio</Link>
+          <Link to="/licores" className="text-sm font-semibold text-stone-700 hover:text-brand-orange transition-colors">Licores</Link>
+          <Link to="/toritos" className="text-sm font-semibold text-stone-700 hover:text-brand-orange transition-colors">Toritos</Link>
+          <a href="#catalog" className="text-sm font-semibold text-stone-700 hover:text-brand-orange transition-colors">Catálogo</a>
+          <Link to="/contacto" className="text-sm font-semibold text-stone-700 hover:text-brand-orange transition-colors">Distribuidores</Link>
           <AdminLink />
         </div>
 

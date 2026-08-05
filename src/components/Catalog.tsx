@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { subscribeToProducts } from '../supabase.js';
 import { useCart } from '../contexts/CartContext.js';
 import type { Product } from '../types.js';
@@ -199,7 +200,7 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
         ) : (
           <motion.div
             key={selectedCategory}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10"
+            className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -214,53 +215,57 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
                 <motion.article
                   key={product.id}
                   variants={cardVariants}
-                  className={`glass-card overflow-hidden border border-stone-200/60 bg-white/85 shadow-lg transition-all duration-300 flex flex-col justify-between group ${
+                  className={`glass-card overflow-hidden border border-stone-200/60 bg-white/85 shadow-lg transition-all duration-300 flex flex-col group ${
                     isOutOfStock ? 'opacity-75' : 'hover:shadow-2xl hover:-translate-y-1'
                   }`}
                 >
-                  <div className="h-80 overflow-hidden relative group-hover:cursor-pointer bg-stone-50">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
-                        isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
-                      }`}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/45 via-transparent to-transparent opacity-80 transition-opacity duration-300" />
-                    <div
-                      className={`absolute top-4 right-4 backdrop-blur-md text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider shadow-md ${categoryBadgeClass}`}
-                    >
-                      {categoryLabel}
-                    </div>
-                    {isOutOfStock && (
-                      <div className="absolute inset-x-6 bottom-6 rounded-xl bg-stone-950/80 px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.2em] text-white backdrop-blur-md">
-                        Agotado
+                  <Link to={`/producto/${product.id}`} className="block">
+                    <div className="h-64 md:h-80 overflow-hidden relative bg-stone-50">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
+                          isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
+                        }`}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent opacity-70 transition-opacity duration-300" />
+                      <div
+                        className={`absolute top-3 right-3 backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-md ${categoryBadgeClass}`}
+                      >
+                        {categoryLabel}
                       </div>
-                    )}
-                  </div>
+                      {isOutOfStock && (
+                        <div className="absolute inset-x-4 bottom-4 rounded-lg bg-stone-950/80 px-3 py-2 text-center text-xs font-bold uppercase tracking-[0.2em] text-white backdrop-blur-md">
+                          Agotado
+                        </div>
+                      )}
+                    </div>
+                  </Link>
 
-                  <div className="p-8 text-center flex-grow flex flex-col justify-between">
+                  <div className="p-5 md:p-6 text-center flex-grow flex flex-col justify-between">
                     <div>
-                      <h3 className="text-2xl font-bold text-brand-brown mb-3 group-hover:text-brand-orange transition-colors duration-300">
-                        {product.name}
-                      </h3>
-                      <p className="text-stone-500 text-sm leading-relaxed mb-6">{product.description}</p>
-                      <p className="text-sm text-stone-400 font-medium uppercase tracking-[0.2em] mb-4">
+                      <Link to={`/producto/${product.id}`}>
+                        <h3 className="text-xl md:text-2xl font-bold text-brand-brown mb-2 group-hover:text-brand-orange transition-colors duration-300">
+                          {product.name}
+                        </h3>
+                      </Link>
+                      <p className="text-stone-500 text-sm leading-relaxed mb-4 line-clamp-2">{product.description}</p>
+                      <p className="text-xs text-stone-400 font-medium uppercase tracking-[0.2em] mb-4">
                         Cont. Neto {product.volume}
                       </p>
                     </div>
 
                     <div>
-                      <p className="text-4xl font-extrabold text-brand-brown mb-6 flex items-center justify-center gap-1">
-                        <span className={`text-2xl font-bold ${categoryPriceClass}`}>$</span>
+                      <p className="text-3xl md:text-4xl font-extrabold text-brand-brown mb-4 flex items-center justify-center gap-1">
+                        <span className={`text-xl font-bold ${categoryPriceClass}`}>$</span>
                         {product.price}
-                        <span className="text-sm text-stone-400 font-semibold ml-1">MXN</span>
+                        <span className="text-xs text-stone-400 font-semibold ml-1">MXN</span>
                       </p>
                       <button
                         type="button"
                         onClick={() => addToCart(product, 1)}
                         disabled={isOutOfStock}
-                        className={`w-full rounded-xl py-4 font-bold tracking-wide shadow-md transition-all duration-300 ${
+                        className={`w-full rounded-xl py-3.5 text-sm font-bold tracking-wide shadow-md transition-all duration-300 ${
                           isOutOfStock
                             ? 'cursor-not-allowed bg-stone-200 text-stone-500 shadow-none'
                             : product.category === 'torito'

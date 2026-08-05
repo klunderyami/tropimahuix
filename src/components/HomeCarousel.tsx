@@ -62,7 +62,7 @@ const HomeCarousel = () => {
               <video
                 src={photo.url}
                 className="h-full w-full object-contain"
-                autoPlay loop muted playsInline
+                autoPlay loop playsInline
               />
             ) : (
               <img
