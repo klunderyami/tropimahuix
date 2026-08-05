@@ -34,8 +34,7 @@ const DistributorsSection = () => {
         business_name: '',
         message: '',
       });
-    } catch (error) {
-      console.error('Error submitting distributor lead:', error);
+    } catch {
       toast.error('Error al enviar el formulario. Por favor, intenta de nuevo.', {
         duration: 4000,
       });

@@ -80,8 +80,8 @@ function AppContent() {
         const imagesOnly = photos.filter(p => !p.url.match(/\.(mp4|webm|mov)$/i));
         setGalleryImages(imagesOnly.slice(0, 4)); // Usar máximo 4 imágenes
       })
-      .catch((error) => {
-        console.error('Error loading gallery images:', error);
+      .catch(() => {
+        // Error silencioso - el componente maneja el estado de loading
       })
       .finally(() => setLoadingGallery(false));
   }, []);

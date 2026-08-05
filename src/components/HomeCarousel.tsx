@@ -11,21 +11,10 @@ const HomeCarousel = () => {
   useEffect(() => {
     getGalleryPhotos()
       .then((photos) => {
-        // Log detallado para debugging
-        console.log('[HomeCarousel] Photos loaded:', {
-          count: photos.length,
-          photos: photos.map(p => ({
-            id: p.id,
-            url: p.url,
-            label: p.label,
-            mediaType: p.mediaType,
-            hasValidUrl: !!p.url,
-          })),
-        });
         setPhotos(photos);
       })
-      .catch((error) => {
-        console.error('[HomeCarousel] Error fetching photos:', error);
+      .catch(() => {
+        // Error silencioso - el componente maneja el estado de loading
       })
       .finally(() => setLoading(false));
   }, []);
