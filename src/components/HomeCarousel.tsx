@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getGalleryPhotos } from '../supabase.js';
 import type { GalleryPhoto } from '../types.js';
 
@@ -49,15 +49,26 @@ const HomeCarousel = () => {
     return null; // Don't render anything if there are no photos
   }
 
+  // Ordenar: videos primero, luego imágenes
+  const sortedPhotos = useMemo(() => {
+    return [...photos].sort((a: GalleryPhoto, b: GalleryPhoto) => {
+      const aIsVideo = a.url.match(/\.(mp4|webm|mov)$/i);
+      const bIsVideo = b.url.match(/\.(mp4|webm|mov)$/i);
+      if (aIsVideo && !bIsVideo) return -1;
+      if (!aIsVideo && bIsVideo) return 1;
+      return 0;
+    });
+  }, [photos]);
+
   return (
-    <section className="relative h-[60vh] w-full">
-      <div className="h-full w-full overflow-hidden rounded-lg bg-stone-900">
-        {photos.map((photo, index) => (
+    <section className="relative h-[85vh] w-full">
+      <div className="h-full w-full overflow-hidden rounded-xl bg-stone-900">
+        {sortedPhotos.map((photo: GalleryPhoto, index: number) => (
           <div
             key={photo.id}
             className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
           >
-            <div className="flex h-full w-full items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center bg-black">
             {photo.url.match(/\.(mp4|webm|mov)$/i) ? (
               <video
                 src={photo.url}
@@ -72,21 +83,26 @@ const HomeCarousel = () => {
               />
             )}
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            {photo.label && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-center">
+                <p className="text-white text-lg md:text-2xl font-bold drop-shadow-lg">{photo.label}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      <button onClick={goToPrevious} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/50 p-2 text-stone-800 backdrop-blur-sm transition hover:bg-white">
+      <button onClick={goToPrevious} className="absolute left-6 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-3 text-stone-800 backdrop-blur-sm transition hover:bg-white hover:scale-110">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
       </button>
-      <button onClick={goToNext} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/50 p-2 text-stone-800 backdrop-blur-sm transition hover:bg-white">
+      <button onClick={goToNext} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-3 text-stone-800 backdrop-blur-sm transition hover:bg-white hover:scale-110">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
       </button>
 
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-        {photos.map((_, index) => (
-          <button key={index} onClick={() => setCurrentIndex(index)} className={`h-2 w-2 rounded-full transition ${currentIndex === index ? 'bg-white' : 'bg-white/50'}`} />
+      <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 gap-3">
+        {sortedPhotos.map((_: GalleryPhoto, index: number) => (
+          <button key={index} onClick={() => setCurrentIndex(index)} className={`h-3 w-3 rounded-full transition-all ${currentIndex === index ? 'bg-white w-8' : 'bg-white/50 hover:bg-white/75'}`} />
         ))}
       </div>
     </section>
