@@ -260,12 +260,23 @@ const AdminDashboard = () => {
 
   const metrics = useMemo(() => {
     const paidOrders = orders.filter((order) => order.status === 'paid' || order.status === 'delivered');
+    
+    // Calcular métricas de discovery source
+    const discoverySourceCounts: Record<string, number> = {};
+    paidOrders.forEach((order) => {
+      const source = (order as any).discoverySource;
+      if (source) {
+        discoverySourceCounts[source] = (discoverySourceCounts[source] || 0) + 1;
+      }
+    });
+    
     return {
       activeProducts: products.filter((product) => product.active !== false).length,
       lowStock: products.filter((product) => product.active !== false && product.stock <= 3).length,
       paidOrders: paidOrders.length,
       revenue: paidOrders.reduce((sum, order) => sum + order.total, 0),
       visitCount: visitCount,
+      discoverySourceCounts,
     };
   }, [orders, products, visitCount]);
 
@@ -734,6 +745,14 @@ const AdminDashboard = () => {
     { id: 'chat', label: 'Chat', icon: '💬' },
     { id: 'statistics', label: 'Estadísticas', icon: '📊' },
   ];
+
+  const discoverySourceLabels: Record<string, string> = {
+    social_media: 'Redes Sociales',
+    friend_recommendation: 'Recomendación',
+    google_search: 'Búsqueda en Google',
+    physical_location: 'Negocio/Local/Evento',
+    other: 'Otro',
+  };
 
   return (
     <main className="min-h-screen bg-paper px-4 py-10 font-sans text-stone-900 sm:px-6 lg:px-8">
@@ -1422,6 +1441,45 @@ const AdminDashboard = () => {
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Fuentes de Descubrimiento */}
+            <div className="glass-card border border-brand-gold/20 bg-white/90 p-6 shadow-xl">
+              <div className="mb-4">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange">Marketing</p>
+                <h3 className="mt-2 text-2xl font-display text-brand-brown">¿Cómo nos descubren?</h3>
+              </div>
+              {Object.keys(metrics.discoverySourceCounts).length === 0 ? (
+                <div className="rounded-3xl border-2 border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+                  <p className="text-sm font-semibold text-stone-400">Aún no hay datos de fuentes de descubrimiento.</p>
+                  <p className="mt-2 text-xs text-stone-400">Los datos aparecerán cuando los clientes completen pedidos.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {Object.entries(metrics.discoverySourceCounts)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([source, count]) => {
+                      const percentage = Math.round((count / metrics.paidOrders) * 100);
+                      return (
+                        <div key={source} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-bold text-brand-brown">
+                              {discoverySourceLabels[source] || source}
+                            </p>
+                            <span className="text-2xl font-black text-brand-orange">{count}</span>
+                          </div>
+                          <div className="w-full bg-stone-200 rounded-full h-2 mb-2">
+                            <div 
+                              className="bg-brand-orange h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-stone-500">{percentage}% de los pedidos</p>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
 
             {/* Resumen de Pedidos por Estado */}

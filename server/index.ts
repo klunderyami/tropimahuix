@@ -317,6 +317,7 @@ const ShippingAddressSchema = z.object({
 const CreateOrderSchema = z.object({
   items: z.array(CheckoutItemSchema).min(1, 'El carrito no puede estar vacío.'),
   shippingAddress: ShippingAddressSchema,
+  discoverySource: z.enum(['social_media', 'friend_recommendation', 'google_search', 'physical_location', 'other']).optional(),
 });
 
 function normalizeShippingAddress(address: ShippingAddress): ShippingAddress {
@@ -994,7 +995,7 @@ app.post('/api/orders/create', async (req: Request, res: Response, next: NextFun
       return res.status(400).json({ error: 'Datos de la orden inválidos.', details: validationResult.error.flatten() });
     }
     
-    const { items, shippingAddress: rawShippingAddress } = validationResult.data;
+    const { items, shippingAddress: rawShippingAddress, discoverySource } = validationResult.data;
 
     const userId = await getOptionalUserId(req);
     console.log('📝 [Checkout] User ID:', userId);
@@ -1052,6 +1053,7 @@ app.post('/api/orders/create', async (req: Request, res: Response, next: NextFun
       p_items: orderItems, // El RPC solo usará 'id' y 'quantity' de este array
       p_total: total,
       p_shipping_address: shippingAddress,
+      p_discovery_source: discoverySource || null,
     })
       .select('id')
       .single();

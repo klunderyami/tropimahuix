@@ -4,7 +4,7 @@ import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, login, sendLoginLink } from '../firebase.js';
 import { useCart } from '../contexts/CartContext.js';
-import type { OrderItem, ShippingAddress } from '../types.js';
+import type { DiscoverySource, OrderItem, ShippingAddress } from '../types.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID;
@@ -52,7 +52,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 
 export const CheckoutForm = () => {
   const navigate = useNavigate();
-  const { cartItems, clearCart, totalPrice } = useCart();
+  const { cartItems, clearCart, totalPrice, discoverySource, setDiscoverySource } = useCart();
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(initialAddress);
   const [preparedOrder, setPreparedOrder] = useState<PreparedOrder | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -81,6 +81,10 @@ export const CheckoutForm = () => {
   const handleAddressChange = (field: keyof ShippingAddress, value: string) => {
     setShippingAddress((current) => ({ ...current, [field]: value }));
     setPreparedOrder(null);
+  };
+
+  const handleDiscoverySourceChange = (value: DiscoverySource | '') => {
+    setDiscoverySource(value || null);
   };
 
   const handlePrepareOrder = async (event: FormEvent<HTMLFormElement>) => {
@@ -113,6 +117,7 @@ export const CheckoutForm = () => {
             quantity: item.quantity,
           })),
           shippingAddress,
+          discoverySource: discoverySource || undefined,
         }),
       });
 
@@ -285,6 +290,22 @@ export const CheckoutForm = () => {
                 minLength={2}
                 className="w-full rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
               />
+            </label>
+
+            <label className="space-y-2 sm:col-span-2">
+              <span className="text-sm font-semibold text-stone-700">¿Cómo descubriste Tropicaña?</span>
+              <select
+                value={discoverySource || ''}
+                onChange={(event) => handleDiscoverySourceChange(event.target.value as DiscoverySource | '')}
+                className="w-full rounded-3xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
+              >
+                <option value="">Selecciona una opción (opcional)</option>
+                <option value="social_media">Facebook / Instagram (Redes Sociales)</option>
+                <option value="friend_recommendation">Recomendación de un amigo o familiar</option>
+                <option value="google_search">Búsqueda en Google</option>
+                <option value="physical_location">Lo vi en un negocio / local / evento</option>
+                <option value="other">Otro</option>
+              </select>
             </label>
 
             <button

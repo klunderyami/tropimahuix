@@ -35,6 +35,8 @@ export interface ShippingAddress {
   city: string;
 }
 
+export type DiscoverySource = 'social_media' | 'friend_recommendation' | 'google_search' | 'physical_location' | 'other';
+
 export interface Order {
   id: string;
   userId: string | 'guest';
@@ -44,6 +46,7 @@ export interface Order {
   shippingAddress: ShippingAddress;
   paypalOrderId: string;
   createdAt: string;
+  discoverySource?: DiscoverySource;
 }
 
 export interface HeroSlide {

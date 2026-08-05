@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { CartItem, Product } from '../types.js';
+import type { CartItem, Product, DiscoverySource } from '../types.js';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -11,6 +11,8 @@ interface CartContextType {
   totalPrice: number;
   isCartOpen: boolean;
   setIsCartOpen: (isOpen: boolean) => void;
+  discoverySource: DiscoverySource | null;
+  setDiscoverySource: (source: DiscoverySource | null) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -35,6 +37,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [discoverySource, setDiscoverySource] = useState<DiscoverySource | null>(null);
 
   useEffect(() => {
     try {
@@ -82,7 +85,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
-  const value = { cartItems, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice, isCartOpen, setIsCartOpen };
+  const value = { cartItems, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice, isCartOpen, setIsCartOpen, discoverySource, setDiscoverySource };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };
