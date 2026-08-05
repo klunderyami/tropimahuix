@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getGalleryPhotos } from '../supabase.js';
 import type { GalleryPhoto } from '../types.js';
 
@@ -6,6 +6,7 @@ const HomeCarousel = () => {
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const videoRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
 
   useEffect(() => {
     getGalleryPhotos()
@@ -41,6 +42,18 @@ const HomeCarousel = () => {
     setCurrentIndex(newIndex);
   };
 
+  // Controlar reproducción de videos: solo el activo se reproduce
+  useEffect(() => {
+    videoRefs.current.forEach((video, index) => {
+      if (index === currentIndex) {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+        video.currentTime = 0;
+      }
+    });
+  }, [currentIndex]);
+
   // Ordenar: videos primero, luego imágenes (antes de los condicionales de render)
   const sortedPhotos = useMemo(() => {
     return [...photos].sort((a: GalleryPhoto, b: GalleryPhoto) => {
@@ -71,9 +84,16 @@ const HomeCarousel = () => {
             <div className="flex h-full w-full items-center justify-center bg-black">
             {photo.url.match(/\.(mp4|webm|mov)$/i) ? (
               <video
+                ref={(el) => {
+                  if (el) {
+                    videoRefs.current.set(index, el);
+                  } else {
+                    videoRefs.current.delete(index);
+                  }
+                }}
                 src={photo.url}
                 className="h-full w-full object-contain"
-                autoPlay loop playsInline
+                playsInline
               />
             ) : (
               <img

@@ -26,6 +26,8 @@ import GalleryPage from './pages/GalleryPage.js';
 import DistributorsSection from './components/DistributorsSection.js';
 import FloatingChatWidget from './components/FloatingChatWidget.js';
 import { Footer } from './components/Footer.js';
+import { getGalleryPhotos } from './supabase.js';
+import type { GalleryPhoto } from './types.js';
 
 // Lazy load AdminDashboard to reduce main bundle size
 const AdminDashboard = lazy(() => import('./components/AdminDashboard.js'));
@@ -51,6 +53,8 @@ function AppContent() {
   const { totalItems, isCartOpen, setIsCartOpen } = useCart();
   const [serverStatus, setServerStatus] = useState<string>('Verificando conexión...');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
+  const [galleryImages, setGalleryImages] = useState<GalleryPhoto[]>([]);
+  const [loadingGallery, setLoadingGallery] = useState(true);
 
   // Mantener viva la suscripción a Realtime de Supabase para evitar idle_shutdown
   useRealtimeKeepAlive();
@@ -66,6 +70,20 @@ function AppContent() {
       })
       .then((data) => setServerStatus(data.message ?? 'Verificando conexión...'))
       .catch(() => setServerStatus('⚠️ Backend no disponible'));
+  }, []);
+
+  // Cargar imágenes de la galería para la sección "Nuestra Esencia"
+  useEffect(() => {
+    getGalleryPhotos()
+      .then((photos) => {
+        // Filtrar solo imágenes (no videos)
+        const imagesOnly = photos.filter(p => !p.url.match(/\.(mp4|webm|mov)$/i));
+        setGalleryImages(imagesOnly.slice(0, 4)); // Usar máximo 4 imágenes
+      })
+      .catch((error) => {
+        console.error('Error loading gallery images:', error);
+      })
+      .finally(() => setLoadingGallery(false));
   }, []);
 
   return (
@@ -110,8 +128,26 @@ function AppContent() {
                       </div>
                     </div>
                     <div className="relative">
-                      <div className="aspect-square rounded-3xl overflow-hidden bg-gradient-to-br from-brand-orange/20 to-brand-gold/20 p-8">
-                        <div className="grid grid-cols-2 gap-4 h-full">
+                      {loadingGallery ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="aspect-square rounded-2xl bg-stone-200 animate-pulse" />
+                          ))}
+                        </div>
+                      ) : galleryImages.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          {galleryImages.map((photo) => (
+                            <div key={photo.id} className="aspect-square rounded-2xl overflow-hidden bg-stone-50 shadow-lg">
+                              <img
+                                src={photo.url}
+                                alt={photo.label || 'Galería Tropicaña'}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
                           <div className="flex items-center justify-center rounded-2xl bg-white shadow-lg p-6">
                             <span className="text-6xl">🍋</span>
                           </div>
@@ -125,7 +161,7 @@ function AppContent() {
                             <span className="text-6xl">🫘</span>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
