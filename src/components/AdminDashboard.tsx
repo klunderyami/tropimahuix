@@ -28,6 +28,9 @@ import type { GalleryPhoto, NewProduct, Order, OrderStatus, Product, SiteConfig,
 
 type AdminTab = 'products' | 'gallery' | 'orders' | 'distributors' | 'chat' | 'statistics';
 
+// UID de administrador verificado (hardcodeado como capa de seguridad adicional)
+const ADMIN_UID = 'OsVU7qU5NOParGXVqejx0SacMLl2';
+
 const blankProduct: NewProduct = {
   name: '',
   description: '',
@@ -52,6 +55,12 @@ async function getAccessToken(): Promise<string> {
   const token = await auth.currentUser?.getIdToken();
   if (!token) throw new Error('No hay una sesión administrativa activa.');
   return token;
+}
+
+// Validación estricta de acceso administrativo por UID
+function validateAdminAccess(user: { uid: string; email?: string | null } | null): boolean {
+  if (!user) return false;
+  return user.uid === ADMIN_UID;
 }
 
 const AdminDashboard = () => {
@@ -399,6 +408,12 @@ const AdminDashboard = () => {
 
     try {
       const accessToken = await getAccessToken();
+
+      // Validar acceso administrativo por UID
+      const currentUser = auth.currentUser;
+      if (!validateAdminAccess(currentUser)) {
+        throw new Error('🔒 Acceso denegado: No tienes permisos de administrador.');
+      }
 
       // 1. Subir imagen a Supabase Storage si hay un archivo seleccionado
       let imageUrl = formState.image;

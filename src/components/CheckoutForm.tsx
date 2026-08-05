@@ -8,6 +8,7 @@ import type { OrderItem, ShippingAddress } from '../types.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+const NETWORK_TIMEOUT = 8000; // 8 segundos máximo para evitar loading eterno
 
 interface PreparedOrder {
   orderId: string;
@@ -26,6 +27,27 @@ const initialAddress: ShippingAddress = {
 async function getAuthHeaders(): Promise<HeadersInit> {
   const token = await auth.currentUser?.getIdToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// Helper para fetch con timeout estricto
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = NETWORK_TIMEOUT): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`La solicitud tardó más de ${timeoutMs / 1000} segundos. Por favor, intenta de nuevo.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export const CheckoutForm = () => {
@@ -79,7 +101,7 @@ export const CheckoutForm = () => {
     setIsPreparing(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/create`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/orders/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -149,7 +171,7 @@ export const CheckoutForm = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/capture`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/orders/capture`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
