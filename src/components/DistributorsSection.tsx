@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { createDistributorLead } from '../supabase.js';
 import type { NewDistributorLead } from '../types.js';
 
-const WHATSAPP_NUMBER = '5292291234567'; // Reemplazar con el número real
+const WHATSAPP_NUMBER = '2288398024';
 
 const DistributorsSection = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,7 +178,7 @@ const DistributorsSection = () => {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="mt-1 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20"
-                    placeholder="correo@ejemplo.com"
+                    placeholder="tropicana1930@gmail.com"
                   />
                 </div>
               </div>

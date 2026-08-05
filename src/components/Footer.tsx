@@ -63,8 +63,8 @@ export const Footer = () => {
             <h4 className="text-sm font-bold uppercase tracking-wider text-brand-gold">Contacto</h4>
             <div className="space-y-3 text-sm text-stone-300">
               <p>📍 Mahuixtlán, Veracruz, México</p>
-              <p>📞 +52 229 123 4567</p>
-              <p>✉️ hola@tropicana.com</p>
+              <p>📞 +52 228 839 8024</p>
+              <p>✉️ tropicana1930@gmail.com</p>
             </div>
             <div className="flex items-center gap-3 pt-2">
               <a
