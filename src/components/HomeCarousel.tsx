@@ -41,15 +41,7 @@ const HomeCarousel = () => {
     setCurrentIndex(newIndex);
   };
 
-  if (loading) {
-    return <div className="aspect-video w-full bg-stone-200 animate-pulse rounded-lg" />;
-  }
-
-  if (photos.length === 0) {
-    return null; // Don't render anything if there are no photos
-  }
-
-  // Ordenar: videos primero, luego imágenes
+  // Ordenar: videos primero, luego imágenes (antes de los condicionales de render)
   const sortedPhotos = useMemo(() => {
     return [...photos].sort((a: GalleryPhoto, b: GalleryPhoto) => {
       const aIsVideo = a.url.match(/\.(mp4|webm|mov)$/i);
@@ -59,6 +51,14 @@ const HomeCarousel = () => {
       return 0;
     });
   }, [photos]);
+
+  if (loading) {
+    return <div className="aspect-video w-full bg-stone-200 animate-pulse rounded-lg" />;
+  }
+
+  if (photos.length === 0) {
+    return null; // Don't render anything if there are no photos
+  }
 
   return (
     <section className="relative h-[85vh] w-full">
