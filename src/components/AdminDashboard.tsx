@@ -591,7 +591,7 @@ const AdminDashboard = () => {
     event.preventDefault();
     setIsSavingConfig(true);
 
-    let configToSave = { ...siteConfig };
+    const configToSave = { ...siteConfig };
 
     try {
       const accessToken = await getAccessToken();

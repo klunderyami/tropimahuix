@@ -75,10 +75,10 @@ export function subscribeToRealtimeKeepAlive(): (() => void) {
     .on('presence', { event: 'sync' }, () => {
       console.log('[Realtime KeepAlive] Presencia sincronizada - tenant activo');
     })
-    .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+    .on('presence', { event: 'join' }, ({ key }) => {
       console.log(`[Realtime KeepAlive] Usuario unido al canal: ${key}`);
     })
-    .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+    .on('presence', { event: 'leave' }, ({ key }) => {
       console.log(`[Realtime KeepAlive] Usuario salió del canal: ${key}`);
     })
     .subscribe(async (status, err) => {
@@ -90,7 +90,11 @@ export function subscribeToRealtimeKeepAlive(): (() => void) {
       if (status === 'SUBSCRIBED') {
         console.log('[Realtime KeepAlive] Canal activo - transmitiendo presencia');
         // Avisar de presencia para mantener el canal activo
-        await channel.track({ online_at: new Date().toISOString() });
+        try {
+          await channel.track({ online_at: new Date().toISOString() });
+        } catch (trackError) {
+          console.error('[Realtime KeepAlive] Error al hacer track:', trackError);
+        }
       } else if (status === 'CHANNEL_ERROR') {
         console.error('[Realtime KeepAlive] Error en el canal');
       } else if (status === 'CLOSED') {
@@ -514,7 +518,7 @@ function mapProduct(data: Record<string, unknown>): Product {
     volume: (data.volume as string) ?? '750ml',
     image: (data.image as string) ?? '',
     category: data.category as 'licor' | 'torito',
-    stock: Number(data.stock) ?? 0,
+    stock: Number(data.stock) || 0,
     active: data.active !== false,
     gallery: Array.isArray(data.gallery) ? data.gallery : [],
   };

@@ -27,10 +27,6 @@ for (const envFile of envFiles) {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 // --- INICIO: SECCIÓN DE INICIALIZACIÓN DE SERVICIOS ---
 
 let supabase: SupabaseClient;
@@ -133,11 +129,6 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-interface CheckoutItemInput {
-  id: string;
-  quantity: number;
-}
-
 interface ShippingAddress {
   name: string;
   email: string;
@@ -185,25 +176,9 @@ interface PayPalCaptureResponse {
   }[];
 }
 
-interface PayPalErrorPayload {
-  name?: string;
-  message?: string;
-  details?: unknown;
-}
-
 function getHeaderValue(req: Request, name: string): string | undefined {
   const value = req.headers[name.toLowerCase()];
   return Array.isArray(value) ? value[0] : value;
-}
-
-function getRequiredEnvWithFallback(name: string, fallbackName: string): string {
-  const value = process.env[name] || process.env[fallbackName];
-
-  if (!value || value.trim().length === 0) {
-    throw new Error(`Missing required server environment variable: ${name} or ${fallbackName}`);
-  }
-
-  return value;
 }
 
 function getBearerToken(req: Request): string | undefined {
@@ -220,9 +195,23 @@ function toMoney(value: number): string {
 
 // Middleware Global de Sanitización, Seguridad y Caché Quirúrgico
 app.use((req: Request, res: Response, next: NextFunction) => {
+  // Eliminar cabecera que expone la tecnología
   res.removeHeader('X-Powered-By');
+  
+  // Prevenir sniffing de tipo MIME
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'; block-all-mixed-content;");
+  
+  // Prevenir que el sitio sea embebido en iframes (anti-clickjacking)
+  res.setHeader('X-Frame-Options', 'DENY');
+  
+  // Forzar HTTPS en producción (HSTS)
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  
+  // Política de referrer para proteger la privacidad
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // Content Security Policy estricta
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; media-src 'self' https: http:; font-src 'self' data:; connect-src 'self' https: wss:; frame-ancestors 'none'; block-all-mixed-content; upgrade-insecure-requests;");
 
   const url = req.url;
 
@@ -579,7 +568,7 @@ function getPathFromUrl(fileUrl: string): string | null {
       return null;
     }
     return pathSegments.slice(bucketNameIndex + 1).join('/');
-  } catch (e) {
+  } catch {
     console.error(`[Delete Helper] Invalid URL provided: ${fileUrl}`);
     return null;
   }
@@ -919,7 +908,6 @@ app.delete('/api/gallery/:photoId', requireAdmin, async (req: Request, res: Resp
     // 3. If DB deletion was successful and we found a photo, delete from storage
     if (photo?.url) {
       try {
-        const url = new URL(photo.url);
         const pathToRemove = getPathFromUrl(photo.url);
         if (pathToRemove) {
           console.log(`[Delete Gallery] Deleting from storage: productos/${pathToRemove}`);
@@ -1249,8 +1237,7 @@ app.get('/api/stats/visit', async (_req: Request, res: Response, next: NextFunct
     }
 
     res.status(200).json({ visitCount: data?.visit_count || 0 });
-  } catch (error) {
-    console.error('Error in /api/stats/visit GET:', error);
+  } catch (_error) {
     res.status(200).json({ visitCount: 0 });
   }
 });
@@ -1541,7 +1528,7 @@ app.get('/api/stats', requireAdmin, async (_req: Request, res: Response, next: N
 
     // Encontrar el producto más vendido
     let topProduct = { name: 'N/A', quantity: 0 };
-    for (const [productId, data] of productSalesMap.entries()) {
+    for (const [, data] of productSalesMap.entries()) {
       if (data.quantity > topProduct.quantity) {
         topProduct = { name: data.name, quantity: data.quantity };
       }

@@ -86,7 +86,7 @@ const ProductMediaGallery = () => {
                           src={video.url}
                           controls
                           className="h-full w-full"
-                          preload="metadata"
+                          preload="none"
                           playsInline
                         >
                           Tu navegador no soporta videos HTML5.

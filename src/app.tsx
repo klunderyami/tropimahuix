@@ -42,16 +42,13 @@ const LoadingFallback = () => (
   </div>
 );
 
-const SOCIAL_LINKS = {
-  facebook: 'https://www.facebook.com/profile.php?id=100092299282591&mibextid=D4KYlr',
-  instagram: 'https://www.instagram.com/tropicanamahuix?igsh=YWk5dDJ6Y2s0Y3ds',
-} as const;
-
+// En producción, usar rutas relativas para evitar contenido mixto (HTTP vs HTTPS)
+// En desarrollo, usar la URL del backend si está definida
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 
 function AppContent() {
   const { totalItems, isCartOpen, setIsCartOpen } = useCart();
-  const [serverStatus, setServerStatus] = useState<string>('Verificando conexión...');
+  const [, setServerStatus] = useState<string>('Verificando conexión...');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'licor' | 'torito'>('all');
   const [galleryImages, setGalleryImages] = useState<GalleryPhoto[]>([]);
   const [loadingGallery, setLoadingGallery] = useState(true);
@@ -63,7 +60,13 @@ function AppContent() {
   useVisitTracker();
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/health`)
+    // En producción (dominio de Render), usar ruta relativa para evitar contenido mixto
+    // En desarrollo, usar la URL completa del backend
+    const healthUrl = API_BASE_URL 
+      ? `${API_BASE_URL}/api/health` 
+      : '/api/health';
+    
+    fetch(healthUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Servidor no responde');
         return res.json();

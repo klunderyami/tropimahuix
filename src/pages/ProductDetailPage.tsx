@@ -225,6 +225,7 @@ export const ProductDetailPage = () => {
                       muted
                       loop
                       playsInline
+                      preload="none"
                     />
                   ) : (
                     <img
