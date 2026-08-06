@@ -1661,6 +1661,49 @@ app.get('/sitemap.xml', async (_req: Request, res: Response, next: NextFunction)
   }
 });
 
+// ─── Sistema de Notificaciones ───────────────────────────────────────────────
+
+app.post('/api/notifications', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { source, title, message, action_url } = req.body;
+
+    // Validar campos requeridos
+    if (!source || !title || !message) {
+      return res.status(400).json({ error: 'Faltan campos requeridos: source, title, message' });
+    }
+
+    // Validar source
+    const validSources = ['reddit', 'lead_web', 'whatsapp', 'system', 'order', 'chat'];
+    if (!validSources.includes(source)) {
+      return res.status(400).json({ error: `Source inválido. Valores permitidos: ${validSources.join(', ')}` });
+    }
+
+    // Insertar notificación usando service_role key (bypass RLS)
+    const { data, error } = await supabase
+      .from('system_notifications')
+      .insert({
+        source,
+        title,
+        message,
+        action_url: action_url || null,
+        status: 'unread',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating notification:', error);
+      throw new Error(`Error al crear notificación: ${error.message}`);
+    }
+
+    console.log(`✅ [Notification] Created: ${source} - ${title}`);
+    res.status(201).json({ notification: data, message: 'Notificación creada exitosamente' });
+  } catch (error) {
+    console.error('Error in /api/notifications:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
 // SPA Fallback
 if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.get(/^(?!\/api).*/, (_req: Request, res: Response) => {
