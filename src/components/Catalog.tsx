@@ -219,15 +219,17 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
                     isOutOfStock ? 'opacity-75' : 'hover:shadow-2xl hover:-translate-y-1'
                   }`}
                 >
-                  <Link to={`/producto/${product.id}`} className="block">
-                    <div className="h-64 md:h-80 overflow-hidden relative bg-stone-50">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
-                          isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
-                        }`}
-                      />
+                   <Link to={`/producto/${product.id}`} className="block">
+                     <div className="h-64 md:h-80 overflow-hidden relative bg-stone-50">
+                       <img
+                         src={product.image}
+                         alt={product.name}
+                         loading="lazy"
+                         decoding="async"
+                         className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
+                           isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
+                         }`}
+                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent opacity-70 transition-opacity duration-300" />
                       <div
                         className={`absolute top-3 right-3 backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-md ${categoryBadgeClass}`}

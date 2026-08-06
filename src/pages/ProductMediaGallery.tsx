@@ -129,6 +129,7 @@ const ProductMediaGallery = () => {
                           alt={photo.label || 'Foto de producto'}
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
                           loading="lazy"
+                          decoding="async"
                         />
                       </div>
                       {photo.label && (

@@ -1567,6 +1567,100 @@ app.get('/api/stats', requireAdmin, async (_req: Request, res: Response, next: N
   }
 });
 
+// ─── Sitemap.xml Dinámico ─────────────────────────────────────────────────────
+
+app.get('/sitemap.xml', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const baseUrl = 'https://tropimahuix-web.onrender.com';
+    const currentDate = new Date().toISOString();
+
+    // Obtener todos los productos activos
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, updated_at, active')
+      .or('active.eq.true,active.is.null')
+      .order('name', { ascending: true });
+
+    if (productsError) {
+      console.error('Error fetching products for sitemap:', productsError);
+    }
+
+    const activeProducts = products ?? [];
+
+    // Construir el XML del sitemap
+    const sitemapEntries: string[] = [];
+
+    // 1. Página principal - Prioridad máxima
+    sitemapEntries.push(`
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>`);
+
+    // 2. Páginas de categorías - Alta prioridad
+    sitemapEntries.push(`
+  <url>
+    <loc>${baseUrl}/licores</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>`);
+
+    sitemapEntries.push(`
+  <url>
+    <loc>${baseUrl}/toritos</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>`);
+
+    // 3. Páginas de productos individuales - Alta prioridad para SEO
+    for (const product of activeProducts) {
+      const lastmod = product.updated_at || currentDate;
+      sitemapEntries.push(`
+  <url>
+    <loc>${baseUrl}/producto/${product.id}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`);
+    }
+
+    // 4. Otras páginas estáticas importantes
+    const staticPages = [
+      { path: '/#catalog', priority: '0.7', changefreq: 'weekly' },
+      { path: '/#distribuidores', priority: '0.6', changefreq: 'monthly' },
+    ];
+
+    for (const page of staticPages) {
+      sitemapEntries.push(`
+  <url>
+    <loc>${baseUrl}${page.path}</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>${page.changefreq}</changefreq>
+    <priority>${page.priority}</priority>
+  </url>`);
+    }
+
+    const sitemapXML = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  ${sitemapEntries.join('')}
+</urlset>`;
+
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate'); // Cache 1 hora
+    res.status(200).send(sitemapXML.trim());
+
+    console.log(`✅ [Sitemap] Generated with ${activeProducts.length} products`);
+  } catch (error) {
+    console.error('❌ [Sitemap] Error generating sitemap:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
 // SPA Fallback
 if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.get(/^(?!\/api).*/, (_req: Request, res: Response) => {

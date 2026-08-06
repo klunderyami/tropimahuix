@@ -1,0 +1,11 @@
+# Bot de Reddit Automatizado - Dependencias
+
+# Cliente de Reddit API
+praw>=7.7.0
+
+# Carga de variables de entorno
+python-dotenv>=1.0.0
+
+# Dependencias adicionales (incluidas con praw, pero listadas para claridad)
+# update-checker>=0.18.0
+# websocket-client>=1.6.0

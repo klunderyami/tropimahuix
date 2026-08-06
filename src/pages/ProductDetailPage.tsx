@@ -93,6 +93,8 @@ export const ProductDetailPage = () => {
               <img
                 src={product.image}
                 alt={product.name}
+                loading="lazy"
+                decoding="async"
                 className={`w-full h-full object-contain ${isOutOfStock ? 'grayscale' : ''}`}
               />
               {isOutOfStock && (
@@ -228,6 +230,8 @@ export const ProductDetailPage = () => {
                     <img
                       src={mediaUrl}
                       alt={`${product.name} - Imagen ${index + 1}`}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-64 object-contain"
                     />
                   )}

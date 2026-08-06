@@ -500,7 +500,7 @@ export const CheckoutForm = () => {
           <div className="mt-6 space-y-4">
             {cartItems.map((item) => (
               <div key={item.product.id} className="flex gap-4 rounded-3xl border border-stone-200 bg-white p-4">
-                <img src={item.product.image} alt={item.product.name} className="h-20 w-20 rounded-2xl object-cover" />
+                <img src={item.product.image} alt={item.product.name} loading="lazy" decoding="async" className="h-20 w-20 rounded-2xl object-cover" />
                 <div className="flex-1">
                   <p className="font-bold text-brand-brown">{item.product.name}</p>
                   <p className="text-sm text-stone-500">

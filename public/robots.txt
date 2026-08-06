@@ -1,0 +1,56 @@
+# Tropicaña - Robots.txt Optimizado
+# https://tropimahuix-web.onrender.com
+
+User-agent: *
+Allow: /
+
+# Crawl-delay para ser respetuosos con los servidores
+Crawl-delay: 1
+
+# Páginas principales que queremos indexar
+Allow: /
+Allow: /licores
+Allow: /toritos
+Allow: /producto/
+
+# Bloquear páginas administrativas y privadas
+Disallow: /admin/
+Disallow: /login
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order-confirmation
+
+# Bloquear archivos estáticos innecesarios para SEO
+Disallow: /assets/
+Disallow: /*.json$
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://tropimahuix-web.onrender.com/sitemap.xml
+
+# Especificar crawlers importantes
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: FacebookExternalHit
+Allow: /
+Crawl-delay: 1
+
+User-agent: Twitterbot
+Allow: /
+Crawl-delay: 1
+
+# Bloquear bots maliciosos o spam
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
