@@ -95,9 +95,11 @@ const result = initializeServices();
 
 if ('error' in result) {
   serviceInitializationError = result.error;
+  console.error('⚠️ Servicio de inicialización falló, pero el servidor se iniciará de todas formas.');
 } else {
   supabase = result.supabase;
   auth = result.auth;
+  console.log('✅ Todos los servicios inicializados correctamente.');
 }
 
 // --- FIN: SECCIÓN DE INICIALIZACIÓN DE FIREBASE REFACTORIZADA ---
@@ -105,6 +107,9 @@ if ('error' in result) {
 const app = express();
 app.disable('x-powered-by');
 const PORT = Number(process.env.PORT || 9005);
+
+// Log de inicio para confirmar que el servidor está escuchando
+console.log(`🚀 Iniciando servidor en puerto ${PORT}...`);
 const ADMIN_UID = process.env.ADMIN_UID || process.env.FIREBASE_ADMIN_UID;
 if (!ADMIN_UID) {
   console.warn('⚠️ No se ha configurado ningún UID de administrador. Define ADMIN_UID o FIREBASE_ADMIN_UID en tu entorno.');
@@ -1723,6 +1728,8 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Tropicana API listening on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Tropicana API listening on http://0.0.0.0:${PORT}`);
+  console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
 });
