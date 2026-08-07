@@ -230,7 +230,11 @@ async function authedFetch<T>(
 
     return data as T;
   } catch (err) {
-    abortController.abort();
+    // Solo abortar si no fue abortado previamente
+    if (!abortController.signal.aborted) {
+      abortController.abort();
+    }
+    
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.error(`❌ [authedFetch] Error en ${options.method} ${url}:`, errorMessage);
 
@@ -238,6 +242,9 @@ async function authedFetch<T>(
       throw new Error(errorMessage);
     } else if (errorMessage.includes('Failed to fetch')) {
       throw new Error('🌐 Error de conexión: Verifica tu conexión a internet y que el servidor esté disponible.');
+    } else if (errorMessage.includes('signal is aborted')) {
+      // No relanzar el error de aborto, mostrar un mensaje más amigable
+      throw new Error('⏱️ La solicitud fue cancelada. Por favor, intenta de nuevo.');
     }
     throw err instanceof Error ? err : new Error(errorMessage);
   }
