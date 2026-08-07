@@ -61,6 +61,15 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Reordenar productos: producto ancla primero, luego el resto
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      if (a.isAnchorProduct && !b.isAnchorProduct) return -1;
+      if (!a.isAnchorProduct && b.isAnchorProduct) return 1;
+      return 0;
+    });
+  }, [products]);
+
   useEffect(() => {
     const unsubscribe = subscribeToProducts(
       (fetchedProducts) => {
@@ -82,8 +91,8 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
 
     const categoryFiltered =
       selectedCategory === 'all'
-        ? products
-        : products.filter((product) => product.category === selectedCategory);
+        ? sortedProducts
+        : sortedProducts.filter((product) => product.category === selectedCategory);
 
     if (lowercasedQuery === '') {
       return categoryFiltered;
@@ -93,7 +102,7 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
       (product) =>
         product.name.toLowerCase().includes(lowercasedQuery) || product.description.toLowerCase().includes(lowercasedQuery),
     );
-  }, [products, selectedCategory, searchQuery]);
+  }, [sortedProducts, selectedCategory, searchQuery]);
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -199,90 +208,196 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
             )}
           </div>
         ) : (
-          <motion.div
-            key={selectedCategory}
-            className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {filteredProducts.map((product) => {
-              const isOutOfStock = product.stock === 0;
-              const categoryLabel = categoryLabels[product.category];
-              const categoryBadgeClass = categoryBadgeClasses[product.category];
-              const categoryPriceClass = categoryPriceClasses[product.category];
-
+          <>
+            {/* Banner de Producto Ancla (Value Anchoring) */}
+            {(() => {
+              if (selectedCategory !== 'all') return null;
+              const anchorProduct = filteredProducts.find(p => p.isAnchorProduct);
+              if (!anchorProduct) return null;
+              
               return (
-                <motion.article
-                  key={product.id}
-                  variants={cardVariants}
-                  className={`glass-card overflow-hidden border border-stone-200/60 bg-white/85 shadow-lg transition-all duration-300 flex flex-col group ${
-                    isOutOfStock ? 'opacity-75' : 'hover:shadow-2xl hover:-translate-y-1'
-                  }`}
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="mb-12"
                 >
-                   <Link to={`/producto/${product.id}`} className="block">
-                      <div className="h-64 md:h-80 overflow-hidden relative bg-stone-50">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          loading="lazy"
-                          decoding="async"
-                          className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
-                            isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
-                          }`}
-                          // Optimización: indicar tamaño de visualización para evitar descarga de imagen completa
-                          sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                        />
-                      <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent opacity-70 transition-opacity duration-300" />
-                      <ScarcityIndicator product={product} />
-                      <div
-                        className={`absolute top-3 right-3 backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-md ${categoryBadgeClass}`}
-                      >
-                        {categoryLabel}
+                  <div className="glass-card relative overflow-hidden rounded-[2rem] border-2 border-brand-gold/40 bg-gradient-to-br from-amber-50/95 via-white/90 to-orange-50/95 p-8 shadow-2xl backdrop-blur-xl md:p-12">
+                    {/* Insignia de edición limitada */}
+                    <div className="absolute top-6 right-6 z-10">
+                      <div className="glass-card rounded-full bg-gradient-to-r from-brand-orange to-amber-500 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg">
+                        {anchorProduct.badgeText || '⭐ Producto Premium'}
                       </div>
                     </div>
-                  </Link>
 
-                  <div className="p-5 md:p-6 text-center flex-grow flex flex-col justify-between">
-                    <div>
-                      <Link to={`/producto/${product.id}`}>
-                        <h3 className="text-xl md:text-2xl font-bold text-brand-brown mb-2 group-hover:text-brand-orange transition-colors duration-300">
-                          {product.name}
+                    <div className="grid gap-8 md:grid-cols-2 md:gap-12">
+                      {/* Imagen del producto ancla */}
+                      <div className="relative">
+                        <div className="aspect-square overflow-hidden rounded-3xl bg-white shadow-xl">
+                          <img
+                            src={anchorProduct.image}
+                            alt={anchorProduct.name}
+                            className="h-full w-full object-contain transition-transform duration-700 hover:scale-105"
+                          />
+                        </div>
+                        {anchorProduct.limitedStockCount && anchorProduct.limitedStockCount <= 5 && (
+                          <div className="absolute -top-2 -right-2 animate-pulse">
+                            <div className="rounded-full bg-rose-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg">
+                              🔥 Solo {anchorProduct.limitedStockCount} unidades
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Información del producto ancla */}
+                      <div className="flex flex-col justify-center">
+                        <div className="mb-4">
+                          <span className="inline-block rounded-full bg-brand-orange/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-brand-orange">
+                            {anchorProduct.category === 'licor' ? 'Licor Artesanal Premium' : 'Torito Cremoso Premium'}
+                          </span>
+                        </div>
+                        
+                        <h3 className="text-4xl md:text-5xl font-display font-black text-brand-brown mb-4">
+                          {anchorProduct.name}
                         </h3>
-                      </Link>
-                      <p className="text-stone-500 text-sm leading-relaxed mb-4 line-clamp-2">{product.description}</p>
-                      <p className="text-xs text-stone-400 font-medium uppercase tracking-[0.2em] mb-4">
-                        Cont. Neto {product.volume}
-                      </p>
-                      <BatchInfoBadge product={product} />
-                    </div>
+                        
+                        <p className="text-lg text-stone-600 leading-relaxed mb-6">
+                          {anchorProduct.description}
+                        </p>
 
-                    <div>
-                      <p className="text-3xl md:text-4xl font-extrabold text-brand-brown mb-4 flex items-center justify-center gap-1">
-                        <span className={`text-xl font-bold ${categoryPriceClass}`}>$</span>
-                        {product.price}
-                        <span className="text-xs text-stone-400 font-semibold ml-1">MXN</span>
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => addToCart(product, 1)}
-                        disabled={isOutOfStock}
-                        className={`w-full rounded-xl py-3.5 text-sm font-bold tracking-wide shadow-md transition-all duration-300 ${
-                          isOutOfStock
-                            ? 'cursor-not-allowed bg-stone-200 text-stone-500 shadow-none'
-                            : product.category === 'torito'
-                              ? 'cursor-pointer bg-brand-lime text-brand-brown hover:bg-brand-lime/85 hover:shadow-xl active:scale-[0.98]'
-                              : 'cursor-pointer bg-brand-orange text-white hover:bg-brand-orange/90 hover:shadow-xl active:scale-[0.98]'
-                        }`}
-                      >
-                        {isOutOfStock ? 'Agotado' : 'Agregar al carrito'}
-                      </button>
+                        <div className="mb-6 flex items-baseline gap-3">
+                          <span className="text-5xl font-black text-brand-orange">
+                            ${anchorProduct.price.toFixed(2)}
+                          </span>
+                          <span className="text-lg text-stone-400 font-semibold">MXN</span>
+                        </div>
+
+                        {anchorProduct.limitedStockCount && (
+                          <div className="mb-6 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
+                            <p className="text-sm font-bold text-brand-brown">
+                              ⚠️ Edición Limitada: Solo {anchorProduct.limitedStockCount} botellas disponibles
+                            </p>
+                            <p className="mt-1 text-xs text-stone-600">
+                              Lote artesanal numerado - Agotamiento permanente
+                            </p>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => addToCart(anchorProduct, 1)}
+                          disabled={anchorProduct.stock === 0}
+                          className="w-full rounded-full bg-gradient-to-r from-brand-orange to-amber-500 px-8 py-4 text-base font-bold text-white shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-500/30 disabled:cursor-not-allowed disabled:opacity-50 md:text-lg"
+                        >
+                          {anchorProduct.stock === 0 ? 'Agotado' : '🛒 Agregar al Carrito - Edición Limitada'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </motion.article>
+                </motion.div>
               );
-            })}
-          </motion.div>
+            })()}
+
+            <motion.div
+              key={selectedCategory}
+              className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {filteredProducts.map((product) => {
+                const isOutOfStock = product.stock === 0;
+                const categoryLabel = categoryLabels[product.category];
+                const categoryBadgeClass = categoryBadgeClasses[product.category];
+                const categoryPriceClass = categoryPriceClasses[product.category];
+
+                // Filtrar el producto ancla del grid normal (ya se muestra en el banner)
+                if (product.isAnchorProduct && selectedCategory === 'all') {
+                  return null;
+                }
+
+                return (
+                  <motion.article
+                    key={product.id}
+                    variants={cardVariants}
+                    className={`glass-card overflow-hidden border border-stone-200/60 bg-white/85 shadow-lg transition-all duration-300 flex flex-col group ${
+                      isOutOfStock ? 'opacity-75' : 'hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-500/10'
+                    }`}
+                  >
+                     <Link to={`/producto/${product.id}`} className="block">
+                        <div className="h-64 md:h-80 overflow-hidden relative bg-stone-50">
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            loading="lazy"
+                            decoding="async"
+                            className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
+                              isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
+                            }`}
+                            // Optimización: indicar tamaño de visualización para evitar descarga de imagen completa
+                            sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                          />
+                        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent opacity-70 transition-opacity duration-300" />
+                        <ScarcityIndicator product={product} />
+                        
+                        {/* Micro-badge de cierre inmediato */}
+                        {!isOutOfStock && product.limitedStockCount && product.limitedStockCount <= 5 && (
+                          <div className="absolute bottom-3 left-3 animate-pulse">
+                            <div className="glass-card rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
+                              🔥 Lote artesanal casi agotado
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div
+                          className={`absolute top-3 right-3 backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-md ${categoryBadgeClass}`}
+                        >
+                          {categoryLabel}
+                        </div>
+                      </div>
+                    </Link>
+
+                    <div className="p-5 md:p-6 text-center flex-grow flex flex-col justify-between">
+                      <div>
+                        <Link to={`/producto/${product.id}`}>
+                          <h3 className="text-xl md:text-2xl font-bold text-brand-brown mb-2 group-hover:text-brand-orange transition-colors duration-300">
+                            {product.name}
+                          </h3>
+                        </Link>
+                        <p className="text-stone-500 text-sm leading-relaxed mb-4 line-clamp-2">{product.description}</p>
+                        <p className="text-xs text-stone-400 font-medium uppercase tracking-[0.2em] mb-4">
+                          Cont. Neto {product.volume}
+                        </p>
+                        <BatchInfoBadge product={product} />
+                      </div>
+
+                      <div>
+                        <p className="text-3xl md:text-4xl font-extrabold text-brand-brown mb-4 flex items-center justify-center gap-1">
+                          <span className={`text-xl font-bold ${categoryPriceClass}`}>$</span>
+                          {product.price}
+                          <span className="text-xs text-stone-400 font-semibold ml-1">MXN</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => addToCart(product, 1)}
+                          disabled={isOutOfStock}
+                          className={`w-full rounded-xl py-3.5 text-sm font-bold tracking-wide shadow-md transition-all duration-300 ${
+                            isOutOfStock
+                              ? 'cursor-not-allowed bg-stone-200 text-stone-500 shadow-none'
+                              : product.category === 'torito'
+                                ? 'cursor-pointer bg-brand-lime text-brand-brown hover:bg-brand-lime/85 hover:shadow-xl active:scale-[0.98]'
+                                : 'cursor-pointer bg-brand-orange text-white hover:bg-brand-orange/90 hover:shadow-xl active:scale-[0.98]'
+                          }`}
+                        >
+                          {isOutOfStock ? 'Agotado' : 'Agregar al carrito'}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </motion.div>
+          </>
         )}
       </div>
     </section>

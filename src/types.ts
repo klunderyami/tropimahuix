@@ -9,6 +9,10 @@ export interface Product {
   category: 'licor' | 'torito';
   stock: number;
   active?: boolean;
+  // ─── Value Anchoring & Dynamic Scarcity ─────────────────────────────────────
+  isAnchorProduct?: boolean;
+  limitedStockCount?: number;
+  badgeText?: string;
 }
 
 export interface CartItem {
