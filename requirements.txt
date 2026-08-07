@@ -1,7 +1,10 @@
-# Bot de Reddit Automatizado - Dependencias
+# Bot de Reddit - Sistema de Notificaciones en Tiempo Real
 
 # Cliente de Reddit API
 praw>=7.7.0
+
+# Cliente de Supabase
+supabase>=2.0.0
 
 # Carga de variables de entorno
 python-dotenv>=1.0.0

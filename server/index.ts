@@ -1655,6 +1655,57 @@ app.get('/sitemap.xml', async (_req: Request, res: Response, next: NextFunction)
 
 // ─── Sistema de Notificaciones ───────────────────────────────────────────────
 
+// Endpoint público para enviar notificaciones desde webhooks/scripts externos
+// Usa una API key secreta para autenticación
+app.post('/api/notifications/send', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { source, title, message, action_url } = req.body;
+    const apiKey = req.headers['x-api-key'];
+
+    // Validar API key
+    const NOTIFICATION_API_KEY = process.env.NOTIFICATION_API_KEY;
+    if (!NOTIFICATION_API_KEY || apiKey !== NOTIFICATION_API_KEY) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid or missing API key.' });
+    }
+
+    // Validar campos requeridos
+    if (!source || !title || !message) {
+      return res.status(400).json({ error: 'Faltan campos requeridos: source, title, message' });
+    }
+
+    // Validar source
+    const validSources = ['reddit', 'lead_web', 'whatsapp', 'system', 'order', 'chat'];
+    if (!validSources.includes(source)) {
+      return res.status(400).json({ error: `Source inválido. Valores permitidos: ${validSources.join(', ')}` });
+    }
+
+    // Insertar notificación usando service_role key (bypass RLS)
+    const { data, error } = await supabase
+      .from('system_notifications')
+      .insert({
+        source,
+        title,
+        message,
+        action_url: action_url || null,
+        status: 'unread',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating notification:', error);
+      throw new Error(`Error al crear notificación: ${error.message}`);
+    }
+
+    console.log(`✅ [Notification] Created via webhook: ${source} - ${title}`);
+    res.status(201).json({ notification: data, message: 'Notificación creada exitosamente' });
+  } catch (error) {
+    console.error('Error in /api/notifications/send:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+// Endpoint para enviar notificaciones (requiere autenticación de admin)
 app.post('/api/notifications', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { source, title, message, action_url } = req.body;

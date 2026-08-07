@@ -25,6 +25,8 @@ import {
   answerChatMessage,
 } from '../supabase.js';
 import type { GalleryPhoto, NewProduct, Order, OrderStatus, Product, SiteConfig, DistributorLead, DistributorLeadStatus, ChatMessage, ChatMessageStatus } from '../types.js';
+import { useNotifications } from '../hooks/useNotifications';
+import { NotificationPanel } from '../components/NotificationPanel';
 
 type AdminTab = 'products' | 'gallery' | 'orders' | 'distributors' | 'chat' | 'statistics';
 
@@ -171,6 +173,10 @@ const AdminDashboard = () => {
   const [chatFilter, setChatFilter] = useState<string>('all');
   const [selectedMessage, setSelectedMessage] = useState<ChatMessage | null>(null);
   const [answerText, setAnswerText] = useState('');
+
+  // Notificaciones
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     // --- Product Listener (Supabase realtime) ---
@@ -737,6 +743,14 @@ const AdminDashboard = () => {
     window.location.href = '/';
   };
 
+  const handleNotificationClick = () => {
+    setShowNotifications(prev => !prev);
+  };
+
+  const handleCloseNotifications = () => {
+    setShowNotifications(false);
+  };
+
   const tabs: { id: AdminTab; label: string; icon: string }[] = [
     { id: 'products', label: 'Productos y Ajustes', icon: '📦' },
     { id: 'gallery', label: 'Galería', icon: '🖼️' },
@@ -766,12 +780,42 @@ const AdminDashboard = () => {
               Gestión de productos, galería de fotos y monitor de pedidos.
             </p>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20"
-          >
-            Cerrar sesión
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Botón de Notificaciones */}
+            <div className="relative">
+              <button
+                onClick={handleNotificationClick}
+                className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20"
+              >
+                <span className="text-xl">🔔</span>
+                <span className="hidden sm:inline">Notificaciones</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand-orange text-xs font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Panel de Notificaciones */}
+              {showNotifications && (
+                <NotificationPanel
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  isLoading={false}
+                  onMarkAsRead={markAsRead}
+                  onMarkAllAsRead={markAllAsRead}
+                  onClose={handleCloseNotifications}
+                />
+              )}
+            </div>
+
+            <button
+              onClick={handleSignOut}
+              className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20"
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </header>
 
         {/* Métricas */}

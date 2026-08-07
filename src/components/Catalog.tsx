@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { subscribeToProducts } from '../supabase.js';
 import { useCart } from '../contexts/CartContext.js';
+import { ScarcityIndicator, BatchInfoBadge } from './ScarcityAndSocialProof.js';
 import type { Product } from '../types.js';
 
 type CatalogCategory = 'all' | Product['category'];
@@ -233,16 +234,12 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
                           sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
                         />
                       <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent opacity-70 transition-opacity duration-300" />
+                      <ScarcityIndicator product={product} />
                       <div
                         className={`absolute top-3 right-3 backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-md ${categoryBadgeClass}`}
                       >
                         {categoryLabel}
                       </div>
-                      {isOutOfStock && (
-                        <div className="absolute inset-x-4 bottom-4 rounded-lg bg-stone-950/80 px-3 py-2 text-center text-xs font-bold uppercase tracking-[0.2em] text-white backdrop-blur-md">
-                          Agotado
-                        </div>
-                      )}
                     </div>
                   </Link>
 
@@ -257,6 +254,7 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
                       <p className="text-xs text-stone-400 font-medium uppercase tracking-[0.2em] mb-4">
                         Cont. Neto {product.volume}
                       </p>
+                      <BatchInfoBadge product={product} />
                     </div>
 
                     <div>

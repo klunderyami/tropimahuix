@@ -53,18 +53,18 @@ const DistributorsSection = () => {
       <Toaster position="bottom-center" toastOptions={{ duration: 5000, className: 'font-semibold' }} />
       
       <div className="mx-auto max-w-7xl">
-        {/* Encabezado */}
+        {/* Encabezado con formato de licencia exclusiva */}
         <div className="mb-12 text-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-orange/10 px-4 py-2 text-sm font-bold uppercase tracking-wider text-brand-orange">
-            <span>🤝</span>
-            <span>Oportunidad de Negocio</span>
+            <span>🏆</span>
+            <span>Programa de Distribución Exclusiva</span>
           </div>
           <h2 className="mt-4 text-4xl font-display font-black text-brand-brown sm:text-5xl">
-            ¿Quieres ser distribuidor de bebidas Tropicaña?
+            Postulación para Licencia de Distribución Exclusiva por Región
           </h2>
           <p className="mt-4 max-w-2xl mx-auto text-lg text-stone-600">
-            Únete a nuestra red de distribuidores y ofrece a tus clientes los mejores licores artesanales y toritos de Veracruz. 
-            <span className="font-semibold text-brand-orange">Precios de mayoreo exclusivos</span> y márgenes de ganancia atractivos.
+            Sé el distribuidor autorizado de Tropicaña en tu zona. 
+            <span className="font-semibold text-brand-orange">Territorios exclusivos limitados</span> con derechos de distribución protegidos.
           </p>
         </div>
 
