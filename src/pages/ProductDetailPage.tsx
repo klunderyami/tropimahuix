@@ -221,11 +221,8 @@ export const ProductDetailPage = () => {
                       src={mediaUrl}
                       controls
                       className="w-full h-64 object-contain bg-black"
-                      autoPlay
-                      muted
-                      loop
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   ) : (
                     <img

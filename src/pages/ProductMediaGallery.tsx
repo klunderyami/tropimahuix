@@ -81,17 +81,17 @@ const ProductMediaGallery = () => {
                       key={video.id}
                       className="glass-card overflow-hidden border border-stone-200 bg-white/90 shadow-xl transition hover:shadow-2xl"
                     >
-                      <div className="relative aspect-video bg-black">
-                        <video
-                          src={video.url}
-                          controls
-                          className="h-full w-full"
-                          preload="none"
-                          playsInline
-                        >
-                          Tu navegador no soporta videos HTML5.
-                        </video>
-                      </div>
+                       <div className="relative aspect-video bg-black">
+                         <video
+                           src={video.url}
+                           controls
+                           className="h-full w-full"
+                           preload="metadata"
+                           playsInline
+                         >
+                           Tu navegador no soporta videos HTML5.
+                         </video>
+                       </div>
                       {video.label && (
                         <div className="p-4">
                           <p className="text-sm font-semibold text-stone-700">{video.label}</p>

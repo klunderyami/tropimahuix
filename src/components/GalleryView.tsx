@@ -74,6 +74,7 @@ const GalleryView = () => {
                       className="h-full w-full object-cover"
                       muted
                       playsInline
+                      preload="metadata"
                     />
                   ) : (
                     <img
@@ -119,17 +120,16 @@ const GalleryView = () => {
                     </svg>
                   </button>
 
-                  <div className="flex items-center justify-center bg-black">
-                    {isVideo(selectedMedia.url) ? (
-                      <video
-                        src={selectedMedia.url}
-                        controls
-                        autoPlay
-                        className="max-h-[80vh] w-full"
-                      >
-                        Tu navegador no soporta el tag de video.
-                      </video>
-                    ) : (
+                   <div className="flex items-center justify-center bg-black">
+                     {isVideo(selectedMedia.url) ? (
+                       <video
+                         src={selectedMedia.url}
+                         controls
+                         className="max-h-[80vh] w-full"
+                       >
+                         Tu navegador no soporta el tag de video.
+                       </video>
+                     ) : (
                       <img
                         src={selectedMedia.url}
                         alt={selectedMedia.label}

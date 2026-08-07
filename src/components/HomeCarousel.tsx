@@ -71,22 +71,21 @@ const HomeCarousel = () => {
             className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
           >
             <div className="flex h-full w-full items-center justify-center bg-black">
-            {photo.url.match(/\.(mp4|webm|mov)$/i) ? (
-              <video
-                ref={(el) => {
-                  if (el) {
-                    videoRefs.current.set(index, el);
-                  } else {
-                    videoRefs.current.delete(index);
-                  }
-                }}
-                src={photo.url}
-                className="h-full w-full object-contain"
-                playsInline
-                preload="none"
-                muted
-              />
-            ) : (
+             {photo.url.match(/\.(mp4|webm|mov)$/i) ? (
+               <video
+                 ref={(el) => {
+                   if (el) {
+                     videoRefs.current.set(index, el);
+                   } else {
+                     videoRefs.current.delete(index);
+                   }
+                 }}
+                 src={photo.url}
+                 className="h-full w-full object-contain"
+                 playsInline
+                 preload="metadata"
+               />
+             ) : (
               <img
                 src={photo.url}
                 alt={photo.label || 'Foto de la galería'}

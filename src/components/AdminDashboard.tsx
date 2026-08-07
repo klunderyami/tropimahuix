@@ -907,8 +907,8 @@ const AdminDashboard = () => {
                       {formState.gallery?.map((url, index) => (
                         <div key={`existing-${index}`} className="relative group">
                            {url.match(/\.(mp4|webm|mov)$/i) ? (
-                             <video src={url} controls className="h-24 w-full rounded-lg object-contain bg-black" />
-                           ) : (
+                              <video src={url} controls className="h-24 w-full rounded-lg object-contain bg-black" playsInline preload="metadata" />
+                            ) : (
                              <img src={url} alt={`Galería ${index + 1}`} loading="lazy" decoding="async" className="h-24 w-full rounded-lg object-contain bg-stone-100" />
                            )}
                           <button
@@ -924,8 +924,8 @@ const AdminDashboard = () => {
                       {galleryPreviews.map((preview, index) => (
                         <div key={`new-${index}`} className="relative group">
                            {preview.type.startsWith('video/') ? (
-                             <video src={preview.url} controls className="h-24 w-full rounded-lg object-contain bg-black" />
-                           ) : (
+                              <video src={preview.url} controls className="h-24 w-full rounded-lg object-contain bg-black" playsInline preload="metadata" />
+                            ) : (
                              <img src={preview.url} alt={`Nuevo ${index + 1}`} loading="lazy" decoding="async" className="h-24 w-full rounded-lg object-contain bg-stone-100" />
                            )}
                           <button
@@ -1190,9 +1190,9 @@ const AdminDashboard = () => {
                       galleryPreview ? 'border-emerald-300 bg-emerald-50/50' : 'border-stone-300 bg-white hover:border-brand-orange hover:bg-brand-orange/5'
                     }`}
                   >
-                    {galleryPreview && galleryFile?.type.startsWith('video/') ? (
-                      <video src={galleryPreview} controls className="mb-3 max-h-40 rounded-2xl bg-black" />
-                    ) : galleryPreview && galleryFile?.type.startsWith('image/') ? (
+                      {galleryPreview && galleryFile?.type.startsWith('video/') ? (
+                        <video src={galleryPreview} controls className="mb-3 max-h-40 rounded-2xl bg-black" playsInline preload="metadata" />
+                      ) : galleryPreview && galleryFile?.type.startsWith('image/') ? (
                       <img src={galleryPreview} alt="Vista previa" loading="lazy" decoding="async" className="mb-3 max-h-40 rounded-2xl object-contain shadow-sm" />
                     ) : (
                       <svg className="mb-3 h-10 w-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
