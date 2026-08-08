@@ -12,7 +12,6 @@ interface NotificationPanelProps {
 }
 
 const sourceConfig: Record<string, { icon: string; label: string; color: string }> = {
-  reddit: { icon: '🤖', label: 'Reddit', color: 'bg-orange-100 text-orange-800' },
   lead_web: { icon: '🌐', label: 'Lead Web', color: 'bg-blue-100 text-blue-800' },
   whatsapp: { icon: '💬', label: 'WhatsApp', color: 'bg-green-100 text-green-800' },
   system: { icon: '⚙️', label: 'Sistema', color: 'bg-gray-100 text-gray-800' },

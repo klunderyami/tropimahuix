@@ -278,6 +278,12 @@ if (fs.existsSync(FRONTEND_INDEX_HTML)) {
   app.use(express.static(FRONTEND_DIST_DIR));
 }
 
+// Endpoint explícito para robots.txt
+app.get('/robots.txt', (_req: Request, res: Response) => {
+  res.type('text/plain');
+  res.send("User-agent: *\nAllow: /\nSitemap: https://tropimahuix-web.onrender.com/sitemap.xml");
+});
+
 // --- Zod Schemas for Validation ---
 const ProductPayloadSchema = z.object({
   name: z.string().trim().min(1, { message: 'El nombre es requerido.' }),
@@ -1674,7 +1680,7 @@ app.post('/api/notifications/send', async (req: Request, res: Response, next: Ne
     }
 
     // Validar source
-    const validSources = ['reddit', 'lead_web', 'whatsapp', 'system', 'order', 'chat'];
+    const validSources = ['lead_web', 'whatsapp', 'system', 'order', 'chat'];
     if (!validSources.includes(source)) {
       return res.status(400).json({ error: `Source inválido. Valores permitidos: ${validSources.join(', ')}` });
     }
@@ -1716,7 +1722,7 @@ app.post('/api/notifications', requireAdmin, async (req: Request, res: Response,
     }
 
     // Validar source
-    const validSources = ['reddit', 'lead_web', 'whatsapp', 'system', 'order', 'chat'];
+    const validSources = ['lead_web', 'whatsapp', 'system', 'order', 'chat'];
     if (!validSources.includes(source)) {
       return res.status(400).json({ error: `Source inválido. Valores permitidos: ${validSources.join(', ')}` });
     }

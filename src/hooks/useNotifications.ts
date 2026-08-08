@@ -4,7 +4,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface SystemNotification {
   id: string;
-  source: 'reddit' | 'lead_web' | 'whatsapp' | 'system' | 'order' | 'chat';
+  source: 'lead_web' | 'whatsapp' | 'system' | 'order' | 'chat';
   title: string;
   message: string;
   action_url: string | null;

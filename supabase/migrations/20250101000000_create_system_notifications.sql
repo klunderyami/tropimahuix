@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS system_notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  source TEXT NOT NULL CHECK (source IN ('reddit', 'lead_web', 'whatsapp', 'system', 'order', 'chat')),
+  source TEXT NOT NULL CHECK (source IN ('lead_web', 'whatsapp', 'system', 'order', 'chat')),
   title TEXT NOT NULL,
   message TEXT NOT NULL,
   action_url TEXT,
@@ -64,6 +64,6 @@ CREATE POLICY "Service can insert notifications"
 
 -- Comentarios de documentación
 COMMENT ON TABLE system_notifications IS 'Sistema de notificaciones centralizado para alertas en tiempo real del panel de administración';
-COMMENT ON COLUMN system_notifications.source IS 'Fuente de la notificación: reddit, lead_web, whatsapp, system, order, chat';
+COMMENT ON COLUMN system_notifications.source IS 'Fuente de la notificación: lead_web, whatsapp, system, order, chat';
 COMMENT ON COLUMN system_notifications.status IS 'Estado de lectura: unread (no leída) o read (leída)';
 COMMENT ON COLUMN system_notifications.action_url IS 'URL opcional para redirigir al hacer clic en la notificación';

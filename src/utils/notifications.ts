@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 
 export interface NotificationPayload {
-  source: 'reddit' | 'lead_web' | 'whatsapp' | 'system' | 'order' | 'chat';
+  source: 'lead_web' | 'whatsapp' | 'system' | 'order' | 'chat';
   title: string;
   message: string;
   actionUrl?: string;
@@ -72,9 +72,6 @@ export async function sendSystemNotificationFromServer(payload: NotificationPayl
 
 // Helpers específicos por fuente
 export const NotificationHelpers = {
-  reddit: (title: string, message: string, actionUrl?: string) =>
-    sendSystemNotification({ source: 'reddit', title, message, actionUrl }),
-
   leadWeb: (title: string, message: string, actionUrl?: string) =>
     sendSystemNotification({ source: 'lead_web', title, message, actionUrl }),
 
