@@ -34,7 +34,7 @@ export const Hero = () => {
     'w-full sm:w-auto px-10 py-4 rounded-full transition-all duration-300 hover:-translate-y-1 text-center tracking-wide active:scale-[0.98] cursor-pointer';
 
   return (
-    <section className="relative bg-gradient-to-b from-brand-brown via-stone-900 to-paper text-amber-50 py-32 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[85vh] flex items-center">
+    <section className="tropi-cane-hero relative text-brand-brown py-32 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[85vh] flex items-center">
       
       {/* 1. Elementos ambientales y decorativos de fondo (Blobs Premium) */}
       <div className="absolute top-0 right-0 -mt-20 -mr-20 w-[500px] h-[500px] bg-brand-orange/15 rounded-full blur-[120px] pointer-events-none"></div>
@@ -53,7 +53,7 @@ export const Hero = () => {
           {/* 2. Eslogan de presentación */}
           <motion.h2 
             variants={itemVariants}
-            className="inline-block text-brand-gold font-semibold tracking-[0.2em] text-sm sm:text-base uppercase mb-6 border-b border-brand-gold/30 pb-3"
+            className="inline-block text-[#48683d] font-semibold tracking-[0.2em] text-sm sm:text-base uppercase mb-6 border-b border-[#48683d]/30 pb-3"
           >
             {loading ? '...' : welcomeMessage}
           </motion.h2>
@@ -61,7 +61,7 @@ export const Hero = () => {
           {/* 3. Título Principal de Impacto utilizando font-display corporativa */}
           <motion.h1 
             variants={itemVariants}
-            className="text-5xl sm:text-6xl md:text-8xl font-black text-white tracking-tight mb-8 leading-[1.1]"
+            className="text-5xl sm:text-6xl md:text-8xl font-black text-brand-brown tracking-tight mb-8 leading-[1.1]"
           >
             {loading ? 'Cargando...' : heroTitle}
             <span className="font-display text-brand-orange block mt-3 text-4xl sm:text-5xl md:text-7xl font-normal normal-case drop-shadow-md">
@@ -72,7 +72,7 @@ export const Hero = () => {
           {/* 4. Descripción pulida del negocio */}
           <motion.p 
             variants={itemVariants}
-            className="text-base sm:text-lg md:text-xl text-stone-300 max-w-3xl mx-auto mb-12 leading-relaxed"
+            className="text-base sm:text-lg md:text-xl text-stone-700 max-w-3xl mx-auto mb-12 leading-relaxed"
           >
             En <span className="text-brand-gold font-semibold drop-shadow-sm">Tropicaña</span>, preservamos recetas de herencia utilizando ingredientes naturales de la región de Veracruz. Descubre el balance perfecto entre suavidad, carácter y frescura en cada botella de edición limitada.
           </motion.p>
@@ -90,7 +90,7 @@ export const Hero = () => {
             </a>
             <a
               href={`#${CATALOG_ID}`}
-              className={`${baseButtonClasses} border border-stone-400/40 hover:border-brand-gold text-stone-200 hover:text-brand-gold font-medium bg-stone-900/40 backdrop-blur-md shadow-lg`}
+              className={`${baseButtonClasses} border border-[#668057]/40 hover:border-[#50723e] text-brand-brown hover:text-[#375d35] font-semibold bg-white/80 backdrop-blur-md shadow-lg`}
             >
               Ver la Colección Completa
             </a>
