@@ -18,10 +18,10 @@ enlace "Centro de agentes".
 - `GET /api/admin/agents`: catálogo público **solo para administradores autenticados**, con
   información de disponibilidad del proveedor, sin claves ni system prompts.
 - `POST /api/admin/agents/:agentId/run`: recibe `{ "input": "tarea" }`, valida
-  rol, identificador y límites, y envía un único pedido al proveedor de IA.
-- Requiere `ANTHROPIC_API_KEY` **en el servidor de Vercel**. `ANTHROPIC_MODEL`
-  es opcional; valor predeterminado `claude-sonnet-4-5`. Revisar que el modelo
-  esté habilitado en la cuenta Anthropic.
+  rol, identificador y límites, y envía un único pedido a la API de OpenAI Responses (con `store: false`).
+- Requiere `OPENAI_API_KEY` **en el servidor de Vercel**. `OPENAI_MODEL`
+  es opcional; valor predeterminado `gpt-4.1-mini`. Revisar que el modelo
+  esté habilitado en la cuenta OpenAI.
 - Sin clave, los agentes se muestran como *no configurados* y el botón de ejecución
   se deshabilita; no se fingen resultados ni se utilizan datos demo.
 - Todo resultado es un **borrador para revisión**. No envía mensajes,
@@ -67,7 +67,7 @@ y no depende de recursos externos, sin sustituir fotos reales de productos ni su
 3. Confirmar `/api/health`, `/api/products`, catálogo, carrito, login, administrador,
    distribuidores y chat en el ambiente con variables de servidor configuradas.
 4. Entrar como administrador a `/admin/agentes`: deben verse los 35 agentes.
-5. Crear `ANTHROPIC_API_KEY` en Vercel Production/Preview correspondiente (no pegar
+5. Crear `OPENAI_API_KEY` en Vercel Production/Preview correspondiente (no pegar
    claves en tickets, GitHub ni chats). Probar una generación real y límite de uso.
 6. Verificar que `GET /api/admin/agents` y `POST /api/admin/agents/:id/run`
    rechazan usuarios anónimos o no administradores.
