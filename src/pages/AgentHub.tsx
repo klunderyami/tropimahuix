@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { auth } from '../firebase.js';
+import { ScheduledAgentPanel } from '../components/ScheduledAgentPanel.js';
 
 interface AgentSummary {
   id: string;
@@ -146,6 +147,7 @@ export const AgentHub = () => {
              </section>
            </div>
          </>}
+        <ScheduledAgentPanel />
       </div>
     </main>
   );
