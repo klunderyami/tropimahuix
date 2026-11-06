@@ -29,7 +29,7 @@ for (const envFile of envFiles) {
 // --- INICIO: SECCIÓN DE INICIALIZACIÓN DE SERVICIOS ---
 
 // Supabase es la única fuente de autenticación y datos.
-let supabase: SupabaseClient;
+let supabase!: SupabaseClient;
 let serviceInitializationError: Error | null = null;
 try {
   const url = process.env.SUPABASE_URL;
@@ -421,7 +421,7 @@ const agentRunLimiter = rateLimit({
 });
 
 // Los 35 agentes están disponibles exclusivamente tras validar rol administrativo en Supabase.
-registerScheduledAgents(app, supabase, requireAdmin);
+if (!serviceInitializationError) registerScheduledAgents(app, supabase, requireAdmin);
 
 app.get('/api/admin/agents', requireAdmin, (_req: Request, res: Response) => {
   res.status(200).json(getAgentCatalog());
