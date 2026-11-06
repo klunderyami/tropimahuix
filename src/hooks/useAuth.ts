@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged } from '../firebase.js';
+import type { User } from '../firebase.js';
 import { auth } from '../firebase.js';
 
-const ADMIN_UID = import.meta.env.VITE_FIREBASE_ADMIN_UID || import.meta.env.VITE_ADMIN_UID;
+
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -19,7 +20,7 @@ export function useAuth() {
 
   return {
     user,
-    isAdmin: user?.uid === ADMIN_UID,
+    isAdmin: Boolean(user?.emailVerified), // Server independently checks store_admins.
     loading,
   };
 }
