@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from '../firebase.js';
 import { auth } from '../firebase.js';
 import { ADMIN_EMAIL } from './useAdminAccess.js';
 
@@ -32,7 +32,7 @@ export function useAdminAuth(): AdminAuthState {
       await signOut(auth);
       // Limpiar localStorage
       localStorage.removeItem('emailForSignIn');
-      localStorage.removeItem('firebase:previousUser');
+
       // Limpiar sessionStorage
       sessionStorage.clear();
     } catch (error) {
