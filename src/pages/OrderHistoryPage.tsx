@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from '../firebase.js';
 import { auth } from '../firebase.js';
 import type { Order } from '../types.js';
 
