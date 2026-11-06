@@ -311,3 +311,62 @@ body {
   .tropi-brand-splash__palm, .tropi-brand-splash__content, .tropi-brand-splash__progress span { animation: none !important; }
   .tropi-brand-splash { animation: tropi-intro-out .01s linear 1.7s both; }
 }
+
+/* Portada inspirada en el diseño aprobado: paisaje visible y botellas REALES del catálogo. */
+.tropi-cane-hero {
+  background-image:
+    linear-gradient(90deg, rgba(255,246,224,.68) 0%, rgba(255,241,204,.35) 49%, rgba(252,233,181,.04) 100%),
+    url('/cane-landscape.svg') !important;
+  background-position: center 58% !important;
+}
+.tropi-hero-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
+  gap: clamp(1rem, 4vw, 4rem);
+  align-items: center;
+}
+.tropi-hero-copy h1 { font-family: Georgia, serif; font-weight: 600; }
+.tropi-hero-copy h1 span { font-style: italic; }
+.tropi-hero-bottles {
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  min-width: 0;
+  height: clamp(330px, 41vw, 570px);
+  filter: drop-shadow(0 24px 20px rgba(48,49,23,.27));
+}
+.tropi-hero-bottle {
+  min-width: 0;
+  width: 25%;
+  height: 95%;
+  object-fit: contain;
+  object-position: bottom center;
+  animation: tropi-bottle-enter .75s ease-out both;
+}
+.tropi-hero-bottle:nth-child(2), .tropi-hero-bottle:nth-child(4) { height: 88%; }
+@keyframes tropi-bottle-enter {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Se anima la fotografía completa para preservar EXACTAMENTE el logo y la mascota. */
+.tropi-brand-splash { background: #fff !important; }
+.tropi-brand-splash__art {
+  display: block;
+  width: min(92vw, 750px);
+  max-height: 75vh;
+  object-fit: contain;
+  transform-origin: 45% 75%;
+  animation: tropi-original-mascot-move 1.15s ease-in-out infinite alternate;
+}
+@keyframes tropi-original-mascot-move {
+  from { transform: rotate(-2deg) translateY(3px); }
+  to { transform: rotate(2deg) translateY(-5px); }
+}
+@media (max-width: 900px) {
+  .tropi-hero-layout { grid-template-columns: 1fr; }
+  .tropi-hero-bottles { height: 300px; }
+  .tropi-hero-copy { align-items: center; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-brand-splash__art, .tropi-hero-bottle { animation: none !important; }
+}
