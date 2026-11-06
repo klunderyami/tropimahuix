@@ -22,9 +22,7 @@ function adaptUser(user: SupabaseUser | null): User | null {
   };
 }
 export const auth: { currentUser: User | null } = { currentUser: null };
-let currentGeneration = 0;
 export function onAuthStateChanged(_auth: typeof auth, callback: (user: User | null) => void): () => void {
-  const generation = ++currentGeneration;
   let active = true;
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     if (!active) return;
@@ -32,7 +30,7 @@ export function onAuthStateChanged(_auth: typeof auth, callback: (user: User | n
     callback(auth.currentUser);
   });
   void supabase.auth.getSession().then(({ data }) => {
-    if (!active || generation > currentGeneration) return;
+    if (!active) return;
     auth.currentUser = adaptUser(data.session?.user ?? null);
     callback(auth.currentUser);
   });
