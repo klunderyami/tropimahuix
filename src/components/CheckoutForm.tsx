@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from '../firebase.js';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, login, sendLoginLink } from '../firebase.js';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from '../firebase.js';
 import { auth } from '../firebase.js';
 import type { Order } from '../types.js';
 
@@ -31,7 +31,7 @@ export const OrderHistoryPage = () => {
         const token = await auth.currentUser?.getIdToken();
         if (!token) return;
 
-        const response = await fetch('/api/orders', {
+        const response = await fetch('/api/orders/mine', {
           headers: { Authorization: `Bearer ${token}` },
         });
 

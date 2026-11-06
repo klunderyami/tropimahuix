@@ -4,9 +4,6 @@ import fs from 'node:fs';
 import dotenv from 'dotenv';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express'; // Mantener para Express
-import admin from 'firebase-admin';
-import { cert } from 'firebase-admin/app';
-import { getAuth, Auth } from 'firebase-admin/auth';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
@@ -29,77 +26,17 @@ for (const envFile of envFiles) {
 
 // --- INICIO: SECCIÓN DE INICIALIZACIÓN DE SERVICIOS ---
 
+// Supabase es la única fuente de autenticación y datos.
 let supabase: SupabaseClient;
-let auth: Auth;
 let serviceInitializationError: Error | null = null;
-
-function initializeServices(): { supabase: SupabaseClient; auth: Auth } | { error: Error } {
-  // 1. Inicializar Firebase Admin solo para Autenticación
-  // Esto es necesario para verificar los tokens de ID de Firebase del frontend.
-  try {
-    // Si ya hay una app de Firebase inicializada, usa esa
-    if (admin.apps.length === 0) {
-      const serviceAccountPath = path.resolve(__dirname, 'firebase-service-account.json');
-      if (fs.existsSync(serviceAccountPath)) {
-        const rawData = fs.readFileSync(serviceAccountPath, 'utf-8');
-        const serviceAccount = JSON.parse(rawData) as admin.ServiceAccount;
-        admin.initializeApp({ credential: cert(serviceAccount) });
-        console.log('🚀 [Firebase Admin] Initialized for auth using local service account.');
-      } else {
-        const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-        const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-        const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
-        if (!projectId || !clientEmail || !privateKey) {
-          throw new Error('Missing Firebase Admin environment variables for token verification.');
-        }
-        admin.initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-        console.log('🚀 [Firebase Admin] Initialized for auth using environment variables.');
-      }
-    } else {
-      console.log('✅ [Firebase Admin] Existing app instance found.');
-    }
-    auth = getAuth();
-  } catch (error) {
-    const initError = error instanceof Error ? error : new Error('Firebase Admin SDK for auth failed to initialize.');
-    console.error('❌ [Firebase Admin]', initError);
-    return { error: initError };
-  }
-
-  // 2. Inicializar el cliente Admin de Supabase
-  // Este cliente usa la SERVICE_ROLE_KEY para bypass RLS.
-  try {
-    // Leer variables de entorno DESPUÉS de cargar dotenv
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables.');
-    }
-    
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-    console.log('🚀 [Supabase Admin] Initialized successfully.');
-    
-    return { supabase: supabaseClient, auth };
-  } catch (error) {
-    const initError = error instanceof Error ? error : new Error('Supabase Admin client failed to initialize.');
-    return { error: initError };
-  }
-}
-
-const result = initializeServices();
-
-if ('error' in result) {
-  serviceInitializationError = result.error;
-  console.error('⚠️ Servicio de inicialización falló, pero el servidor se iniciará de todas formas.');
-} else {
-  supabase = result.supabase;
-  auth = result.auth;
-  console.log('✅ Todos los servicios inicializados correctamente.');
+try {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing SUPABASE_URL or Supabase service key');
+  supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+} catch (error) {
+  serviceInitializationError = error instanceof Error ? error : new Error('Supabase initialization failed');
+  console.error('[Supabase initialization]', serviceInitializationError.message);
 }
 
 // --- FIN: SECCIÓN DE INICIALIZACIÓN DE FIREBASE REFACTORIZADA ---
@@ -110,10 +47,6 @@ const PORT = Number(process.env.PORT || 9005);
 
 // Log de inicio para confirmar que el servidor está escuchando
 console.log(`🚀 Iniciando servidor en puerto ${PORT}...`);
-const ADMIN_UID = process.env.ADMIN_UID || process.env.FIREBASE_ADMIN_UID;
-if (!ADMIN_UID) {
-  console.warn('⚠️ No se ha configurado ningún UID de administrador. Define ADMIN_UID o FIREBASE_ADMIN_UID en tu entorno.');
-}
 const PAYPAL_MODE = process.env.PAYPAL_MODE?.toLowerCase() === 'live' ? 'live' : 'sandbox';
 const PAYPAL_API_BASE = PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 const PAYPAL_CURRENCY = process.env.PAYPAL_CURRENCY || 'MXN';
@@ -362,48 +295,31 @@ ${productLines}`;
 
 // Filtros de Autenticación y Control de Roles de Seguridad
 async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  const token = getBearerToken(req);
+  if (!token) { res.status(401).json({ error: 'Authentication required' }); return; }
   try {
-    const token = getBearerToken(req);
-    if (!token) {
-      console.error('[Auth Error] No token provided in Authorization header');
-      res.status(401).json({ error: 'Missing authorization token.' });
-      return;
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user || !data.user.email_confirmed_at) {
+      res.status(401).json({ error: 'Invalid or unverified session' }); return;
     }
-
-    try {
-      const decoded = await auth.verifyIdToken(token);
-      const uid = decoded.uid;
-
-      // Validar que sea admin si está configurado ADMIN_UID
-      if (ADMIN_UID && uid !== ADMIN_UID) {
-        console.error(`[Auth Error] User ${uid} is not admin (expected ${ADMIN_UID})`);
-        res.status(403).json({ error: 'Forbidden: Admin access required.' });
-        return;
-      }
-
-      req.auth = { uid };
-      next();
-    } catch (tokenError) {
-      console.error('[Firebase Token Verification] Invalid or expired token:', tokenError instanceof Error ? tokenError.message : String(tokenError));
-      res.status(401).json({ error: 'Invalid or expired authorization token.' });
-      return;
-    }
-  } catch (error) {
-    console.error('[Auth Middleware Error]', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Authentication middleware error.' });
+    // Admin rights are server-managed in Supabase; never trust client metadata or an email alone.
+    const { data: role, error: roleError } = await supabase.from('store_admins')
+      .select('user_id').eq('user_id', data.user.id).maybeSingle();
+    if (roleError || !role) { res.status(403).json({ error: 'Admin access required' }); return; }
+    req.auth = { uid: data.user.id };
+    next();
+  } catch {
+    res.status(401).json({ error: 'Authentication failed' });
   }
 }
 
 async function getOptionalUserId(req: Request): Promise<string | 'guest'> {
   const token = getBearerToken(req);
   if (!token) return 'guest';
-  
   try {
-    const decoded = await auth.verifyIdToken(token);
-    return decoded.uid;
-  } catch {
-    return 'guest';
-  }
+    const { data, error } = await supabase.auth.getUser(token);
+    return error || !data.user ? 'guest' : data.user.id;
+  } catch { return 'guest'; }
 }
 
 interface PayPalToken {
@@ -489,6 +405,10 @@ function getCapturedAmount(paypalCapture: PayPalCaptureResponse): { currency_cod
 }
 
 // Endpoints REST de la API
+app.get('/api/admin/me', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  res.status(200).json({ isAdmin: true, userId: req.auth?.uid });
+});
+
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy' });
 });
@@ -936,6 +856,20 @@ app.delete('/api/gallery/:photoId', requireAdmin, async (req: Request, res: Resp
     console.error('Error deleting photo:', error);
     next(error instanceof Error ? error : new Error(String(error)));
   }
+});
+
+app.get('/api/orders/mine', async (req: Request, res: Response) => {
+  const token = getBearerToken(req);
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+  const { data: userData, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !userData.user) return res.status(401).json({ error: 'Invalid session' });
+  const { data, error } = await supabase.from('orders').select('*')
+    .eq('user_id', userData.user.id).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: 'Unable to load orders' });
+  return res.status(200).json({ orders: (data ?? []).map(order => ({
+    id: order.id, status: order.status, items: order.items, total: order.total,
+    createdAt: order.created_at, shippingAddress: order.shipping_address,
+  })) });
 });
 
 app.get('/api/orders', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {

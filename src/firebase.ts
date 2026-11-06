@@ -1,80 +1,80 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
-import {
-  getAuth,
-  Auth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  sendSignInLinkToEmail as fbSendSignInLinkToEmail,
-  isSignInWithEmailLink as fbIsSignInWithEmailLink,
-  signInWithEmailLink as fbSignInWithEmailLink,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  UserCredential,
-  ActionCodeSettings,
-} from 'firebase/auth';
+// Supabase Auth adapter: preserves existing UI contracts while removing Firebase SDK.
+import { supabase } from './supabase.js';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
-// --- Configuración ---
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-// --- Inicialización ---
-const app: FirebaseApp = initializeApp(firebaseConfig);
-export const auth: Auth = getAuth(app);
-
-// --- Autenticación con Google ---
-const googleProvider = new GoogleAuthProvider();
-export const login = (): Promise<UserCredential> => signInWithPopup(auth, googleProvider);
-
-// --- Autenticación con Correo y Contraseña ---
-export const loginWithEmail = (email: string, password: string): Promise<UserCredential> =>
-  signInWithEmailAndPassword(auth, email, password);
-
-// --- Autenticación con Enlace Mágico (Passwordless) ---
-
-// Base settings for magic links
-const actionCodeSettingsBase: ActionCodeSettings = {
-  handleCodeInApp: true,
-  url: `${window.location.origin}/magic-link-handler`,
-};
-
-// Specific settings for admin login, redirecting to a different verification page
-export const actionCodeSettingsAdmin: ActionCodeSettings = {
-  ...actionCodeSettingsBase,
-  url: `${window.location.origin}/admin/verify-link`,
-};
-
-/**
- * Sends a magic link for general user login.
- */
-export const sendLoginLink = (email: string): Promise<void> => {
-  return fbSendSignInLinkToEmail(auth, email, actionCodeSettingsBase);
-};
-
-/**
- * This is exported to match the existing call signature in LoginAdmin.tsx
- */
-export const sendSignInLinkToEmail = (authInstance: Auth, email: string, settings: ActionCodeSettings): Promise<void> =>
-  fbSendSignInLinkToEmail(authInstance, email, settings);
-
-export const isLoginLink = (link: string): boolean => fbIsSignInWithEmailLink(auth, link);
-
-export const isSignInWithEmailLink = (authInstance: Auth, link: string): boolean =>
-  fbIsSignInWithEmailLink(authInstance, link);
-
-export const completeLogin = (email: string, link: string): Promise<UserCredential> =>
-  fbSignInWithEmailLink(auth, email, link);
-
-export const signInWithEmailLink = (authInstance: Auth, email: string, link: string): Promise<UserCredential> =>
-  fbSignInWithEmailLink(authInstance, email, link);
-
-// Re-export onAuthStateChanged for convenience
-export { onAuthStateChanged };
-
-export const logout = (): Promise<void> => signOut(auth);
+export interface User {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+  getIdToken(): Promise<string>;
+}
+function adaptUser(user: SupabaseUser | null): User | null {
+  if (!user) return null;
+  return {
+    uid: user.id,
+    email: user.email ?? null,
+    emailVerified: Boolean(user.email_confirmed_at),
+    async getIdToken() {
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session?.access_token) throw new Error('Sesión expirada');
+      return data.session.access_token;
+    },
+  };
+}
+export const auth: { currentUser: User | null } = { currentUser: null };
+let currentGeneration = 0;
+export function onAuthStateChanged(_auth: typeof auth, callback: (user: User | null) => void): () => void {
+  const generation = ++currentGeneration;
+  let active = true;
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (!active) return;
+    auth.currentUser = adaptUser(session?.user ?? null);
+    callback(auth.currentUser);
+  });
+  void supabase.auth.getSession().then(({ data }) => {
+    if (!active || generation > currentGeneration) return;
+    auth.currentUser = adaptUser(data.session?.user ?? null);
+    callback(auth.currentUser);
+  });
+  return () => { active = false; subscription.unsubscribe(); };
+}
+export async function login(): Promise<void> {
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/admin/dashboard' } });
+  if (error) throw error;
+}
+export async function loginWithEmail(email: string, password: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+export async function sendLoginLink(email: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + '/auth/magic-link' } });
+  if (error) throw error;
+}
+export const actionCodeSettingsAdmin = { url: window.location.origin + '/admin/verify-link' };
+export async function sendSignInLinkToEmail(_auth: typeof auth, email: string, settings: { url: string }): Promise<void> {
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: settings.url } });
+  if (error) throw error;
+}
+export function isLoginLink(url: string): boolean {
+  const u = new URL(url);
+  return u.searchParams.has('code') || u.searchParams.has('token_hash') || u.hash.includes('access_token=');
+}
+export function isSignInWithEmailLink(_auth: typeof auth, url: string): boolean { return isLoginLink(url); }
+export async function completeLogin(_email: string, link: string): Promise<void> {
+  const u = new URL(link);
+  const code = u.searchParams.get('code');
+  const tokenHash = u.searchParams.get('token_hash');
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+  } else if (tokenHash) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'email' });
+    if (error) throw error;
+  } else {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) throw new Error('Enlace inválido o expirado');
+  }
+}
+export async function signInWithEmailLink(_auth: typeof auth, email: string, link: string): Promise<void> { return completeLogin(email, link); }
+export async function logout(): Promise<void> { const { error } = await supabase.auth.signOut(); if (error) throw error; auth.currentUser = null; }
+export async function signOut(_auth: typeof auth): Promise<void> { return logout(); }

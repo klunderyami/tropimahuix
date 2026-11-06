@@ -7,7 +7,7 @@ interface AdminRouteProps {
   children: ReactNode;
 }
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@example.com';
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'la cuenta autorizada en Supabase';
 
 const AdminRoute = ({ children }: AdminRouteProps) => {
   const { user, isAdmin, loading } = useAuth();
@@ -191,7 +191,7 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
               <p className="text-xs">
                 El acceso está restringido exclusivamente al correo <strong>{ADMIN_EMAIL}</strong>.
                 Debes iniciar sesión con esa cuenta de Google o email/contraseña.
-                Asegúrate de que el correo esté <strong>verificado</strong> en Firebase Authentication.
+                Asegúrate de que el correo esté <strong>verificado</strong> en Supabase Authentication y que tenga el rol administrativo asignado.
               </p>
             </div>
           </div>

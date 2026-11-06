@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { signOut } from 'firebase/auth';
+import { signOut } from '../firebase.js';
 import { auth } from '../firebase.js';
 import {
   subscribeToProducts,
@@ -31,7 +31,7 @@ import { NotificationPanel } from '../components/NotificationPanel';
 type AdminTab = 'products' | 'gallery' | 'orders' | 'distributors' | 'chat' | 'statistics';
 
 // UID de administrador verificado (hardcodeado como capa de seguridad adicional)
-const ADMIN_UID = 'OsVU7qU5NOParGXVqejx0SacMLl2';
+// Administrator authorization is enforced by the Supabase-backed server.
 
 const blankProduct: NewProduct = {
   name: '',
@@ -62,7 +62,7 @@ async function getAccessToken(): Promise<string> {
 // Validación estricta de acceso administrativo por UID
 function validateAdminAccess(user: { uid: string; email?: string | null } | null): boolean {
   if (!user) return false;
-  return user.uid === ADMIN_UID;
+  return Boolean(user.uid); // Backend validates store_admins for every privileged operation.
 }
 
 const AdminDashboard = () => {
