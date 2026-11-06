@@ -1785,8 +1785,11 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Tropicana API listening on http://0.0.0.0:${PORT}`);
-  console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-});
+// Vercel ejecuta Express como función serverless; no se abre un puerto allí.
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Tropicana API listening on http://0.0.0.0:${PORT}`);
+  });
+}
+
+export default app;
