@@ -28,7 +28,7 @@ for (const envFile of envFiles) {
 // --- INICIO: SECCIÓN DE INICIALIZACIÓN DE SERVICIOS ---
 
 // Supabase es la única fuente de autenticación y datos.
-let supabase: SupabaseClient;
+let supabase!: SupabaseClient;
 let serviceInitializationError: Error | null = null;
 try {
   const url = process.env.SUPABASE_URL;
