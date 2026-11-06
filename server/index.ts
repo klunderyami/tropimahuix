@@ -7,6 +7,7 @@ import type { NextFunction, Request, Response } from 'express'; // Mantener para
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
+import { getAgentCatalog, runTropiAgent } from './agentService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -407,6 +408,37 @@ function getCapturedAmount(paypalCapture: PayPalCaptureResponse): { currency_cod
 // Endpoints REST de la API
 app.get('/api/admin/me', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json({ isAdmin: true, userId: req.auth?.uid });
+});
+
+
+const agentRunLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Límite temporal de solicitudes a los agentes. Inténtalo más tarde.' },
+});
+
+// Los 35 agentes están disponibles exclusivamente tras validar rol administrativo en Supabase.
+app.get('/api/admin/agents', requireAdmin, (_req: Request, res: Response) => {
+  res.status(200).json(getAgentCatalog());
+});
+
+app.post('/api/admin/agents/:agentId/run', requireAdmin, agentRunLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  const agentId = getRouteParam(req.params.agentId);
+  const input = typeof req.body?.input === 'string' ? req.body.input.trim() : '';
+  if (!agentId || !/^AGT-(NEG|SOC|ADS|ENG|CON|SEO)-[A-Z]{2}$/.test(agentId)) {
+    return res.status(400).json({ error: 'Selecciona un agente válido.' });
+  }
+  if (!input || input.length > 8000) {
+    return res.status(400).json({ error: 'Describe la tarea en un texto de 1 a 8000 caracteres.' });
+  }
+  try {
+    const output = await runTropiAgent(agentId, input);
+    res.status(200).json({ agentId, output, draft: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get('/api/health', (_req: Request, res: Response) => {
