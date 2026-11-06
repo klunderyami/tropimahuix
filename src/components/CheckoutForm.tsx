@@ -1,13 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from '../firebase.js';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, login, sendLoginLink } from '../firebase.js';
 import { useCart } from '../contexts/CartContext.js';
 import type { DiscoverySource, OrderItem, ShippingAddress } from '../types.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
-const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 const NETWORK_TIMEOUT = 8000; // 8 segundos máximo para evitar loading eterno
 
 interface PreparedOrder {
@@ -169,44 +167,25 @@ export const CheckoutForm = () => {
     }
   };
 
-  const handleCapture = async (paypalOrderId: string) => {
-    if (!preparedOrder) return;
-
+  const handleStripeCheckout = async () => {
+    if (!preparedOrder || isCapturing) return;
     setIsCapturing(true);
     setError(null);
-
     try {
-      const response = await fetchWithTimeout(`${API_BASE_URL}/api/orders/capture`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/stripe/checkout`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getAuthHeaders()),
-        },
-        body: JSON.stringify({
-          orderId: preparedOrder.orderId,
-          paypalOrderId,
-        }),
-      });
-
-      const payload = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'PayPal no pudo validar el pago.');
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        body: JSON.stringify({ orderId: preparedOrder.orderId }),
+      }, 15000);
+      const payload = await response.json() as { url?: string; error?: string };
+      if (!response.ok || !payload.url) throw new Error(payload.error || 'No se pudo iniciar Stripe Checkout.');
+      const destination = new URL(payload.url);
+      if (destination.protocol !== 'https:' || !['checkout.stripe.com', 'checkout.stripe.dev'].includes(destination.hostname)) {
+        throw new Error('Stripe devolvió una dirección no válida.');
       }
-
-      clearCart();
-      navigate(`/order-confirmation/${preparedOrder.orderId}`, {
-        state: {
-          orderId: preparedOrder.orderId,
-          total: preparedOrder.total,
-          items: preparedOrder.items,
-          shippingAddress,
-          paypalOrderId,
-        },
-      });
+      window.location.assign(destination.toString());
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo confirmar el pago.');
-    } finally {
+      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo iniciar el pago.');
       setIsCapturing(false);
     }
   };
@@ -230,10 +209,10 @@ export const CheckoutForm = () => {
     <section className="min-h-screen bg-paper px-4 py-12 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="glass-card border border-brand-gold/20 bg-white/85 p-8 shadow-xl">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-brand-orange">Pago seguro con PayPal</p>
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-brand-orange">Pago seguro con Stripe</p>
           <h1 className="mt-4 text-5xl font-display text-brand-brown">Finaliza tu pedido</h1>
           <p className="mt-3 text-stone-600">
-            Capturamos tus datos de entrega y validamos el pago directamente con PayPal antes de confirmar la orden.
+            Tus datos de entrega quedan registrados y el pago se procesa de forma segura en Stripe. El pedido se confirma únicamente cuando Stripe verifica el cobro.
           </p>
 
           <form onSubmit={handlePrepareOrder} className="mt-8 grid gap-5 sm:grid-cols-2">
@@ -313,7 +292,7 @@ export const CheckoutForm = () => {
               disabled={isPreparing}
               className="sm:col-span-2 rounded-3xl bg-brand-orange px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-orange/90 disabled:cursor-wait disabled:bg-stone-300"
             >
-              {isPreparing ? 'Reservando stock...' : user ? 'Reservar pedido y continuar con PayPal' : 'Iniciar sesión y continuar'}
+              {isPreparing ? 'Reservando stock...' : user ? 'Reservar pedido y continuar con Stripe' : 'Iniciar sesión y continuar'}
             </button>
           </form>
 
@@ -447,45 +426,14 @@ export const CheckoutForm = () => {
                 Orden interna <span className="font-mono text-brand-brown">{preparedOrder.orderId}</span> lista para pago.
               </p>
 
-              {!PAYPAL_CLIENT_ID ? (
-                <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-                  Configura VITE_PAYPAL_CLIENT_ID para activar los botones de PayPal.
-                </div>
-              ) : (
-                <PayPalScriptProvider
-                  options={{
-                    clientId: PAYPAL_CLIENT_ID,
-                    currency: 'MXN',
-                    intent: 'capture',
-                  }}
-                >
-                  <PayPalButtons
-                    style={{ layout: 'vertical', color: 'gold', shape: 'pill', label: 'pay' }}
-                    disabled={isCapturing}
-                    forceReRender={[preparedOrder.orderId, preparedOrder.total]}
-                    createOrder={(_data, actions) =>
-                      actions.order.create({
-                        intent: 'CAPTURE',
-                        purchase_units: [
-                          {
-                            reference_id: preparedOrder.orderId,
-                            amount: {
-                              currency_code: 'MXN',
-                              value: preparedOrder.total.toFixed(2),
-                            },
-                          },
-                        ],
-                      })
-                    }
-                    onApprove={async (data) => {
-                      await handleCapture(data.orderID);
-                    }}
-                    onError={(paypalError) => {
-                      setError(paypalError instanceof Error ? paypalError.message : 'PayPal no pudo completar el pago.');
-                    }}
-                  />
-                </PayPalScriptProvider>
-              )}
+              <button
+                type="button"
+                onClick={handleStripeCheckout}
+                disabled={isCapturing}
+                className="w-full rounded-full bg-brand-orange px-6 py-4 font-bold text-white transition hover:bg-brand-orange/90 disabled:opacity-60"
+              >
+                {isCapturing ? 'Conectando con Stripe...' : 'Pagar con Stripe · MXN'}
+              </button>
             </div>
           )}
         </div>
