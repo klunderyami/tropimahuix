@@ -128,7 +128,7 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
   } as const;
 
   return (
-    <section id="catalog" className="py-24 bg-paper relative overflow-hidden">
+    <section id="catalog" className="tropi-catalog-bg py-24 bg-paper relative overflow-hidden">
       <div className="absolute inset-0 opacity-15 bg-[radial-gradient(var(--color-brand-gold)_1px,transparent_1px)] [background-size:32px_32px] pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">

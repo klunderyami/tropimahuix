@@ -109,3 +109,99 @@
 @media (prefers-reduced-motion: reduce) {
   .tropi-cane-section *, .tropi-cane-hero * { scroll-behavior: auto; }
 }
+
+
+/* Identidad visual tropical premium para todas las páginas.
+   Usa la ilustración local de cañaveral: sin recursos externos ni cambios en etiquetas. */
+:root {
+  --tropi-forest: #173b28;
+  --tropi-leaf: #53742e;
+  --tropi-cream: #fff9e8;
+  --tropi-copper: #e96b19;
+}
+html { scroll-behavior: smooth; }
+body {
+  background-color: #f5f1df;
+  background-image:
+    linear-gradient(180deg, rgba(255,250,232,.90) 0%, rgba(255,251,239,.78) 30%, rgba(250,247,230,.87) 100%),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
+}
+#root { min-height: 100vh; }
+.tropi-cane-hero {
+  background-color: #f1d8a1;
+  background-image:
+    radial-gradient(ellipse at 21% 28%, rgba(255,249,216,.78), transparent 53%),
+    linear-gradient(95deg, rgba(255,248,221,.88) 0%, rgba(255,245,216,.70) 47%, rgba(254,227,170,.18) 100%),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: center 54%;
+  box-shadow: inset 0 -70px 100px -80px rgba(30,58,26,.28);
+}
+.tropi-cane-section {
+  background-color: #e4edc9;
+  background-image:
+    linear-gradient(95deg, rgba(253,251,237,.89), rgba(248,249,226,.66) 54%, rgba(222,238,190,.25)),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: center 62%;
+}
+.tropi-cane-section .tropi-essence-copy,
+.glass-card {
+  background: rgba(255,252,241,.86);
+  border: 1px solid rgba(255,255,255,.70);
+  box-shadow: 0 16px 50px rgba(34,55,20,.14);
+  backdrop-filter: blur(12px);
+}
+.tropi-cane-hero h1,
+.tropi-cane-section h2 { text-shadow: 0 2px 18px rgba(255,250,220,.72); }
+.tropi-cane-hero a,
+.tropi-cane-section a,
+.btn-primary,
+.btn-secondary { transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.tropi-cane-hero a:hover,
+.tropi-cane-section a:hover { transform: translateY(-2px); }
+/* Fondos independientes por zona; las fotografías y etiquetas del catálogo no se editan. */
+.tropi-catalog-bg {
+  background-color: #e9edcc !important;
+  background-image:
+    radial-gradient(circle at 55% 8%, rgba(255,245,174,.42), transparent 40%),
+    linear-gradient(180deg, rgba(232,241,205,.56), rgba(243,243,217,.78) 50%, rgba(248,247,228,.89)),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: 48% 42% !important;
+}
+.tropi-distributors-bg {
+  background-color: #f0e1c5;
+  background-image:
+    radial-gradient(ellipse at 85% 30%, rgba(231,139,62,.22), transparent 52%),
+    linear-gradient(115deg, rgba(255,247,223,.94), rgba(244,222,185,.82) 58%, rgba(222,233,188,.64)),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: 75% 70%;
+}
+.tropi-catalog-bg article {
+  box-shadow: 0 16px 45px rgba(36,59,22,.16);
+}
+.tropi-catalog-bg article img {
+  object-fit: contain;
+}
+.tropi-distributors-bg input,
+.tropi-distributors-bg textarea,
+.tropi-distributors-bg select {
+  background-color: rgba(255,255,255,.94);
+}
+@media (max-width: 768px) {
+  body { background-attachment: scroll; }
+  .tropi-cane-hero {
+    background-image: linear-gradient(180deg, rgba(255,248,222,.87), rgba(255,245,213,.72)), url('/cane-landscape.svg');
+    background-position: 60% center;
+  }
+  .tropi-catalog-bg, .tropi-distributors-bg { background-position: 60% center !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .tropi-cane-hero a, .tropi-cane-section a { transition: none; }
+}
