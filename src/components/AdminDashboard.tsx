@@ -780,7 +780,11 @@ const AdminDashboard = () => {
               Gestión de productos, galería de fotos y monitor de pedidos.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <a href="/admin/agentes"
+              className="flex items-center gap-2 rounded-full border border-amber-200/50 bg-amber-200/15 px-4 py-3 text-sm font-bold text-white transition hover:bg-amber-200/25">
+              <span aria-hidden="true">🤖</span> Centro de agentes
+            </a>
             {/* Botón de Notificaciones */}
             <div className="relative">
               <button

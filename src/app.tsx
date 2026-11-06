@@ -31,6 +31,8 @@ import type { GalleryPhoto } from './types.js';
 
 // Lazy load AdminDashboard to reduce main bundle size
 const AdminDashboard = lazy(() => import('./components/AdminDashboard.js'));
+const AgentHub = lazy(() => import('./pages/AgentHub.js').then(module => ({ default: module.AgentHub })));
+
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -102,10 +104,10 @@ function AppContent() {
 
               <HomeCarousel />
 
-              <section className="py-24 bg-white relative overflow-hidden">
+              <section className="tropi-cane-section py-24 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="grid gap-12 lg:grid-cols-2 items-center">
-                    <div className="space-y-6">
+                    <div className="tropi-essence-copy space-y-6 rounded-[2rem] p-6 sm:p-8">
                       <h2 className="text-4xl md:text-5xl font-display font-black text-brand-brown">
                         Nuestra Esencia
                       </h2>
@@ -214,6 +216,16 @@ function AppContent() {
           <AdminRoute>
             <Suspense fallback={<LoadingFallback />}>
               <AdminDashboard />
+            </Suspense>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/agentes"
+        element={
+          <AdminRoute>
+            <Suspense fallback={<LoadingFallback />}>
+              <AgentHub />
             </Suspense>
           </AdminRoute>
         }

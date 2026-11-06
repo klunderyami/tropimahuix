@@ -17,7 +17,10 @@
     background-color: var(--color-paper);
     color: var(--color-brand-brown);
     font-family: var(--font-sans);
-    background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+    background-image: linear-gradient(180deg, rgba(251,250,245,.92), rgba(248,247,238,.90)), url('/cane-landscape.svg');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
     -webkit-text-size-adjust: 100%;
   }
   
@@ -76,4 +79,33 @@
   .btn-secondary:active {
     transform: scale(0.95);
   }
+}
+/* Fondo cañaveral, ilustración original local optimizada para carga instantánea. */
+.tropi-cane-hero {
+  background-image: linear-gradient(90deg, rgba(250,250,242,.88) 0%, rgba(250,250,242,.66) 50%, rgba(250,250,242,.38) 100%), url('/cane-landscape.svg');
+  background-color: #edf1e3;
+  background-size: cover;
+  background-position: center 55%;
+}
+.tropi-cane-section {
+  position: relative;
+  isolation: isolate;
+  background-image: linear-gradient(90deg, rgba(251,250,245,.82) 0%, rgba(251,250,245,.65) 46%, rgba(251,250,245,.26) 100%), url('/cane-landscape.svg');
+  background-color: #e8eddb;
+  background-size: cover;
+  background-position: center 60%;
+}
+.tropi-cane-section .tropi-essence-copy {
+  background-color: rgba(255,255,252,.75);
+  border: 1px solid rgba(218,224,202,.64);
+  box-shadow: 0 14px 50px rgba(43,63,30,.09);
+  backdrop-filter: blur(3px);
+}
+@media (max-width: 640px) {
+  .tropi-cane-hero,
+  .tropi-cane-section { background-position: 58% center; }
+  .tropi-cane-section .tropi-essence-copy { background-color: rgba(255,255,252,.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-cane-section *, .tropi-cane-hero * { scroll-behavior: auto; }
 }
