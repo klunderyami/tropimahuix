@@ -163,21 +163,43 @@ body {
 .btn-secondary { transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease; }
 .tropi-cane-hero a:hover,
 .tropi-cane-section a:hover { transform: translateY(-2px); }
-main section:not(.tropi-cane-hero):not(.tropi-cane-section) {
+/* Fondos independientes por zona; las fotografías y etiquetas del catálogo no se editan. */
+.tropi-catalog-bg {
+  background-color: #e9edcc !important;
   background-image:
-    linear-gradient(135deg, rgba(255,253,240,.70), rgba(232,242,211,.42)),
+    radial-gradient(circle at 55% 8%, rgba(255,245,174,.42), transparent 40%),
+    linear-gradient(180deg, rgba(232,241,205,.56), rgba(243,243,217,.78) 50%, rgba(248,247,228,.89)),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: 48% 42% !important;
+}
+.tropi-distributors-bg {
+  background-color: #f0e1c5;
+  background-image:
+    radial-gradient(ellipse at 85% 30%, rgba(231,139,62,.22), transparent 52%),
+    linear-gradient(115deg, rgba(255,247,223,.94), rgba(244,222,185,.82) 58%, rgba(222,233,188,.64)),
     url('/cane-landscape.svg');
   background-size: cover;
-  background-position: center;
+  background-position: 75% 70%;
 }
-main section:not(.tropi-cane-hero):not(.tropi-cane-section) > div { position: relative; }
+.tropi-catalog-bg article {
+  box-shadow: 0 16px 45px rgba(36,59,22,.16);
+}
+.tropi-catalog-bg article img {
+  object-fit: contain;
+}
+.tropi-distributors-bg input,
+.tropi-distributors-bg textarea,
+.tropi-distributors-bg select {
+  background-color: rgba(255,255,255,.94);
+}
 @media (max-width: 768px) {
   body { background-attachment: scroll; }
   .tropi-cane-hero {
     background-image: linear-gradient(180deg, rgba(255,248,222,.87), rgba(255,245,213,.72)), url('/cane-landscape.svg');
     background-position: 60% center;
   }
-  main section:not(.tropi-cane-hero):not(.tropi-cane-section) { background-position: 60% center; }
+  .tropi-catalog-bg, .tropi-distributors-bg { background-position: 60% center !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
