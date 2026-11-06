@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from '../firebase.js';
 import { auth } from '../firebase.js';
 
 export const ADMIN_EMAIL = 'yamilethklunder@gmail.com';
