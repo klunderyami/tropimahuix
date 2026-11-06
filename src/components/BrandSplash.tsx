@@ -20,9 +20,7 @@ export function BrandSplash() {
   return (
     <div className="tropi-brand-splash" role="status" aria-live="polite" aria-label="Cargando Tropicaña">
       <div className="tropi-brand-splash__content">
-        <div className="tropi-brand-splash__palm" aria-hidden="true">🌴</div>
-        <div className="tropi-brand-splash__name">Tropicaña</div>
-        <div className="tropi-brand-splash__subtitle">Licores &amp; Toritos Artesanales</div>
+        <img className="tropi-brand-splash__art" src="/tropicana-mascot-original.webp" alt="Mascota palmera Tropicaña con su logotipo original" />
         <div className="tropi-brand-splash__progress" aria-hidden="true"><span /></div>
       </div>
     </div>
