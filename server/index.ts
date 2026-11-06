@@ -1253,6 +1253,34 @@ app.post('/api/distributors', async (req: Request, res: Response, next: NextFunc
     if (error) throw new Error(error.message);
     if (!data) throw new Error('Failed to create distributor lead.');
 
+    // Optional integration with agentes_tropi/workflows/n8n-lead-whatsapp-supabase.json.
+    // The existing Supabase record is the source of truth; automation failures cannot erase a lead.
+    const n8nUrl = process.env.TROPI_N8N_LEADS_WEBHOOK_URL?.trim();
+    if (n8nUrl) {
+      try {
+        const target = new URL(n8nUrl);
+        if (target.protocol !== 'https:') throw new Error('El webhook de n8n debe utilizar HTTPS.');
+        const workflowResponse = await fetch(target, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: leadData.full_name,
+            phone: leadData.phone,
+            zona: leadData.city_state,
+            origen: 'web_distribuidores',
+            nivel: 'pendiente_clasificacion',
+            estado: 'nuevo',
+            score: 0,
+            lead_id: data.id,
+          }),
+          signal: AbortSignal.timeout(3000),
+        });
+        if (!workflowResponse.ok) console.warn('[Tropi n8n] Lead notification failed:', workflowResponse.status);
+      } catch (automationError) {
+        console.warn('[Tropi n8n] Automation unavailable:', automationError instanceof Error ? automationError.message : 'unknown');
+      }
+    }
+
     res.status(201).json({ id: data.id, message: 'Lead created successfully.' });
   } catch (error) {
     console.error('Error creating distributor lead:', error);
