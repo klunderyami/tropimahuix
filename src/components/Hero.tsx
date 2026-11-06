@@ -1,8 +1,17 @@
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { subscribeToProducts } from '../supabase.js';
+import type { Product } from '../types.js';
 import { useSiteConfig } from '../contexts/SiteConfigContext.js';
 
 export const Hero = () => {
   const { config, loading } = useSiteConfig();
+  const [featuredBottles, setFeaturedBottles] = useState<Product[]>([]);
+  useEffect(() => {
+    return subscribeToProducts((products) => {
+      setFeaturedBottles(products.filter((product) => Boolean(product.image)).slice(0, 4));
+    }, () => { /* La portada sigue funcionando si falla el catálogo. */ });
+  }, []);
   const welcomeMessage = config?.welcomeMessage || 'Tradición y Sabor de Nuestra Tierra';
   const heroTitle = config?.heroTitle || 'Licores y Toritos';
   const containerVariants = {
@@ -43,12 +52,12 @@ export const Hero = () => {
       {/* Patrón sutil superpuesto para acentuar lo artesanal */}
       <div className="absolute inset-0 opacity-5 bg-[radial-gradient(var(--color-brand-gold)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none"></div>
 
-      <div className="max-w-5xl mx-auto text-center relative z-10">
+      <div className="tropi-hero-layout max-w-7xl w-full mx-auto relative z-10">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="flex flex-col items-center"
+          className="tropi-hero-copy flex flex-col items-center lg:items-start text-center lg:text-left"
         >
           {/* 2. Eslogan de presentación */}
           <motion.h2 
@@ -80,7 +89,7 @@ export const Hero = () => {
           {/* 5. Botones de Acción (Call To Action) Interactivos */}
           <motion.div 
             variants={itemVariants}
-            className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full sm:w-auto"
+            className="flex flex-col sm:flex-row justify-center lg:justify-start items-center gap-4 w-full sm:w-auto"
           >
             <a
               href={`#${CATALOG_ID}`}
@@ -96,6 +105,15 @@ export const Hero = () => {
             </a>
           </motion.div>
         </motion.div>
+        {featuredBottles.length > 0 && (
+          <div className="tropi-hero-bottles" aria-label="Botellas originales del catálogo Tropicaña">
+            {featuredBottles.map((product, index) => (
+              <img key={product.id} src={product.image} alt={product.name}
+                className="tropi-hero-bottle" style={{ animationDelay: `${index * 0.16}s` }}
+                loading={index === 0 ? 'eager' : 'lazy'} decoding="async" />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
