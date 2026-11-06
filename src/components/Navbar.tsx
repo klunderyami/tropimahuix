@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import type { User } from 'firebase/auth';
+import { onAuthStateChanged } from '../firebase.js';
+import type { User } from '../firebase.js';
 import { auth, sendLoginLink, logout } from '../firebase.js';
 import { useAdminAccess } from '../hooks/useAdminAccess.js';
 
