@@ -37,7 +37,7 @@ export async function runTropiAgent(agentId: string, input: string): Promise<str
       body: JSON.stringify({
         model,
         max_output_tokens: 1500,
-        instructions: agent.prompt + '\\n\\n' + BUSINESS_CONTEXT,
+        instructions: agent.prompt + '\n\n' + BUSINESS_CONTEXT,
         input: [{ role: 'user', content: [{ type: 'input_text', text: input }] }],
         store: false,
       }),
