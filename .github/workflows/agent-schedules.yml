@@ -1,0 +1,58 @@
+name: Tropimahuix - agentes programados
+on:
+  schedule:
+    # America/Mexico_City (UTC-6), no horario de verano en Xalapa.
+    - cron: '0 15 * * *'       # 09:00 diario: Facebook
+    - cron: '0 16 * * *'       # 10:00 diario: mensajes (solo borrador)
+    - cron: '0 18 * * *'       # 12:00 diario: distribuidores
+    - cron: '0 21 * * 1,3,5'   # 15:00 lunes, miércoles y viernes: Instagram
+    - cron: '0 0 * * 2'        # 18:00 lunes local: informe semanal (martes UTC)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Agente a intentar (solo funciona durante su horario local)'
+        required: true
+        type: choice
+        options: [facebook_ads, customer_messages, distributor_followup, instagram_content, sales_report]
+permissions:
+  contents: read
+concurrency:
+  group: tropimahuix-agent-${{ github.event.schedule || inputs.job || 'manual' }}
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Seleccionar agente por horario UTC
+        id: select
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          MANUAL_JOB: ${{ inputs.job }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$SCHEDULE" in
+            '0 15 * * *') JOB='facebook_ads' ;;
+            '0 16 * * *') JOB='customer_messages' ;;
+            '0 18 * * *') JOB='distributor_followup' ;;
+            '0 21 * * 1,3,5') JOB='instagram_content' ;;
+            '0 0 * * 2') JOB='sales_report' ;;
+            '') JOB="$MANUAL_JOB" ;;
+            *) echo 'Unknown schedule'; exit 1 ;;
+          esac
+          echo "job=$JOB" >> "$GITHUB_OUTPUT"
+      - name: Ejecutar una vez (requiere secreto privado)
+        env:
+          AGENT_CRON_SECRET: ${{ secrets.AGENT_CRON_SECRET }}
+          JOB: ${{ steps.select.outputs.job }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$AGENT_CRON_SECRET" ]]; then echo 'Missing AGENT_CRON_SECRET GitHub Actions secret'; exit 1; fi
+          curl --fail-with-body --silent --show-error --max-time 220 \
+            --retry 2 --retry-delay 5 \
+            -X POST "https://tropimahuix.vercel.app/api/internal/agent-schedule/$JOB" \
+            -H "Authorization: Bearer $AGENT_CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'

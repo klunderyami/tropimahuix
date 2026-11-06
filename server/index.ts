@@ -8,6 +8,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { getAgentCatalog, runTropiAgent } from './agentService.js';
+import { registerScheduledAgents } from './agentScheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +29,7 @@ for (const envFile of envFiles) {
 // --- INICIO: SECCIÓN DE INICIALIZACIÓN DE SERVICIOS ---
 
 // Supabase es la única fuente de autenticación y datos.
-let supabase: SupabaseClient;
+let supabase!: SupabaseClient;
 let serviceInitializationError: Error | null = null;
 try {
   const url = process.env.SUPABASE_URL;
@@ -420,6 +421,8 @@ const agentRunLimiter = rateLimit({
 });
 
 // Los 35 agentes están disponibles exclusivamente tras validar rol administrativo en Supabase.
+if (!serviceInitializationError) registerScheduledAgents(app, supabase, requireAdmin);
+
 app.get('/api/admin/agents', requireAdmin, (_req: Request, res: Response) => {
   res.status(200).json(getAgentCatalog());
 });
