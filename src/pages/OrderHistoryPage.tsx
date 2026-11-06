@@ -31,7 +31,7 @@ export const OrderHistoryPage = () => {
         const token = await auth.currentUser?.getIdToken();
         if (!token) return;
 
-        const response = await fetch('/api/orders', {
+        const response = await fetch('/api/orders/mine', {
           headers: { Authorization: `Bearer ${token}` },
         });
 
