@@ -405,6 +405,10 @@ function getCapturedAmount(paypalCapture: PayPalCaptureResponse): { currency_cod
 }
 
 // Endpoints REST de la API
+app.get('/api/admin/me', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  res.status(200).json({ isAdmin: true, userId: req.auth?.uid });
+});
+
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy' });
 });
