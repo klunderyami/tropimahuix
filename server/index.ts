@@ -858,6 +858,20 @@ app.delete('/api/gallery/:photoId', requireAdmin, async (req: Request, res: Resp
   }
 });
 
+app.get('/api/orders/mine', async (req: Request, res: Response) => {
+  const token = getBearerToken(req);
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+  const { data: userData, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !userData.user) return res.status(401).json({ error: 'Invalid session' });
+  const { data, error } = await supabase.from('orders').select('*')
+    .eq('user_id', userData.user.id).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: 'Unable to load orders' });
+  return res.status(200).json({ orders: (data ?? []).map(order => ({
+    id: order.id, status: order.status, items: order.items, total: order.total,
+    createdAt: order.created_at, shippingAddress: order.shipping_address,
+  })) });
+});
+
 app.get('/api/orders', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const status = req.query.status as string | undefined;
