@@ -93,7 +93,7 @@ export const AgentHub = () => {
          <>
            {!configured && (
              <div role="status" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
-               Los 35 agentes están incorporados, pero para ejecutarlos debes configurar <code className="font-bold">ANTHROPIC_API_KEY</code> en las variables privadas de Vercel. No escribas la clave aquí ni en GitHub.
+               Los 35 agentes están incorporados, pero para ejecutarlos debes configurar <code className="font-bold">OPENAI_API_KEY</code> en las variables privadas de Vercel. No escribas la clave aquí ni en GitHub.
              </div>
            )}
            <div className="mb-6 flex flex-wrap gap-2" aria-label="Filtrar agentes">
