@@ -136,34 +136,46 @@ export async function getProductById(id: string): Promise<Product | null> {
 /**
  * Suscripción en tiempo real a cambios en productos.
  */
+let productsRealtimeSubscriberId = 0;
+
+/**
+ * Cada llamada crea su propio canal. Supabase no permite añadir callbacks
+ * postgres_changes a un canal que ya fue suscrito.
+ */
 export function subscribeToProducts(
   callback: (products: Product[]) => void,
   onError?: (error: Error) => void,
 ) {
-  // Carga inicial
-  getProducts()
-    .then(callback)
-    .catch((err) => onError?.(err));
+  let active = true;
+  const deliver = (products: Product[]) => {
+    if (active) callback(products);
+  };
+  const reportError = (error: unknown) => {
+    if (active) onError?.(error instanceof Error ? error : new Error(String(error)));
+  };
 
-  // Suscripción en tiempo real
-  const subscription = supabase
-    .channel('products-changes')
+  getProducts().then(deliver).catch(reportError);
+
+  const channel = supabase
+    .channel(`products-changes-${++productsRealtimeSubscriberId}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'products' },
       async () => {
         try {
-          const products = await getProducts();
-          callback(products);
-        } catch (err) {
-          onError?.(err instanceof Error ? err : new Error(String(err)));
+          deliver(await getProducts());
+        } catch (error) {
+          reportError(error);
         }
       },
     )
-    .subscribe();
+    .subscribe((status, error) => {
+      if (status === 'CHANNEL_ERROR' && error) reportError(error);
+    });
 
   return () => {
-    subscription.unsubscribe();
+    active = false;
+    void supabase.removeChannel(channel);
   };
 }
 
