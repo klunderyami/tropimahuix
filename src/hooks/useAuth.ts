@@ -1,26 +1,26 @@
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged } from '../firebase.js';
+import { auth, onAuthStateChanged } from '../firebase.js';
 import type { User } from '../firebase.js';
-import { auth } from '../firebase.js';
-
-
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    let generation = 0;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      const current = ++generation;
       setUser(currentUser);
-      setLoading(false);
+      setIsAdmin(false);
+      if (!currentUser?.emailVerified) { setLoading(false); return; }
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch('/api/admin/me', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        if (current === generation) setIsAdmin(response.ok);
+      } catch { if (current === generation) setIsAdmin(false); }
+      finally { if (current === generation) setLoading(false); }
     });
-
-    return () => unsubscribe();
+    return () => { generation++; unsubscribe(); };
   }, []);
-
-  return {
-    user,
-    isAdmin: Boolean(user?.emailVerified), // Server independently checks store_admins.
-    loading,
-  };
+  return { user, isAdmin, loading };
 }
