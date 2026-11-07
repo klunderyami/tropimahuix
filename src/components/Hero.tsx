@@ -62,7 +62,7 @@ export const Hero = () => {
           {/* 2. Eslogan de presentación */}
           <motion.h2 
             variants={itemVariants}
-            className="inline-block text-[#48683d] font-semibold tracking-[0.2em] text-sm sm:text-base uppercase mb-6 border-b border-[#48683d]/30 pb-3"
+            className="inline-block text-[#172b16] font-semibold tracking-[0.2em] text-sm sm:text-base uppercase mb-6 border-b border-[#48683d]/30 pb-3"
           >
             {loading ? '...' : welcomeMessage}
           </motion.h2>
@@ -70,10 +70,10 @@ export const Hero = () => {
           {/* 3. Título Principal de Impacto utilizando font-display corporativa */}
           <motion.h1 
             variants={itemVariants}
-            className="text-5xl sm:text-6xl md:text-8xl font-black text-brand-brown tracking-tight mb-8 leading-[1.1]"
+            className="text-5xl sm:text-6xl lg:text-7xl font-black text-[#20130f] tracking-tight mb-7 leading-[1.08]"
           >
             {loading ? 'Cargando...' : heroTitle}
-            <span className="font-display text-brand-orange block mt-3 text-4xl sm:text-5xl md:text-7xl font-normal normal-case drop-shadow-md">
+            <span className="font-display text-[#9e3b0b] block mt-3 text-3xl sm:text-4xl lg:text-5xl font-normal normal-case drop-shadow-md">
               Veracruzanos y 100% Artesanales
             </span>
           </motion.h1>
@@ -81,9 +81,9 @@ export const Hero = () => {
           {/* 4. Descripción pulida del negocio */}
           <motion.p 
             variants={itemVariants}
-            className="text-base sm:text-lg md:text-xl text-stone-700 max-w-3xl mx-auto mb-12 leading-relaxed"
+            className="text-base sm:text-lg text-[#201b16] font-medium max-w-2xl mx-auto mb-9 leading-relaxed"
           >
-            En <span className="text-brand-gold font-semibold drop-shadow-sm">Tropicaña</span>, preservamos recetas de herencia utilizando ingredientes naturales de la región de Veracruz. Descubre el balance perfecto entre suavidad, carácter y frescura en cada botella de edición limitada.
+            En <span className="text-[#78320d] font-bold drop-shadow-sm">Tropicaña</span>, preservamos recetas de herencia utilizando ingredientes naturales de la región de Veracruz. Descubre el balance perfecto entre suavidad, carácter y frescura en cada botella de edición limitada.
           </motion.p>
 
           {/* 5. Botones de Acción (Call To Action) Interactivos */}
@@ -108,9 +108,10 @@ export const Hero = () => {
         {featuredBottles.length > 0 && (
           <div className="tropi-hero-bottles" aria-label="Botellas originales del catálogo Tropicaña">
             {featuredBottles.map((product, index) => (
-              <img key={product.id} src={product.image} alt={product.name}
-                className="tropi-hero-bottle" style={{ animationDelay: `${index * 0.16}s` }}
-                loading={index === 0 ? 'eager' : 'lazy'} decoding="async" />
+              <div key={product.id} className="tropi-hero-bottle-frame" style={{ animationDelay: `${index * 0.12}s` }}>
+                <img src={product.image} alt={product.name}
+                  className="tropi-hero-bottle" loading="eager" decoding="async" />
+              </div>
             ))}
           </div>
         )}
