@@ -370,3 +370,61 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tropi-brand-splash__art, .tropi-hero-bottle { animation: none !important; }
 }
+
+/* Paisaje fotográfico aprobado, sin botones, letras ni botellas incorporadas.
+   El SVG anterior queda como respaldo mientras se sube la fotografía. */
+:root { --tropi-sunset-image: url('/feature/tropicana-atardecer-canaveral.webp'); }
+body {
+  background-color: #f7e6b7;
+  background-image:
+    linear-gradient(180deg, rgba(255,250,233,.73), rgba(255,248,231,.68)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+}
+.tropi-cane-hero {
+  background-image:
+    linear-gradient(90deg, rgba(255,249,232,.78) 0%, rgba(255,245,219,.51) 48%, rgba(255,245,219,.09) 100%),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-position: center 54% !important;
+  background-size: cover !important;
+}
+.tropi-cane-section {
+  background-image:
+    linear-gradient(105deg, rgba(255,249,230,.83), rgba(255,249,230,.52) 56%, rgba(255,244,213,.19)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: center 62% !important;
+}
+.tropi-catalog-bg {
+  background-image:
+    linear-gradient(180deg, rgba(255,249,232,.62), rgba(251,248,228,.45) 45%, rgba(255,249,232,.73)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-position: 62% 48% !important;
+  background-size: cover !important;
+}
+.tropi-distributors-bg {
+  background-image:
+    linear-gradient(105deg, rgba(255,248,229,.86), rgba(255,246,218,.59) 57%, rgba(255,244,212,.30)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: 75% center !important;
+}
+#root main section:not(.tropi-cane-hero):not(.tropi-cane-section):not(.tropi-catalog-bg):not(.tropi-distributors-bg) {
+  background-image:
+    linear-gradient(115deg, rgba(255,251,236,.79), rgba(255,250,231,.63)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+}
+@media (max-width: 768px) {
+  body { background-attachment: scroll !important; }
+  .tropi-cane-hero { background-position: 57% center !important; }
+}
