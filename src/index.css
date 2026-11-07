@@ -428,3 +428,94 @@ body {
   body { background-attachment: scroll !important; }
   .tropi-cane-hero { background-position: 57% center !important; }
 }
+
+
+/* Ajuste final de legibilidad y exhibición de productos: la foto real sigue siendo el fondo. */
+.tropi-cane-hero {
+  min-height: min(820px, 95svh);
+  padding-top: clamp(7rem, 11vw, 10rem) !important;
+  padding-bottom: clamp(4rem, 7vw, 7rem) !important;
+  background-image:
+    linear-gradient(90deg, rgba(255,250,234,.88) 0%, rgba(255,247,224,.75) 43%, rgba(255,245,219,.14) 100%),
+    var(--tropi-sunset-image) !important;
+  background-position: center 55% !important;
+  background-size: cover !important;
+}
+.tropi-hero-layout {
+  grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr);
+  gap: clamp(1.5rem, 3.2vw, 3.5rem);
+}
+.tropi-hero-copy { align-items: flex-start; }
+.tropi-hero-copy h1 {
+  color: #20130f !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  font-family: Georgia, serif;
+}
+.tropi-hero-copy h2, .tropi-hero-copy p {
+  color: #1f1a15 !important;
+  text-shadow: 0 1px 1px rgba(255,255,255,.4);
+}
+.tropi-hero-copy p { margin-left: 0; margin-right: 0; }
+.tropi-hero-bottles {
+  height: clamp(340px, 38vw, 530px);
+  align-items: stretch;
+  gap: clamp(5px, .8vw, 12px);
+  padding: 18px 12px 24px;
+  filter: none;
+}
+.tropi-hero-bottle-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 20px;
+  background: rgba(255,255,255,.91);
+  box-shadow: 0 18px 35px rgba(35,34,20,.22), inset 0 0 0 1px rgba(255,255,255,.55);
+  animation: tropi-bottle-enter .75s ease-out both;
+}
+.tropi-hero-bottle {
+  display: block;
+  width: 100%;
+  height: 100% !important;
+  max-height: 100%;
+  padding: 10px 2px;
+  object-fit: contain;
+  object-position: center;
+  animation: none;
+}
+.tropi-hero-bottle:nth-child(2), .tropi-hero-bottle:nth-child(4) { height: 100%; }
+.tropi-cane-section,
+.tropi-catalog-bg,
+.tropi-distributors-bg {
+  background-image:
+    linear-gradient(110deg, rgba(255,249,232,.82), rgba(255,247,223,.61)),
+    var(--tropi-sunset-image) !important;
+}
+.tropi-cane-section h1, .tropi-cane-section h2, .tropi-cane-section h3,
+.tropi-catalog-bg h1, .tropi-catalog-bg h2, .tropi-catalog-bg h3,
+.tropi-distributors-bg h1, .tropi-distributors-bg h2, .tropi-distributors-bg h3 {
+  color: #201713 !important;
+}
+.tropi-cane-section p, .tropi-catalog-bg p, .tropi-distributors-bg p {
+  color: #29221b;
+}
+@media (max-width: 900px) {
+  .tropi-cane-hero { min-height: auto; padding-top: 7rem !important; }
+  .tropi-hero-layout { grid-template-columns: 1fr; gap: 1rem; }
+  .tropi-hero-copy { align-items: center; text-align: center; }
+  .tropi-hero-copy p { margin-left: auto; margin-right: auto; }
+  .tropi-hero-bottles { height: clamp(240px, 48vw, 390px); width: 100%; }
+}
+@media (max-width: 540px) {
+  .tropi-cane-hero {
+    background-image:
+      linear-gradient(180deg, rgba(255,250,235,.92), rgba(255,247,222,.70)),
+      var(--tropi-sunset-image) !important;
+  }
+  .tropi-hero-bottles { height: 225px; padding: 8px 0 14px; gap: 5px; }
+  .tropi-hero-bottle-frame { border-radius: 12px; }
+  .tropi-hero-bottle { padding: 4px 1px; }
+}
