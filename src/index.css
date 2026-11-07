@@ -373,7 +373,7 @@ body {
 
 /* Paisaje fotográfico aprobado, sin botones, letras ni botellas incorporadas.
    El SVG anterior queda como respaldo mientras se sube la fotografía. */
-:root { --tropi-sunset-image: url('/tropicana-atardecer-canaveral.webp'); }
+:root { --tropi-sunset-image: url('/feature/tropicana-atardecer-canaveral.webp'); }
 body {
   background-color: #f7e6b7;
   background-image:
