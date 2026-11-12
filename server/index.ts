@@ -8,8 +8,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { registerStripeRoutes } from './stripe.js';
+
+feature/stripe-checkout-mxn-20261106
 import { getAgentCatalog, runTropiAgent } from './agentService.js';
 import { registerScheduledAgents } from './agentScheduler.js';
+main
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -195,9 +198,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   next();
 });
-
+ feature/stripe-checkout-mxn-20261106
+// Stripe webhook needs the unmodified raw request body for signature verification.
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 app.use(express.json({ limit: '5mb' }));
+if (!serviceInitializationError) registerStripeRoutes(app, supabase);
 
 // Rate Limiter para proteger contra ataques de fuerza bruta y DoS
 const apiLimiter = rateLimit({
@@ -1048,7 +1053,7 @@ app.post('/api/orders/create', async (req: Request, res: Response, next: NextFun
     console.log('✅ [Checkout] Orden creada exitosamente:', newOrder.id);
 
     console.log('✅ [Checkout] Orden lista para pago:', { orderId: newOrder.id, total, currency: PAYPAL_CURRENCY, items: orderItems });
-    res.status(201).json({ orderId: newOrder.id, total, currency: PAYPAL_CURRENCY, items: orderItems });
+    res.status(201).json({ orderId: newOrder.id, total, currency: 'MXN', items: orderItems });
   } catch (error) {
     console.error('❌ [Checkout] Error completo en creación de orden:', {
       message: error instanceof Error ? error.message : 'Unknown error',
