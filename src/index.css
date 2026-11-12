@@ -519,3 +519,98 @@ body {
   .tropi-hero-bottle-frame { border-radius: 12px; }
   .tropi-hero-bottle { padding: 4px 1px; }
 }
+
+
+/* Escenarios independientes por sección. Las fotos de referencia pueden añadirse
+   a public/feature/ con estos nombres; mientras tanto se usa la imagen existente. */
+:root {
+  --tropi-bg-hero: url('/feature/tropicana-atardecer-canaveral.webp');
+  --tropi-bg-catalog: url('/feature/canaveral-amanecer.jpg');
+  --tropi-bg-story: url('/feature/canaveral-camino.jpg');
+  --tropi-bg-distributors: url('/feature/canaveral-cerca.jpg');
+}
+body {
+  background-image: linear-gradient(180deg, rgba(251,247,232,.94), rgba(239,242,222,.90)),
+    url('/cane-landscape.svg') !important;
+  background-attachment: scroll !important;
+}
+.tropi-cane-hero {
+  background-image: linear-gradient(90deg, rgba(255,251,236,.93), rgba(255,247,226,.68) 50%, rgba(255,244,219,.18)),
+    var(--tropi-bg-hero) !important;
+  background-position: center !important;
+}
+.tropi-catalog-bg {
+  background-image: linear-gradient(120deg, rgba(251,249,236,.84), rgba(255,249,232,.66)),
+    var(--tropi-bg-catalog), url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+.tropi-cane-section {
+  background-image: linear-gradient(105deg, rgba(255,251,238,.90), rgba(251,246,227,.70)),
+    var(--tropi-bg-story), url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+.tropi-distributors-bg {
+  background-image: linear-gradient(110deg, rgba(251,247,226,.88), rgba(248,240,213,.70)),
+    var(--tropi-bg-distributors), url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+#root main section:not(.tropi-cane-hero):not(.tropi-cane-section):not(.tropi-catalog-bg):not(.tropi-distributors-bg) {
+  background-image: linear-gradient(120deg, rgba(255,251,236,.89), rgba(248,247,231,.78)),
+    url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+.tropi-hero-bottles {
+  height: clamp(330px, 37vw, 510px);
+  display: flex;
+  gap: clamp(4px, .7vw, 10px);
+  align-items: flex-end;
+  padding: 10px 0 18px;
+  overflow: visible;
+  filter: none;
+  perspective: 900px;
+}
+.tropi-hero-bottle-stage {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible;
+  animation: tropi-bottle-float 5s ease-in-out infinite alternate;
+}
+.tropi-hero-bottle-stage:nth-child(2) { height: 91%; animation-delay: -.9s !important; }
+.tropi-hero-bottle-stage:nth-child(3) { height: 96%; animation-delay: -1.8s !important; }
+.tropi-hero-bottle-stage:nth-child(4) { height: 88%; animation-delay: -2.7s !important; }
+.tropi-hero-bottle-stage .tropi-hero-bottle {
+  display: block;
+  width: 100%;
+  height: 100% !important;
+  padding: 0 !important;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(7px 18px 12px rgba(36,29,15,.40));
+  animation: none !important;
+}
+.tropi-hero-bottle--original { mix-blend-mode: multiply; }
+.tropi-hero-bottle--cutout { mix-blend-mode: normal; }
+@keyframes tropi-bottle-float {
+  from { transform: translateY(6px) rotateY(-3deg); }
+  to { transform: translateY(-12px) rotateY(3deg); }
+}
+@media (max-width: 900px) {
+  .tropi-hero-bottles { height: clamp(230px, 48vw, 360px); }
+}
+@media (max-width: 540px) {
+  .tropi-hero-bottles { height: 225px; padding: 4px 0 12px; gap: 2px; }
+  .tropi-cane-hero {
+    background-image: linear-gradient(180deg, rgba(255,251,238,.94), rgba(255,248,227,.72)),
+      var(--tropi-bg-hero) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-hero-bottle-stage { animation: none !important; }
+}
