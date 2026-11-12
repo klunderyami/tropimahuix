@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { HeroBottle } from './HeroBottle.js';
 import { useEffect, useState } from 'react';
 import { subscribeToProducts } from '../supabase.js';
 import type { Product } from '../types.js';
@@ -108,10 +109,7 @@ export const Hero = () => {
         {featuredBottles.length > 0 && (
           <div className="tropi-hero-bottles" aria-label="Botellas originales del catálogo Tropicaña">
             {featuredBottles.map((product, index) => (
-              <div key={product.id} className="tropi-hero-bottle-frame" style={{ animationDelay: `${index * 0.12}s` }}>
-                <img src={product.image} alt={product.name}
-                  className="tropi-hero-bottle" loading="eager" decoding="async" />
-              </div>
+              <HeroBottle key={product.id} src={product.image} alt={product.name} index={index} />
             ))}
           </div>
         )}
