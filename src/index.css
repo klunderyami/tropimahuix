@@ -716,3 +716,60 @@ body {
   .tropi-licores-showcase__products img { animation: none; }
   .tropi-licores-showcase__action { transition: none; }
 }
+
+
+/* Portada Licores: nueva fotografía del propietario, sin fondos superpuestos.
+   El recorte se adapta a la pantalla sin deformar la imagen. */
+.tropi-licores-showcase {
+  min-height: clamp(520px, 52vw, 720px);
+  background-image:
+    linear-gradient(90deg, rgba(255,250,235,.94) 0%, rgba(255,248,229,.86) 30%, rgba(255,248,229,.42) 57%, rgba(255,248,229,.08) 100%),
+    url('/feature/licores-canaveral-atardecer.jpg');
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center, center 48%;
+}
+.tropi-licores-showcase__content {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 4.5rem);
+}
+.tropi-licores-showcase__copy {
+  padding: clamp(1.2rem, 2.5vw, 2.5rem) 0;
+}
+.tropi-licores-showcase__eyebrow,
+.tropi-licores-showcase h1,
+.tropi-licores-showcase p {
+  color: #28180f;
+  text-shadow: 0 1px 5px rgba(255,251,237,.65);
+}
+.tropi-licores-showcase__products {
+  align-self: end;
+  min-height: 390px;
+}
+.tropi-licores-showcase__products img {
+  width: min(100%, 620px);
+  max-height: 550px;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(12px 20px 15px rgba(33,24,15,.38));
+}
+@media (max-width: 850px) {
+  .tropi-licores-showcase {
+    padding-top: clamp(6rem, 13vw, 8rem);
+    padding-bottom: 2rem;
+    background-image:
+      linear-gradient(180deg, rgba(255,251,238,.95) 0%, rgba(255,250,236,.85) 38%, rgba(255,249,232,.33) 75%, rgba(255,249,232,.15) 100%),
+      url('/feature/licores-canaveral-atardecer.jpg');
+    background-position: center, 55% center;
+  }
+  .tropi-licores-showcase__content { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .tropi-licores-showcase__copy { padding: 0; }
+  .tropi-licores-showcase__products { min-height: 0; }
+  .tropi-licores-showcase__products img { width: min(100%, 480px); max-height: 360px; }
+}
+@media (max-width: 540px) {
+  .tropi-licores-showcase { min-height: 0; padding-inline: 1rem; background-position: center, 57% center; }
+  .tropi-licores-showcase h1 { font-size: clamp(2.5rem, 10vw, 3.7rem); }
+  .tropi-licores-showcase p { font-size: 1rem; line-height: 1.5; }
+  .tropi-licores-showcase__products img { max-height: 290px; }
+}
