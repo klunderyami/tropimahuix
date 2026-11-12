@@ -614,3 +614,105 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tropi-hero-bottle-stage { animation: none !important; }
 }
+
+
+/* Presentación exclusiva de la página Licores: paisaje propio y botellas recortadas.
+   La imagen aportada se publicará en /feature/licores-canaveral-atardecer.jpg.
+   Hasta que se cargue, se muestra el atardecer que ya está en producción. */
+.tropi-licores-showcase {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: clamp(420px, 45vw, 610px);
+  padding: clamp(5.5rem, 9vw, 8rem) clamp(1.25rem, 5vw, 5rem) clamp(3rem, 6vw, 5rem);
+  background-color: #e7d5a0;
+  background-image:
+    linear-gradient(90deg, rgba(255,249,227,.94) 0%, rgba(255,246,220,.83) 38%, rgba(255,246,220,.17) 100%),
+    url('/feature/licores-canaveral-atardecer.jpg'),
+    url('/feature/tropicana-atardecer-canaveral.webp');
+  background-size: cover;
+  background-position: center 52%;
+}
+.tropi-licores-showcase__content {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1280px);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  gap: clamp(1rem, 3vw, 3rem);
+  align-items: center;
+}
+.tropi-licores-showcase__copy { max-width: 690px; }
+.tropi-licores-showcase__eyebrow {
+  display: block;
+  margin-bottom: 1.2rem;
+  font-size: clamp(.72rem, 1.3vw, .95rem);
+  font-weight: 800;
+  letter-spacing: .19em;
+  text-transform: uppercase;
+  color: #5c351c;
+}
+.tropi-licores-showcase h1 {
+  margin: 0 0 1.1rem;
+  color: #29150d;
+  font-family: Georgia, serif;
+  font-size: clamp(3.1rem, 6vw, 6.1rem);
+  font-weight: 700;
+  line-height: 1.08;
+  text-shadow: 0 2px 12px rgba(255,250,229,.55);
+}
+.tropi-licores-showcase p {
+  max-width: 600px;
+  color: #2b2118;
+  font-size: clamp(1.04rem, 1.65vw, 1.38rem);
+  font-weight: 600;
+  line-height: 1.65;
+  text-shadow: 0 1px 6px rgba(255,249,231,.72);
+}
+.tropi-licores-showcase__action {
+  display: inline-flex;
+  margin-top: 1.8rem;
+  padding: .9rem 1.65rem;
+  border-radius: 999px;
+  background: #a94713;
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(67,35,15,.22);
+  transition: transform .2s, background-color .2s;
+}
+.tropi-licores-showcase__action:hover { background: #87330e; transform: translateY(-2px); }
+.tropi-licores-showcase__products {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-width: 0;
+}
+.tropi-licores-showcase__products img {
+  display: block;
+  width: min(100%, 570px);
+  max-height: 500px;
+  object-fit: contain;
+  filter: drop-shadow(15px 25px 18px rgba(32,28,13,.36));
+  animation: tropi-licores-enter .9s ease-out both;
+}
+@keyframes tropi-licores-enter {
+  from { opacity: 0; transform: translateY(25px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (max-width: 850px) {
+  .tropi-licores-showcase {
+    background-image: linear-gradient(180deg, rgba(255,250,232,.92), rgba(255,248,230,.58)),
+      url('/feature/licores-canaveral-atardecer.jpg'),
+      url('/feature/tropicana-atardecer-canaveral.webp');
+  }
+  .tropi-licores-showcase__content { grid-template-columns: 1fr; text-align: center; }
+  .tropi-licores-showcase__copy { margin-inline: auto; }
+  .tropi-licores-showcase__products img { max-height: 330px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-licores-showcase__products img { animation: none; }
+  .tropi-licores-showcase__action { transition: none; }
+}
