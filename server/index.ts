@@ -9,6 +9,11 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { registerStripeRoutes } from './stripe.js';
 
+feature/stripe-checkout-mxn-20261106
+import { getAgentCatalog, runTropiAgent } from './agentService.js';
+import { registerScheduledAgents } from './agentScheduler.js';
+main
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -193,7 +198,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   next();
 });
-
+ feature/stripe-checkout-mxn-20261106
 // Stripe webhook needs the unmodified raw request body for signature verification.
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 app.use(express.json({ limit: '5mb' }));
@@ -411,6 +416,40 @@ function getCapturedAmount(paypalCapture: PayPalCaptureResponse): { currency_cod
 // Endpoints REST de la API
 app.get('/api/admin/me', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json({ isAdmin: true, userId: req.auth?.uid });
+});
+
+
+const agentRunLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Límite temporal de solicitudes a los agentes. Inténtalo más tarde.' },
+});
+
+// Los 35 agentes están disponibles exclusivamente tras validar rol administrativo en Supabase.
+if (!serviceInitializationError) registerScheduledAgents(app, supabase, requireAdmin);
+if (!serviceInitializationError) registerStripeRoutes(app, supabase);
+
+app.get('/api/admin/agents', requireAdmin, (_req: Request, res: Response) => {
+  res.status(200).json(getAgentCatalog());
+});
+
+app.post('/api/admin/agents/:agentId/run', requireAdmin, agentRunLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  const agentId = getRouteParam(req.params.agentId);
+  const input = typeof req.body?.input === 'string' ? req.body.input.trim() : '';
+  if (!agentId || !/^AGT-(NEG|SOC|ADS|ENG|CON|SEO)-[A-Z]{2}$/.test(agentId)) {
+    return res.status(400).json({ error: 'Selecciona un agente válido.' });
+  }
+  if (!input || input.length > 8000) {
+    return res.status(400).json({ error: 'Describe la tarea en un texto de 1 a 8000 caracteres.' });
+  }
+  try {
+    const output = await runTropiAgent(agentId, input);
+    res.status(200).json({ agentId, output, draft: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -1224,6 +1263,34 @@ app.post('/api/distributors', async (req: Request, res: Response, next: NextFunc
 
     if (error) throw new Error(error.message);
     if (!data) throw new Error('Failed to create distributor lead.');
+
+    // Optional integration with agentes_tropi/workflows/n8n-lead-whatsapp-supabase.json.
+    // The existing Supabase record is the source of truth; automation failures cannot erase a lead.
+    const n8nUrl = process.env.TROPI_N8N_LEADS_WEBHOOK_URL?.trim();
+    if (n8nUrl) {
+      try {
+        const target = new URL(n8nUrl);
+        if (target.protocol !== 'https:') throw new Error('El webhook de n8n debe utilizar HTTPS.');
+        const workflowResponse = await fetch(target, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: leadData.full_name,
+            phone: leadData.phone,
+            zona: leadData.city_state,
+            origen: 'web_distribuidores',
+            nivel: 'pendiente_clasificacion',
+            estado: 'nuevo',
+            score: 0,
+            lead_id: data.id,
+          }),
+          signal: AbortSignal.timeout(3000),
+        });
+        if (!workflowResponse.ok) console.warn('[Tropi n8n] Lead notification failed:', workflowResponse.status);
+      } catch (automationError) {
+        console.warn('[Tropi n8n] Automation unavailable:', automationError instanceof Error ? automationError.message : 'unknown');
+      }
+    }
 
     res.status(201).json({ id: data.id, message: 'Lead created successfully.' });
   } catch (error) {

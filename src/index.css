@@ -17,7 +17,10 @@
     background-color: var(--color-paper);
     color: var(--color-brand-brown);
     font-family: var(--font-sans);
-    background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+    background-image: linear-gradient(180deg, rgba(251,250,245,.92), rgba(248,247,238,.90)), url('/cane-landscape.svg');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
     -webkit-text-size-adjust: 100%;
   }
   
@@ -76,4 +79,538 @@
   .btn-secondary:active {
     transform: scale(0.95);
   }
+}
+/* Fondo cañaveral, ilustración original local optimizada para carga instantánea. */
+.tropi-cane-hero {
+  background-image: linear-gradient(90deg, rgba(250,250,242,.88) 0%, rgba(250,250,242,.66) 50%, rgba(250,250,242,.38) 100%), url('/cane-landscape.svg');
+  background-color: #edf1e3;
+  background-size: cover;
+  background-position: center 55%;
+}
+.tropi-cane-section {
+  position: relative;
+  isolation: isolate;
+  background-image: linear-gradient(90deg, rgba(251,250,245,.82) 0%, rgba(251,250,245,.65) 46%, rgba(251,250,245,.26) 100%), url('/cane-landscape.svg');
+  background-color: #e8eddb;
+  background-size: cover;
+  background-position: center 60%;
+}
+.tropi-cane-section .tropi-essence-copy {
+  background-color: rgba(255,255,252,.75);
+  border: 1px solid rgba(218,224,202,.64);
+  box-shadow: 0 14px 50px rgba(43,63,30,.09);
+  backdrop-filter: blur(3px);
+}
+@media (max-width: 640px) {
+  .tropi-cane-hero,
+  .tropi-cane-section { background-position: 58% center; }
+  .tropi-cane-section .tropi-essence-copy { background-color: rgba(255,255,252,.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-cane-section *, .tropi-cane-hero * { scroll-behavior: auto; }
+}
+
+
+/* Identidad visual tropical premium para todas las páginas.
+   Usa la ilustración local de cañaveral: sin recursos externos ni cambios en etiquetas. */
+:root {
+  --tropi-forest: #173b28;
+  --tropi-leaf: #53742e;
+  --tropi-cream: #fff9e8;
+  --tropi-copper: #e96b19;
+}
+html { scroll-behavior: smooth; }
+body {
+  background-color: #f5f1df;
+  background-image:
+    linear-gradient(180deg, rgba(255,250,232,.90) 0%, rgba(255,251,239,.78) 30%, rgba(250,247,230,.87) 100%),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
+}
+#root { min-height: 100vh; }
+.tropi-cane-hero {
+  background-color: #f1d8a1;
+  background-image:
+    radial-gradient(ellipse at 21% 28%, rgba(255,249,216,.78), transparent 53%),
+    linear-gradient(95deg, rgba(255,248,221,.88) 0%, rgba(255,245,216,.70) 47%, rgba(254,227,170,.18) 100%),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: center 54%;
+  box-shadow: inset 0 -70px 100px -80px rgba(30,58,26,.28);
+}
+.tropi-cane-section {
+  background-color: #e4edc9;
+  background-image:
+    linear-gradient(95deg, rgba(253,251,237,.89), rgba(248,249,226,.66) 54%, rgba(222,238,190,.25)),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: center 62%;
+}
+.tropi-cane-section .tropi-essence-copy,
+.glass-card {
+  background: rgba(255,252,241,.86);
+  border: 1px solid rgba(255,255,255,.70);
+  box-shadow: 0 16px 50px rgba(34,55,20,.14);
+  backdrop-filter: blur(12px);
+}
+.tropi-cane-hero h1,
+.tropi-cane-section h2 { text-shadow: 0 2px 18px rgba(255,250,220,.72); }
+.tropi-cane-hero a,
+.tropi-cane-section a,
+.btn-primary,
+.btn-secondary { transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.tropi-cane-hero a:hover,
+.tropi-cane-section a:hover { transform: translateY(-2px); }
+/* Fondos independientes por zona; las fotografías y etiquetas del catálogo no se editan. */
+.tropi-catalog-bg {
+  background-color: #e9edcc !important;
+  background-image:
+    radial-gradient(circle at 55% 8%, rgba(255,245,174,.42), transparent 40%),
+    linear-gradient(180deg, rgba(232,241,205,.56), rgba(243,243,217,.78) 50%, rgba(248,247,228,.89)),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: 48% 42% !important;
+}
+.tropi-distributors-bg {
+  background-color: #f0e1c5;
+  background-image:
+    radial-gradient(ellipse at 85% 30%, rgba(231,139,62,.22), transparent 52%),
+    linear-gradient(115deg, rgba(255,247,223,.94), rgba(244,222,185,.82) 58%, rgba(222,233,188,.64)),
+    url('/cane-landscape.svg');
+  background-size: cover;
+  background-position: 75% 70%;
+}
+.tropi-catalog-bg article {
+  box-shadow: 0 16px 45px rgba(36,59,22,.16);
+}
+.tropi-catalog-bg article img {
+  object-fit: contain;
+}
+.tropi-distributors-bg input,
+.tropi-distributors-bg textarea,
+.tropi-distributors-bg select {
+  background-color: rgba(255,255,255,.94);
+}
+@media (max-width: 768px) {
+  body { background-attachment: scroll; }
+  .tropi-cane-hero {
+    background-image: linear-gradient(180deg, rgba(255,248,222,.87), rgba(255,245,213,.72)), url('/cane-landscape.svg');
+    background-position: 60% center;
+  }
+  .tropi-catalog-bg, .tropi-distributors-bg { background-position: 60% center !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .tropi-cane-hero a, .tropi-cane-section a { transition: none; }
+}
+
+
+/* Nueva capa visual: los gradientes anteriores tapaban el cañaveral. 
+   Aquí se deja ver la ilustración y se mantienen superficies legibles. */
+.tropi-cane-hero {
+  background-image:
+    linear-gradient(90deg, rgba(255,249,230,.63) 0%, rgba(255,247,220,.42) 52%, rgba(255,245,209,.13) 100%),
+    url('/cane-landscape.svg') !important;
+  background-color: #dbe6ae;
+  background-position: center 54%;
+}
+.tropi-cane-section {
+  background-image:
+    linear-gradient(100deg, rgba(251,248,225,.72) 0%, rgba(244,245,209,.40) 54%, rgba(224,238,179,.12) 100%),
+    url('/cane-landscape.svg') !important;
+  background-position: 67% 63%;
+}
+.tropi-catalog-bg {
+  background-image:
+    linear-gradient(180deg, rgba(241,248,215,.40) 0%, rgba(244,244,213,.30) 48%, rgba(252,248,229,.55) 100%),
+    url('/cane-landscape.svg') !important;
+  background-position: 30% 52% !important;
+}
+.tropi-distributors-bg {
+  background-image:
+    linear-gradient(110deg, rgba(255,242,212,.70), rgba(247,213,157,.44) 53%, rgba(224,230,172,.24)),
+    url('/cane-landscape.svg') !important;
+  background-position: 80% 65%;
+}
+.tropi-catalog-bg .bg-white,
+.tropi-catalog-bg .bg-paper {
+  background-color: rgba(255,255,255,.96);
+}
+.tropi-brand-splash {
+  position: fixed;
+  z-index: 99999;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255,250,222,.88), rgba(232,240,200,.92) 65%),
+    url('/cane-landscape.svg') center/cover;
+  animation: tropi-intro-out .45s ease-in 1.75s both;
+  pointer-events: auto;
+}
+.tropi-brand-splash__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  color: #37231e;
+  animation: tropi-intro-in .55s ease-out both;
+}
+.tropi-brand-splash__palm {
+  font-size: clamp(5rem, 15vw, 9rem);
+  line-height: 1.3;
+  transform-origin: 50% 95%;
+  filter: drop-shadow(0 18px 15px rgba(41,70,26,.20));
+  animation: tropi-palm-sway 1.2s ease-in-out infinite alternate;
+}
+.tropi-brand-splash__name {
+  font-family: cursive;
+  font-style: italic;
+  font-size: clamp(3.5rem, 10vw, 6.5rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -.055em;
+}
+.tropi-brand-splash__subtitle {
+  margin-top: .8rem;
+  color: #b95e24;
+  font-size: clamp(.75rem, 2.2vw, 1.05rem);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.tropi-brand-splash__progress {
+  margin-top: 2.3rem;
+  width: min(220px, 65vw);
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(62,92,39,.16);
+}
+.tropi-brand-splash__progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #eb7422;
+  transform-origin: left;
+  animation: tropi-loading 1.85s ease-in-out both;
+}
+@keyframes tropi-palm-sway { from { transform: rotate(-7deg) translateY(3px); } to { transform: rotate(7deg) translateY(-4px); } }
+@keyframes tropi-intro-in { from { opacity: 0; transform: translateY(15px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes tropi-intro-out { to { opacity: 0; visibility: hidden; } }
+@keyframes tropi-loading { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (max-width: 640px) {
+  .tropi-cane-hero {
+    background-image: linear-gradient(180deg, rgba(255,247,219,.72), rgba(255,244,208,.43)), url('/cane-landscape.svg') !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-brand-splash__palm, .tropi-brand-splash__content, .tropi-brand-splash__progress span { animation: none !important; }
+  .tropi-brand-splash { animation: tropi-intro-out .01s linear 1.7s both; }
+}
+
+/* Portada inspirada en el diseño aprobado: paisaje visible y botellas REALES del catálogo. */
+.tropi-cane-hero {
+  background-image:
+    linear-gradient(90deg, rgba(255,246,224,.68) 0%, rgba(255,241,204,.35) 49%, rgba(252,233,181,.04) 100%),
+    url('/cane-landscape.svg') !important;
+  background-position: center 58% !important;
+}
+.tropi-hero-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
+  gap: clamp(1rem, 4vw, 4rem);
+  align-items: center;
+}
+.tropi-hero-copy h1 { font-family: Georgia, serif; font-weight: 600; }
+.tropi-hero-copy h1 span { font-style: italic; }
+.tropi-hero-bottles {
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  min-width: 0;
+  height: clamp(330px, 41vw, 570px);
+  filter: drop-shadow(0 24px 20px rgba(48,49,23,.27));
+}
+.tropi-hero-bottle {
+  min-width: 0;
+  width: 25%;
+  height: 95%;
+  object-fit: contain;
+  object-position: bottom center;
+  animation: tropi-bottle-enter .75s ease-out both;
+}
+.tropi-hero-bottle:nth-child(2), .tropi-hero-bottle:nth-child(4) { height: 88%; }
+@keyframes tropi-bottle-enter {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Se anima la fotografía completa para preservar EXACTAMENTE el logo y la mascota. */
+.tropi-brand-splash { background: #fff !important; }
+.tropi-brand-splash__art {
+  display: block;
+  width: min(92vw, 750px);
+  max-height: 75vh;
+  object-fit: contain;
+  transform-origin: 45% 75%;
+  animation: tropi-original-mascot-move 1.15s ease-in-out infinite alternate;
+}
+@keyframes tropi-original-mascot-move {
+  from { transform: rotate(-2deg) translateY(3px); }
+  to { transform: rotate(2deg) translateY(-5px); }
+}
+@media (max-width: 900px) {
+  .tropi-hero-layout { grid-template-columns: 1fr; }
+  .tropi-hero-bottles { height: 300px; }
+  .tropi-hero-copy { align-items: center; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-brand-splash__art, .tropi-hero-bottle { animation: none !important; }
+}
+
+/* Paisaje fotográfico aprobado, sin botones, letras ni botellas incorporadas.
+   El SVG anterior queda como respaldo mientras se sube la fotografía. */
+:root { --tropi-sunset-image: url('/feature/tropicana-atardecer-canaveral.webp'); }
+body {
+  background-color: #f7e6b7;
+  background-image:
+    linear-gradient(180deg, rgba(255,250,233,.73), rgba(255,248,231,.68)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+}
+.tropi-cane-hero {
+  background-image:
+    linear-gradient(90deg, rgba(255,249,232,.78) 0%, rgba(255,245,219,.51) 48%, rgba(255,245,219,.09) 100%),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-position: center 54% !important;
+  background-size: cover !important;
+}
+.tropi-cane-section {
+  background-image:
+    linear-gradient(105deg, rgba(255,249,230,.83), rgba(255,249,230,.52) 56%, rgba(255,244,213,.19)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: center 62% !important;
+}
+.tropi-catalog-bg {
+  background-image:
+    linear-gradient(180deg, rgba(255,249,232,.62), rgba(251,248,228,.45) 45%, rgba(255,249,232,.73)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-position: 62% 48% !important;
+  background-size: cover !important;
+}
+.tropi-distributors-bg {
+  background-image:
+    linear-gradient(105deg, rgba(255,248,229,.86), rgba(255,246,218,.59) 57%, rgba(255,244,212,.30)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: 75% center !important;
+}
+#root main section:not(.tropi-cane-hero):not(.tropi-cane-section):not(.tropi-catalog-bg):not(.tropi-distributors-bg) {
+  background-image:
+    linear-gradient(115deg, rgba(255,251,236,.79), rgba(255,250,231,.63)),
+    var(--tropi-sunset-image),
+    url('/cane-landscape.svg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+}
+@media (max-width: 768px) {
+  body { background-attachment: scroll !important; }
+  .tropi-cane-hero { background-position: 57% center !important; }
+}
+
+
+/* Ajuste final de legibilidad y exhibición de productos: la foto real sigue siendo el fondo. */
+.tropi-cane-hero {
+  min-height: min(820px, 95svh);
+  padding-top: clamp(7rem, 11vw, 10rem) !important;
+  padding-bottom: clamp(4rem, 7vw, 7rem) !important;
+  background-image:
+    linear-gradient(90deg, rgba(255,250,234,.88) 0%, rgba(255,247,224,.75) 43%, rgba(255,245,219,.14) 100%),
+    var(--tropi-sunset-image) !important;
+  background-position: center 55% !important;
+  background-size: cover !important;
+}
+.tropi-hero-layout {
+  grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr);
+  gap: clamp(1.5rem, 3.2vw, 3.5rem);
+}
+.tropi-hero-copy { align-items: flex-start; }
+.tropi-hero-copy h1 {
+  color: #20130f !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  font-family: Georgia, serif;
+}
+.tropi-hero-copy h2, .tropi-hero-copy p {
+  color: #1f1a15 !important;
+  text-shadow: 0 1px 1px rgba(255,255,255,.4);
+}
+.tropi-hero-copy p { margin-left: 0; margin-right: 0; }
+.tropi-hero-bottles {
+  height: clamp(340px, 38vw, 530px);
+  align-items: stretch;
+  gap: clamp(5px, .8vw, 12px);
+  padding: 18px 12px 24px;
+  filter: none;
+}
+.tropi-hero-bottle-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 20px;
+  background: rgba(255,255,255,.91);
+  box-shadow: 0 18px 35px rgba(35,34,20,.22), inset 0 0 0 1px rgba(255,255,255,.55);
+  animation: tropi-bottle-enter .75s ease-out both;
+}
+.tropi-hero-bottle {
+  display: block;
+  width: 100%;
+  height: 100% !important;
+  max-height: 100%;
+  padding: 10px 2px;
+  object-fit: contain;
+  object-position: center;
+  animation: none;
+}
+.tropi-hero-bottle:nth-child(2), .tropi-hero-bottle:nth-child(4) { height: 100%; }
+.tropi-cane-section,
+.tropi-catalog-bg,
+.tropi-distributors-bg {
+  background-image:
+    linear-gradient(110deg, rgba(255,249,232,.82), rgba(255,247,223,.61)),
+    var(--tropi-sunset-image) !important;
+}
+.tropi-cane-section h1, .tropi-cane-section h2, .tropi-cane-section h3,
+.tropi-catalog-bg h1, .tropi-catalog-bg h2, .tropi-catalog-bg h3,
+.tropi-distributors-bg h1, .tropi-distributors-bg h2, .tropi-distributors-bg h3 {
+  color: #201713 !important;
+}
+.tropi-cane-section p, .tropi-catalog-bg p, .tropi-distributors-bg p {
+  color: #29221b;
+}
+@media (max-width: 900px) {
+  .tropi-cane-hero { min-height: auto; padding-top: 7rem !important; }
+  .tropi-hero-layout { grid-template-columns: 1fr; gap: 1rem; }
+  .tropi-hero-copy { align-items: center; text-align: center; }
+  .tropi-hero-copy p { margin-left: auto; margin-right: auto; }
+  .tropi-hero-bottles { height: clamp(240px, 48vw, 390px); width: 100%; }
+}
+@media (max-width: 540px) {
+  .tropi-cane-hero {
+    background-image:
+      linear-gradient(180deg, rgba(255,250,235,.92), rgba(255,247,222,.70)),
+      var(--tropi-sunset-image) !important;
+  }
+  .tropi-hero-bottles { height: 225px; padding: 8px 0 14px; gap: 5px; }
+  .tropi-hero-bottle-frame { border-radius: 12px; }
+  .tropi-hero-bottle { padding: 4px 1px; }
+}
+
+
+/* Escenarios independientes por sección. Las fotos de referencia pueden añadirse
+   a public/feature/ con estos nombres; mientras tanto se usa la imagen existente. */
+:root {
+  --tropi-bg-hero: url('/feature/tropicana-atardecer-canaveral.webp');
+  --tropi-bg-catalog: url('/feature/canaveral-amanecer.jpg');
+  --tropi-bg-story: url('/feature/canaveral-camino.jpg');
+  --tropi-bg-distributors: url('/feature/canaveral-cerca.jpg');
+}
+body {
+  background-image: linear-gradient(180deg, rgba(251,247,232,.94), rgba(239,242,222,.90)),
+    url('/cane-landscape.svg') !important;
+  background-attachment: scroll !important;
+}
+.tropi-cane-hero {
+  background-image: linear-gradient(90deg, rgba(255,251,236,.93), rgba(255,247,226,.68) 50%, rgba(255,244,219,.18)),
+    var(--tropi-bg-hero) !important;
+  background-position: center !important;
+}
+.tropi-catalog-bg {
+  background-image: linear-gradient(120deg, rgba(251,249,236,.84), rgba(255,249,232,.66)),
+    var(--tropi-bg-catalog), url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+.tropi-cane-section {
+  background-image: linear-gradient(105deg, rgba(255,251,238,.90), rgba(251,246,227,.70)),
+    var(--tropi-bg-story), url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+.tropi-distributors-bg {
+  background-image: linear-gradient(110deg, rgba(251,247,226,.88), rgba(248,240,213,.70)),
+    var(--tropi-bg-distributors), url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+#root main section:not(.tropi-cane-hero):not(.tropi-cane-section):not(.tropi-catalog-bg):not(.tropi-distributors-bg) {
+  background-image: linear-gradient(120deg, rgba(255,251,236,.89), rgba(248,247,231,.78)),
+    url('/cane-landscape.svg') !important;
+  background-position: center !important;
+}
+.tropi-hero-bottles {
+  height: clamp(330px, 37vw, 510px);
+  display: flex;
+  gap: clamp(4px, .7vw, 10px);
+  align-items: flex-end;
+  padding: 10px 0 18px;
+  overflow: visible;
+  filter: none;
+  perspective: 900px;
+}
+.tropi-hero-bottle-stage {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible;
+  animation: tropi-bottle-float 5s ease-in-out infinite alternate;
+}
+.tropi-hero-bottle-stage:nth-child(2) { height: 91%; animation-delay: -.9s !important; }
+.tropi-hero-bottle-stage:nth-child(3) { height: 96%; animation-delay: -1.8s !important; }
+.tropi-hero-bottle-stage:nth-child(4) { height: 88%; animation-delay: -2.7s !important; }
+.tropi-hero-bottle-stage .tropi-hero-bottle {
+  display: block;
+  width: 100%;
+  height: 100% !important;
+  padding: 0 !important;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(7px 18px 12px rgba(36,29,15,.40));
+  animation: none !important;
+}
+.tropi-hero-bottle--original { mix-blend-mode: multiply; }
+.tropi-hero-bottle--cutout { mix-blend-mode: normal; }
+@keyframes tropi-bottle-float {
+  from { transform: translateY(6px) rotateY(-3deg); }
+  to { transform: translateY(-12px) rotateY(3deg); }
+}
+@media (max-width: 900px) {
+  .tropi-hero-bottles { height: clamp(230px, 48vw, 360px); }
+}
+@media (max-width: 540px) {
+  .tropi-hero-bottles { height: 225px; padding: 4px 0 12px; gap: 2px; }
+  .tropi-cane-hero {
+    background-image: linear-gradient(180deg, rgba(255,251,238,.94), rgba(255,248,227,.72)),
+      var(--tropi-bg-hero) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tropi-hero-bottle-stage { animation: none !important; }
 }

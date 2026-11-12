@@ -49,7 +49,7 @@ const DistributorsSection = () => {
   };
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8">
+    <section className="tropi-distributors-bg py-20 px-4 sm:px-6 lg:px-8">
       <Toaster position="bottom-center" toastOptions={{ duration: 5000, className: 'font-semibold' }} />
       
       <div className="mx-auto max-w-7xl">

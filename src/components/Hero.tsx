@@ -1,8 +1,18 @@
 import { motion } from 'framer-motion';
+import { HeroBottle } from './HeroBottle.js';
+import { useEffect, useState } from 'react';
+import { subscribeToProducts } from '../supabase.js';
+import type { Product } from '../types.js';
 import { useSiteConfig } from '../contexts/SiteConfigContext.js';
 
 export const Hero = () => {
   const { config, loading } = useSiteConfig();
+  const [featuredBottles, setFeaturedBottles] = useState<Product[]>([]);
+  useEffect(() => {
+    return subscribeToProducts((products) => {
+      setFeaturedBottles(products.filter((product) => Boolean(product.image)).slice(0, 4));
+    }, () => { /* La portada sigue funcionando si falla el catálogo. */ });
+  }, []);
   const welcomeMessage = config?.welcomeMessage || 'Tradición y Sabor de Nuestra Tierra';
   const heroTitle = config?.heroTitle || 'Licores y Toritos';
   const containerVariants = {
@@ -34,7 +44,7 @@ export const Hero = () => {
     'w-full sm:w-auto px-10 py-4 rounded-full transition-all duration-300 hover:-translate-y-1 text-center tracking-wide active:scale-[0.98] cursor-pointer';
 
   return (
-    <section className="relative bg-gradient-to-b from-brand-brown via-stone-900 to-paper text-amber-50 py-32 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[85vh] flex items-center">
+    <section className="tropi-cane-hero relative text-brand-brown py-32 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[85vh] flex items-center">
       
       {/* 1. Elementos ambientales y decorativos de fondo (Blobs Premium) */}
       <div className="absolute top-0 right-0 -mt-20 -mr-20 w-[500px] h-[500px] bg-brand-orange/15 rounded-full blur-[120px] pointer-events-none"></div>
@@ -43,17 +53,17 @@ export const Hero = () => {
       {/* Patrón sutil superpuesto para acentuar lo artesanal */}
       <div className="absolute inset-0 opacity-5 bg-[radial-gradient(var(--color-brand-gold)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none"></div>
 
-      <div className="max-w-5xl mx-auto text-center relative z-10">
+      <div className="tropi-hero-layout max-w-7xl w-full mx-auto relative z-10">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="flex flex-col items-center"
+          className="tropi-hero-copy flex flex-col items-center lg:items-start text-center lg:text-left"
         >
           {/* 2. Eslogan de presentación */}
           <motion.h2 
             variants={itemVariants}
-            className="inline-block text-brand-gold font-semibold tracking-[0.2em] text-sm sm:text-base uppercase mb-6 border-b border-brand-gold/30 pb-3"
+            className="inline-block text-[#172b16] font-semibold tracking-[0.2em] text-sm sm:text-base uppercase mb-6 border-b border-[#48683d]/30 pb-3"
           >
             {loading ? '...' : welcomeMessage}
           </motion.h2>
@@ -61,10 +71,10 @@ export const Hero = () => {
           {/* 3. Título Principal de Impacto utilizando font-display corporativa */}
           <motion.h1 
             variants={itemVariants}
-            className="text-5xl sm:text-6xl md:text-8xl font-black text-white tracking-tight mb-8 leading-[1.1]"
+            className="text-5xl sm:text-6xl lg:text-7xl font-black text-[#20130f] tracking-tight mb-7 leading-[1.08]"
           >
             {loading ? 'Cargando...' : heroTitle}
-            <span className="font-display text-brand-orange block mt-3 text-4xl sm:text-5xl md:text-7xl font-normal normal-case drop-shadow-md">
+            <span className="font-display text-[#9e3b0b] block mt-3 text-3xl sm:text-4xl lg:text-5xl font-normal normal-case drop-shadow-md">
               Veracruzanos y 100% Artesanales
             </span>
           </motion.h1>
@@ -72,15 +82,15 @@ export const Hero = () => {
           {/* 4. Descripción pulida del negocio */}
           <motion.p 
             variants={itemVariants}
-            className="text-base sm:text-lg md:text-xl text-stone-300 max-w-3xl mx-auto mb-12 leading-relaxed"
+            className="text-base sm:text-lg text-[#201b16] font-medium max-w-2xl mx-auto mb-9 leading-relaxed"
           >
-            En <span className="text-brand-gold font-semibold drop-shadow-sm">Tropicaña</span>, preservamos recetas de herencia utilizando ingredientes naturales de la región de Veracruz. Descubre el balance perfecto entre suavidad, carácter y frescura en cada botella de edición limitada.
+            En <span className="text-[#78320d] font-bold drop-shadow-sm">Tropicaña</span>, preservamos recetas de herencia utilizando ingredientes naturales de la región de Veracruz. Descubre el balance perfecto entre suavidad, carácter y frescura en cada botella de edición limitada.
           </motion.p>
 
           {/* 5. Botones de Acción (Call To Action) Interactivos */}
           <motion.div 
             variants={itemVariants}
-            className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full sm:w-auto"
+            className="flex flex-col sm:flex-row justify-center lg:justify-start items-center gap-4 w-full sm:w-auto"
           >
             <a
               href={`#${CATALOG_ID}`}
@@ -90,12 +100,19 @@ export const Hero = () => {
             </a>
             <a
               href={`#${CATALOG_ID}`}
-              className={`${baseButtonClasses} border border-stone-400/40 hover:border-brand-gold text-stone-200 hover:text-brand-gold font-medium bg-stone-900/40 backdrop-blur-md shadow-lg`}
+              className={`${baseButtonClasses} border border-[#668057]/40 hover:border-[#50723e] text-brand-brown hover:text-[#375d35] font-semibold bg-white/80 backdrop-blur-md shadow-lg`}
             >
               Ver la Colección Completa
             </a>
           </motion.div>
         </motion.div>
+        {featuredBottles.length > 0 && (
+          <div className="tropi-hero-bottles" aria-label="Botellas originales del catálogo Tropicaña">
+            {featuredBottles.map((product, index) => (
+              <HeroBottle key={product.id} src={product.image} alt={product.name} index={index} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
