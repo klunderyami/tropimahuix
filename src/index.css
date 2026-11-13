@@ -877,3 +877,15 @@ body {
 @keyframes tropi-trio-float { 0%,100% {transform:translateY(0)} 50% {transform:translateY(-15px)} }
 @media(max-width:540px) { .tropi-hero-bottles--trio { height:250px; padding:5px 0 12px; } }
 @media(prefers-reduced-motion:reduce) { .tropi-hero-bottle-stage--trio { animation:none !important; } }
+
+/* Ajuste final de Nuestra Colección: cañaveral visible y fotografías originales integradas. */
+section.tropi-catalog-bg {
+  background: linear-gradient(180deg,rgba(255,250,233,.12),rgba(255,250,233,.28)), url('/feature/coleccion-canas-reales.jpg?v=20261113') center top / cover no-repeat !important;
+  background-attachment: scroll !important;
+}
+.tropi-catalog-overlay { background:linear-gradient(180deg,rgba(255,249,232,.08),rgba(255,249,232,.18)); }
+.tropi-catalog-bg .tropi-product-card { background:rgba(255,252,244,.97); border-color:rgba(108,74,37,.25); box-shadow:0 14px 32px rgba(44,35,18,.18); }
+.tropi-catalog-bg .tropi-product-card__visual { background:linear-gradient(150deg,#f4efe4,#e8e0d1); isolation:isolate; }
+/* Se mantiene el archivo original y su etiqueta; multiply integra fondos blancos sin recortar vidrio ni texto. */
+.tropi-catalog-bg .tropi-product-card__image { mix-blend-mode:multiply; object-fit:contain; }
+.tropi-catalog-bg .tropi-product-card__tag { background:rgba(255,253,247,.96); }
