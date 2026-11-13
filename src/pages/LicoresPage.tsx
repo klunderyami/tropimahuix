@@ -21,7 +21,7 @@ export const LicoresPage = () => {
           {showReferenceBottles && (
             <div className="tropi-licores-showcase__products">
               <img
-                src="/feature/licores-jamaica-arandano-mora.png"
+                src="/feature/licores-jamaica-arandano-mora.png?v=8e34426"
                 alt="Botellas originales Tropicaña: licor de Jamaica, Arándano y Mora Azul"
                 loading="eager"
                 decoding="async"
