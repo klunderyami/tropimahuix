@@ -773,3 +773,66 @@ body {
   .tropi-licores-showcase p { font-size: 1rem; line-height: 1.5; }
   .tropi-licores-showcase__products img { max-height: 290px; }
 }
+
+/* Catálogo Tropicaña: tarjetas comerciales premium, sin fichas de lote. */
+.tropi-product-card {
+  display:flex; flex-direction:column; min-width:0; overflow:hidden;
+  border:1px solid rgba(109,81,52,.16); border-radius:22px;
+  background:#fffdf7; box-shadow:0 10px 30px rgba(63,44,24,.09);
+  transition:transform .25s ease,box-shadow .25s ease;
+}
+.tropi-product-card:hover { transform:translateY(-5px); box-shadow:0 18px 42px rgba(63,44,24,.16); }
+.tropi-product-card__visual {
+  display:flex; position:relative; align-items:center; justify-content:center;
+  height:clamp(250px,25vw,330px); padding:22px;
+  background:linear-gradient(155deg,#f7f3e9,#eee7d7);
+  overflow:hidden;
+}
+.tropi-product-card__image {
+  display:block; width:100%; height:100%; object-fit:contain;
+  transition:transform .45s ease; mix-blend-mode:multiply;
+}
+.tropi-product-card:hover .tropi-product-card__image { transform:scale(1.045); }
+.tropi-product-card__tag {
+  position:absolute; top:14px; left:14px; z-index:2;
+  border:1px solid rgba(96,68,37,.14); border-radius:999px;
+  padding:6px 11px; background:rgba(255,253,246,.94);
+  color:#6b431e; font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase;
+}
+.tropi-product-card__soldout {
+  position:absolute; right:14px; top:14px; z-index:2;
+  border-radius:999px; background:#6b3427; color:white; padding:6px 12px; font-size:11px; font-weight:700;
+}
+.tropi-product-card__body { display:flex; flex:1; flex-direction:column; padding:22px; text-align:left; }
+.tropi-product-card__meta { margin:0 0 8px; color:#856f54; font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+.tropi-product-card__name-link { text-decoration:none; }
+.tropi-product-card__name {
+  margin:0; min-height:2.6em; color:#322218; font-family:Georgia,serif;
+  font-size:clamp(18px,1.65vw,23px); font-weight:700; line-height:1.3;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.tropi-product-card__name-link:hover .tropi-product-card__name { color:#9a4c19; }
+.tropi-product-card__description {
+  margin:10px 0 20px; color:#675c50; font-size:13px; line-height:1.6;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.tropi-product-card__footer { margin-top:auto; }
+.tropi-product-card__price { margin-bottom:14px; color:#3b2719; font-size:clamp(24px,2vw,29px); font-weight:800; font-variant-numeric:tabular-nums; }
+.tropi-product-card__price span { font-size:11px; color:#817263; font-weight:700; }
+.tropi-product-card__button {
+  display:block; width:100%; min-height:46px; border:0; border-radius:12px;
+  background:#a54a1c; color:white; font-size:13px; font-weight:800;
+  cursor:pointer; transition:background .2s,transform .2s;
+}
+.tropi-product-card__button:hover:not(:disabled) { background:#843612; transform:translateY(-1px); }
+.tropi-product-card__button:disabled { background:#ded7cc; color:#756d62; cursor:not-allowed; }
+.tropi-product-card__details { display:block; margin-top:11px; color:#775334; font-size:12px; font-weight:700; text-align:center; text-decoration:underline; text-underline-offset:3px; }
+.tropi-product-card a:focus-visible,.tropi-product-card button:focus-visible { outline:3px solid #c97732; outline-offset:3px; }
+@media(max-width:640px) {
+  .tropi-product-card__visual { height:290px; }
+  .tropi-product-card__body { padding:18px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .tropi-product-card,.tropi-product-card__image,.tropi-product-card__button { transition:none; }
+  .tropi-product-card:hover,.tropi-product-card:hover .tropi-product-card__image { transform:none; }
+}
