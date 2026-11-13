@@ -130,12 +130,12 @@ const ContactPage = () => {
 
             <div className="glass-card border border-stone-200 bg-white/85 p-6 shadow-xl">
               <h3 className="text-xl font-display text-brand-brown mb-3">📞 Teléfono</h3>
-              <p className="text-stone-600">+52 229 123 4567</p>
+              <p className="text-stone-600"><a href="tel:+526647254250" className="hover:underline">+52 1 664 725 4250</a></p>
             </div>
 
             <div className="glass-card border border-stone-200 bg-white/85 p-6 shadow-xl">
               <h3 className="text-xl font-display text-brand-brown mb-3">✉️ Email</h3>
-              <p className="text-stone-600">contacto@tropicana.com</p>
+              <p className="text-stone-600"><a href="mailto:tropicana1930@gmail.com" className="hover:underline">tropicana1930@gmail.com</a></p>
             </div>
 
             <div className="glass-card border border-stone-200 bg-white/85 p-6 shadow-xl">
