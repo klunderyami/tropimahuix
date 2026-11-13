@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { subscribeToProducts } from '../supabase.js';
 import { useCart } from '../contexts/CartContext.js';
-import { ScarcityIndicator, BatchInfoBadge } from './ScarcityAndSocialProof.js';
+
 import type { Product } from '../types.js';
 
 type CatalogCategory = 'all' | Product['category'];
@@ -44,15 +44,7 @@ const categoryLabels: Record<Product['category'], string> = {
   torito: 'Torito cremoso',
 };
 
-const categoryBadgeClasses: Record<Product['category'], string> = {
-  licor: 'bg-brand-orange/95 text-white',
-  torito: 'bg-brand-lime/95 text-brand-brown',
-};
-
-const categoryPriceClasses: Record<Product['category'], string> = {
-  licor: 'text-brand-orange',
-  torito: 'text-brand-lime',
-};
+const priceFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
 export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) => {
   const { addToCart } = useCart();
@@ -300,7 +292,7 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
 
             <motion.div
               key={selectedCategory}
-              className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-7"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -308,8 +300,6 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
               {filteredProducts.map((product) => {
                 const isOutOfStock = product.stock === 0;
                 const categoryLabel = categoryLabels[product.category];
-                const categoryBadgeClass = categoryBadgeClasses[product.category];
-                const categoryPriceClass = categoryPriceClasses[product.category];
 
                 // Filtrar el producto ancla del grid normal (ya se muestra en el banner)
                 if (product.isAnchorProduct && selectedCategory === 'all') {
@@ -320,77 +310,38 @@ export const Catalog = ({ selectedCategory, onChangeCategory }: CatalogProps) =>
                   <motion.article
                     key={product.id}
                     variants={cardVariants}
-                    className={`glass-card overflow-hidden border border-stone-200/60 bg-white/85 shadow-lg transition-all duration-300 flex flex-col group ${
-                      isOutOfStock ? 'opacity-75' : 'hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-500/10'
-                    }`}
+                    className="tropi-product-card group"
                   >
-                     <Link to={`/producto/${product.id}`} className="block">
-                        <div className="h-64 md:h-80 overflow-hidden relative bg-stone-50">
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            loading="lazy"
-                            decoding="async"
-                            className={`w-full h-full object-contain transition-transform duration-700 ease-out ${
-                              isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
-                            }`}
-                            // Optimización: indicar tamaño de visualización para evitar descarga de imagen completa
-                            sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                          />
-                        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent opacity-70 transition-opacity duration-300" />
-                        <ScarcityIndicator product={product} />
-                        
-                        {/* Micro-badge de cierre inmediato */}
-                        {!isOutOfStock && product.limitedStockCount && product.limitedStockCount <= 5 && (
-                          <div className="absolute bottom-3 left-3 animate-pulse">
-                            <div className="glass-card rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
-                              🔥 Lote artesanal casi agotado
-                            </div>
-                          </div>
-                        )}
-                        
-                        <div
-                          className={`absolute top-3 right-3 backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-md ${categoryBadgeClass}`}
-                        >
-                          {categoryLabel}
-                        </div>
-                      </div>
+                    <Link to={`/producto/${product.id}`} className="tropi-product-card__visual" aria-label={`Ver detalles de ${product.name}`}>
+                      <span className="tropi-product-card__tag">{categoryLabel}</span>
+                      {isOutOfStock && <span className="tropi-product-card__soldout">Agotado</span>}
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        loading="lazy"
+                        decoding="async"
+                        sizes="(max-width: 640px) 90vw, (max-width: 1024px) 46vw, (max-width: 1280px) 30vw, 23vw"
+                        className={`tropi-product-card__image ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
+                      />
                     </Link>
-
-                    <div className="p-5 md:p-6 text-center flex-grow flex flex-col justify-between">
-                      <div>
-                        <Link to={`/producto/${product.id}`}>
-                          <h3 className="text-xl md:text-2xl font-bold text-brand-brown mb-2 group-hover:text-brand-orange transition-colors duration-300">
-                            {product.name}
-                          </h3>
-                        </Link>
-                        <p className="text-stone-500 text-sm leading-relaxed mb-4 line-clamp-2">{product.description}</p>
-                        <p className="text-xs text-stone-400 font-medium uppercase tracking-[0.2em] mb-4">
-                          Cont. Neto {product.volume}
-                        </p>
-                        <BatchInfoBadge product={product} />
-                      </div>
-
-                      <div>
-                        <p className="text-3xl md:text-4xl font-extrabold text-brand-brown mb-4 flex items-center justify-center gap-1">
-                          <span className={`text-xl font-bold ${categoryPriceClass}`}>$</span>
-                          {product.price}
-                          <span className="text-xs text-stone-400 font-semibold ml-1">MXN</span>
-                        </p>
+                    <div className="tropi-product-card__body">
+                      <p className="tropi-product-card__meta">TROPICAÑA · {product.volume}</p>
+                      <Link to={`/producto/${product.id}`} className="tropi-product-card__name-link">
+                        <h3 className="tropi-product-card__name">{product.name}</h3>
+                      </Link>
+                      <p className="tropi-product-card__description">{product.description}</p>
+                      <div className="tropi-product-card__footer">
+                        <div className="tropi-product-card__price">{priceFormatter.format(product.price)} <span>MXN</span></div>
                         <button
                           type="button"
                           onClick={() => addToCart(product, 1)}
                           disabled={isOutOfStock}
-                          className={`w-full rounded-xl py-3.5 text-sm font-bold tracking-wide shadow-md transition-all duration-300 ${
-                            isOutOfStock
-                              ? 'cursor-not-allowed bg-stone-200 text-stone-500 shadow-none'
-                              : product.category === 'torito'
-                                ? 'cursor-pointer bg-brand-lime text-brand-brown hover:bg-brand-lime/85 hover:shadow-xl active:scale-[0.98]'
-                                : 'cursor-pointer bg-brand-orange text-white hover:bg-brand-orange/90 hover:shadow-xl active:scale-[0.98]'
-                          }`}
+                          className="tropi-product-card__button"
+                          aria-label={isOutOfStock ? `${product.name} agotado` : `Agregar ${product.name} al carrito`}
                         >
                           {isOutOfStock ? 'Agotado' : 'Agregar al carrito'}
                         </button>
+                        <Link to={`/producto/${product.id}`} className="tropi-product-card__details">Ver detalles del producto</Link>
                       </div>
                     </div>
                   </motion.article>
