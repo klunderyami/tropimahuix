@@ -63,8 +63,8 @@ export const Footer = () => {
             <h4 className="text-sm font-bold uppercase tracking-wider text-brand-gold">Contacto</h4>
             <div className="space-y-3 text-sm text-stone-300">
               <p>📍 Mahuixtlán, Veracruz, México</p>
-              <p>📞 +52 228 839 8024</p>
-              <p>✉️ tropicana1930@gmail.com</p>
+              <p>📞 <a href="tel:+526647254250" className="hover:text-white hover:underline">+52 1 664 725 4250</a></p>
+              <p>✉️ <a href="mailto:tropicana1930@gmail.com" className="hover:text-white hover:underline">tropicana1930@gmail.com</a></p>
             </div>
             <div className="flex items-center gap-3 pt-2">
               <a
