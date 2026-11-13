@@ -525,9 +525,9 @@ body {
    a public/feature/ con estos nombres; mientras tanto se usa la imagen existente. */
 :root {
   --tropi-bg-hero: url('/feature/tropicana-atardecer-canaveral.webp');
-  --tropi-bg-catalog: url('/feature/canaveral-amanecer.jpg');
-  --tropi-bg-story: url('/feature/canaveral-camino.jpg');
-  --tropi-bg-distributors: url('/feature/canaveral-cerca.jpg');
+  --tropi-bg-catalog: url('/feature/coleccion-canas-reales.jpg');
+  --tropi-bg-story: url('/feature/licores-canaveral-atardecer.jpg');
+  --tropi-bg-distributors: url('/feature/tropicana-atardecer-canaveral.webp');
 }
 body {
   background-image: linear-gradient(180deg, rgba(251,247,232,.94), rgba(239,242,222,.90)),
