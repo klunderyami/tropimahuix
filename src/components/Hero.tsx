@@ -1,18 +1,12 @@
 import { motion } from 'framer-motion';
-import { HeroBottle } from './HeroBottle.js';
-import { useEffect, useState } from 'react';
-import { subscribeToProducts } from '../supabase.js';
-import type { Product } from '../types.js';
+
+
+
+
 import { useSiteConfig } from '../contexts/SiteConfigContext.js';
 
 export const Hero = () => {
   const { config, loading } = useSiteConfig();
-  const [featuredBottles, setFeaturedBottles] = useState<Product[]>([]);
-  useEffect(() => {
-    return subscribeToProducts((products) => {
-      setFeaturedBottles(products.filter((product) => Boolean(product.image)).slice(0, 4));
-    }, () => { /* La portada sigue funcionando si falla el catálogo. */ });
-  }, []);
   const welcomeMessage = config?.welcomeMessage || 'Tradición y Sabor de Nuestra Tierra';
   const heroTitle = config?.heroTitle || 'Licores y Toritos';
   const containerVariants = {
@@ -106,13 +100,17 @@ export const Hero = () => {
             </a>
           </motion.div>
         </motion.div>
-        {featuredBottles.length > 0 && (
-          <div className="tropi-hero-bottles" aria-label="Botellas originales del catálogo Tropicaña">
-            {featuredBottles.map((product, index) => (
-              <HeroBottle key={product.id} src={product.image} alt={product.name} index={index} />
-            ))}
-          </div>
-        )}
+        <div className="tropi-hero-bottles tropi-hero-bottles--trio" aria-label="Torito de maracuyá, aguardiente de caña y licor de mora azul Tropicaña">
+          {[
+            { src: '/feature/tropicana-maracuya-portada.png', alt: 'Torito de maracuyá Tropicaña' },
+            { src: '/feature/tropicana-aguardiente-portada.png', alt: 'Aguardiente de caña transparente Tropicaña' },
+            { src: '/feature/tropicana-mora-azul-portada.png', alt: 'Licor de mora azul Tropicaña' },
+          ].map((bottle, index) => (
+            <div className="tropi-hero-bottle-stage tropi-hero-bottle-stage--trio" key={bottle.src} style={{ animationDelay: `${index * -.7}s` }}>
+              <img src={bottle.src} alt={bottle.alt} className="tropi-hero-bottle--trio" loading="eager" decoding="async" />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
