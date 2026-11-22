@@ -8,6 +8,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { registerStripeRoutes } from './stripe.js';
+import { registerMetaRoutes } from './metaRoutes.js';
 
 import { getAgentCatalog, runTropiAgent } from './agentService.js';
 import { registerScheduledAgents } from './agentScheduler.js';
@@ -200,6 +201,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 app.use(express.json({ limit: '5mb' }));
 if (!serviceInitializationError) registerStripeRoutes(app, supabase);
+if (!serviceInitializationError) registerMetaRoutes(app, supabase);
 
 // Rate Limiter para proteger contra ataques de fuerza bruta y DoS
 const apiLimiter = rateLimit({
